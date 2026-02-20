@@ -11,6 +11,7 @@ use App\Models\Vehicle;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use App\Models\Payment;
 
 class JobCardController extends Controller
 {
@@ -64,11 +65,19 @@ class JobCardController extends Controller
             $query->where('vehicle_id', $request->vehicle_id);
         }
 
-        // Branch filter (for branch admins)
+        // Branch filter (for super admin and branch admins)
         $role = DB::table('roles')->where('id', $user->role_id)->first();
-        if ($role->name === 'branch_admin' && $user->branch_id) {
+        // NEW: If branch_id is provided in request, use it (for super admin)
+        if ($request->has('branch_id') && $role->name === 'super_admin') {
+            if ($request->branch_id !== 'all') {
+                $query->where('branch_id', $request->branch_id);
+            }
+            // If 'all', don't filter by branch
+        } elseif ($role->name === 'branch_admin' && $user->branch_id) {
+            // Branch admin can only see their branch
             $query->where('branch_id', $user->branch_id);
         }
+        // Super admin without branch filter sees all branches
 
         // Date range filter
         if ($request->has('date_from')) {
@@ -475,6 +484,50 @@ class JobCardController extends Controller
 
         return response()->json([
             'message' => 'Job card deleted successfully'
+        ]);
+    }
+
+    /**
+     * Get statistics for all branches (super admin only)
+     */
+    public function getBranchStatistics(Request $request)
+    {
+        $user = $request->user();
+        $role = DB::table('roles')->where('id', $user->role_id)->first();
+        
+        if ($role->name !== 'super_admin') {
+            return response()->json(['message' => 'Super admin only'], 403);
+        }
+
+        $branches = DB::table('branches')->get();
+        $stats = [];
+
+        foreach ($branches as $branch) {
+            $branchStats = [
+                'branch_id' => $branch->id,
+                'branch_name' => $branch->name,
+                'total_job_cards' => JobCard::where('branch_id', $branch->id)->count(),
+                'pending' => JobCard::where('branch_id', $branch->id)->where('status', 'pending')->count(),
+                'in_progress' => JobCard::where('branch_id', $branch->id)->where('status', 'in_progress')->count(),
+                'completed' => JobCard::where('branch_id', $branch->id)->where('status', 'completed')->count(),
+                'total_revenue' => Payment::whereHas('jobCard', function($q) use ($branch) {
+                    $q->where('branch_id', $branch->id);
+                })->sum('amount'),
+                'outstanding' => JobCard::where('branch_id', $branch->id)
+                    ->where('balance_amount', '>', 0)
+                    ->sum('balance_amount'),
+            ];
+            $stats[] = $branchStats;
+        }
+
+        return response()->json([
+            'total_branches' => count($branches),
+            'branch_stats' => $stats,
+            'overall' => [
+                'total_job_cards' => JobCard::count(),
+                'total_revenue' => Payment::sum('amount'),
+                'total_outstanding' => JobCard::where('balance_amount', '>', 0)->sum('balance_amount'),
+            ]
         ]);
     }
 }

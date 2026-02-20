@@ -1,7 +1,17 @@
 import { useState, useEffect, useRef } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { useReactToPrint } from 'react-to-print'
+import TaskManagement from '../components/jobcards/TaskManagement'
+import SparePartsManagement from '../components/jobcards/SparePartsManagement'
+import PaymentManagement from '../components/jobcards/PaymentManagement'
+import JobCardPrint from '../components/jobcards/JobCardPrint'
 import axiosClient from '../api/axios'
 
-function JobCardDetail({ jobCardId, onClose, user }) {
+function JobCardDetail({ jobCardId, onClose, user } = {}) {
+  const params = useParams()
+  const navigate = useNavigate()
+  const actualJobCardId = jobCardId || params.id
+  
   const [jobCard, setJobCard] = useState(null)
   const [loading, setLoading] = useState(true)
   const [activeSection, setActiveSection] = useState('overview')
@@ -11,28 +21,35 @@ function JobCardDetail({ jobCardId, onClose, user }) {
   const tasksRef = useRef(null)
   const partsRef = useRef(null)
   const pricingRef = useRef(null)
-  const paymentsRef = useRef(null)
   const inspectionRef = useRef(null)
   const historyRef = useRef(null)
+  const printRef = useRef()
 
   useEffect(() => {
     fetchJobCard()
-  }, [jobCardId])
+  }, [actualJobCardId])
 
   const fetchJobCard = async () => {
     try {
-      const token = localStorage.getItem('token')
-      const response = await axiosClient.get(`/job-cards/${jobCardId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      setJobCard(response.data)
+      setLoading(true)
+      const response = await axiosClient.get(`/job-cards/${actualJobCardId}`)
+      if (response.data?.data) {
+        setJobCard(response.data.data)
+      } else {
+        setJobCard(response.data)
+      }
     } catch (error) {
       console.error('Error fetching job card:', error)
-      alert('Error loading job card')
+      alert('Error loading job card: ' + (error.response?.data?.message || error.message))
     } finally {
       setLoading(false)
     }
   }
+
+  const handlePrint = useReactToPrint({
+    content: () => printRef.current,
+    documentTitle: jobCard?.job_card_number,
+  })
 
   const scrollToSection = (ref, section) => {
     setActiveSection(section)
@@ -92,7 +109,7 @@ function JobCardDetail({ jobCardId, onClose, user }) {
           <div className="flex justify-between items-center">
             <div>
               <button
-                onClick={onClose}
+                onClick={onClose ? onClose : () => navigate('/job-cards')}
                 className="text-gray-600 hover:text-gray-800 mb-2 flex items-center gap-2"
               >
                 ← Back to Job Cards
@@ -102,7 +119,13 @@ function JobCardDetail({ jobCardId, onClose, user }) {
                 Created on {new Date(jobCard.created_at).toLocaleDateString()} by {jobCard.creator?.name}
               </p>
             </div>
-            <div>
+            <div className="flex gap-3">
+              <button
+                onClick={handlePrint}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+              >
+                🖨️ Print Job Card
+              </button>
               <span className={`px-6 py-3 rounded-lg text-lg font-semibold border-2 ${getStatusColor(jobCard.status)}`}>
                 {formatStatus(jobCard.status)}
               </span>
@@ -153,17 +176,7 @@ function JobCardDetail({ jobCardId, onClose, user }) {
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              💰 Pricing
-            </button>
-            <button
-              onClick={() => scrollToSection(paymentsRef, 'payments')}
-              className={`px-4 py-2 rounded-lg font-semibold whitespace-nowrap transition-colors ${
-                activeSection === 'payments'
-                  ? 'bg-primary text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              💳 Payments ({jobCard.payments?.length || 0})
+              💰 Pricing & Payments
             </button>
             <button
               onClick={() => scrollToSection(inspectionRef, 'inspection')}
@@ -295,264 +308,29 @@ function JobCardDetail({ jobCardId, onClose, user }) {
 
         {/* Tasks Section */}
         <section ref={tasksRef} className="scroll-mt-40">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-bold text-gray-800">🔧 Tasks</h2>
-            {user.permissions.includes('add_tasks') && (
-              <button className="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-lg font-semibold">
-                ➕ Add Task
-              </button>
-            )}
-          </div>
-
-          {jobCard.tasks && jobCard.tasks.length > 0 ? (
-            <div className="space-y-4">
-              {jobCard.tasks.map((task) => (
-                <div key={task.id} className="bg-white rounded-xl shadow-md p-6">
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="text-xl font-bold text-gray-800">{task.task_name}</h3>
-                      <p className="text-gray-600 mt-1">{task.description}</p>
-                    </div>
-                    <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                      task.status === 'completed' ? 'bg-green-100 text-green-800' :
-                      task.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
-                      {formatStatus(task.status)}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div>
-                      <div className="text-sm text-gray-600">Category</div>
-                      <div className="font-semibold text-gray-800 capitalize">{task.category}</div>
-                    </div>
-                    <div>
-                      <div className="text-sm text-gray-600">Labor Hours</div>
-                      <div className="font-semibold text-gray-800">{task.labor_hours || '-'} hrs</div>
-                    </div>
-                    <div>
-                      <div className="text-sm text-gray-600">Labor Cost</div>
-                      <div className="font-semibold text-gray-800">{formatCurrency(task.labor_cost)}</div>
-                    </div>
-                    <div>
-                      <div className="text-sm text-gray-600">Priority</div>
-                      <div className="font-semibold text-gray-800">
-                        {task.priority === 2 ? '🔴 Urgent' : task.priority === 1 ? '🟡 High' : '🟢 Normal'}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Assigned Employees */}
-                  {task.assigned_employees && task.assigned_employees.length > 0 && (
-                    <div className="mt-4 pt-4 border-t">
-                      <div className="text-sm text-gray-600 mb-2">Assigned to:</div>
-                      <div className="flex flex-wrap gap-2">
-                        {task.assigned_employees.map((employee) => (
-                          <span key={employee.id} className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-medium">
-                            👤 {employee.name}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="bg-white rounded-xl shadow-md p-12 text-center">
-              <div className="text-gray-400 text-lg">No tasks added yet</div>
-            </div>
-          )}
+          <TaskManagement 
+            jobCard={jobCard} 
+            onUpdate={fetchJobCard}
+            user={user}
+          />
         </section>
 
         {/* Spare Parts Section */}
         <section ref={partsRef} className="scroll-mt-40">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-bold text-gray-800">🔩 Spare Parts Requests</h2>
-            {user.permissions.includes('add_spare_parts') && (
-              <button className="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-lg font-semibold">
-                ➕ Request Parts
-              </button>
-            )}
-          </div>
-
-          {jobCard.spare_parts_requests && jobCard.spare_parts_requests.length > 0 ? (
-            <div className="space-y-4">
-              {jobCard.spare_parts_requests.map((part) => (
-                <div key={part.id} className="bg-white rounded-xl shadow-md p-6">
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="text-xl font-bold text-gray-800">{part.part_name}</h3>
-                      {part.part_number && (
-                        <p className="text-gray-600">Part #: {part.part_number}</p>
-                      )}
-                      <p className="text-gray-600 mt-1">{part.description}</p>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm text-gray-600">Quantity</div>
-                      <div className="text-2xl font-bold text-gray-800">{part.quantity}</div>
-                    </div>
-                  </div>
-
-                  {/* 3-Level Approval Status */}
-                  <div className="grid grid-cols-3 gap-4 mb-4">
-                    <div className="text-center">
-                      <div className="text-sm text-gray-600 mb-1">Employee</div>
-                      <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                        part.employee_status === 'approved' ? 'bg-green-100 text-green-800' :
-                        part.employee_status === 'rejected' ? 'bg-red-100 text-red-800' :
-                        'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {part.employee_status === 'approved' ? '✅ Approved' :
-                         part.employee_status === 'rejected' ? '❌ Rejected' :
-                         '⏳ Pending'}
-                      </span>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-sm text-gray-600 mb-1">Admin</div>
-                      <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                        part.admin_status === 'approved' ? 'bg-green-100 text-green-800' :
-                        part.admin_status === 'rejected' ? 'bg-red-100 text-red-800' :
-                        'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {part.admin_status === 'approved' ? '✅ Approved' :
-                         part.admin_status === 'rejected' ? '❌ Rejected' :
-                         '⏳ Pending'}
-                      </span>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-sm text-gray-600 mb-1">Customer</div>
-                      <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                        part.customer_status === 'approved' ? 'bg-green-100 text-green-800' :
-                        part.customer_status === 'rejected' ? 'bg-red-100 text-red-800' :
-                        'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {part.customer_status === 'approved' ? '✅ Approved' :
-                         part.customer_status === 'rejected' ? '❌ Rejected' :
-                         '⏳ Pending'}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Pricing */}
-                  <div className="grid grid-cols-3 gap-4 pt-4 border-t">
-                    <div>
-                      <div className="text-sm text-gray-600">Unit Cost</div>
-                      <div className="font-semibold text-gray-800">{formatCurrency(part.unit_cost)}</div>
-                    </div>
-                    <div>
-                      <div className="text-sm text-gray-600">Selling Price</div>
-                      <div className="font-semibold text-gray-800">{formatCurrency(part.selling_price)}</div>
-                    </div>
-                    <div>
-                      <div className="text-sm text-gray-600">Total</div>
-                      <div className="font-bold text-primary text-lg">{formatCurrency(part.total_cost)}</div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="bg-white rounded-xl shadow-md p-12 text-center">
-              <div className="text-gray-400 text-lg">No spare parts requested yet</div>
-            </div>
-          )}
+          <SparePartsManagement 
+            jobCard={jobCard} 
+            onUpdate={fetchJobCard}
+            user={user}
+          />
         </section>
 
-        {/* Pricing Section */}
+        {/* Pricing & Payments Section */}
         <section ref={pricingRef} className="scroll-mt-40">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">💰 Pricing Breakdown</h2>
-          
-          <div className="bg-white rounded-xl shadow-md p-6">
-            <div className="space-y-4">
-              <div className="flex justify-between items-center pb-4 border-b">
-                <span className="text-gray-700 font-semibold">Labor Charges</span>
-                <span className="text-gray-900 font-bold text-lg">{formatCurrency(jobCard.labor_cost)}</span>
-              </div>
-              <div className="flex justify-between items-center pb-4 border-b">
-                <span className="text-gray-700 font-semibold">Parts Charges</span>
-                <span className="text-gray-900 font-bold text-lg">{formatCurrency(jobCard.parts_cost)}</span>
-              </div>
-              <div className="flex justify-between items-center pb-4 border-b">
-                <span className="text-gray-700 font-semibold">Other Charges</span>
-                <span className="text-gray-900 font-bold text-lg">{formatCurrency(jobCard.other_charges)}</span>
-              </div>
-              {jobCard.discount > 0 && (
-                <div className="flex justify-between items-center pb-4 border-b">
-                  <span className="text-red-600 font-semibold">Discount</span>
-                  <span className="text-red-600 font-bold text-lg">- {formatCurrency(jobCard.discount)}</span>
-                </div>
-              )}
-              <div className="flex justify-between items-center pb-4 border-b border-2">
-                <span className="text-gray-800 font-bold text-xl">Total Amount</span>
-                <span className="text-primary font-bold text-2xl">{formatCurrency(jobCard.total_amount)}</span>
-              </div>
-              {jobCard.advance_payment > 0 && (
-                <div className="flex justify-between items-center pb-4 border-b">
-                  <span className="text-green-600 font-semibold">Advance Payment</span>
-                  <span className="text-green-600 font-bold text-lg">- {formatCurrency(jobCard.advance_payment)}</span>
-                </div>
-              )}
-              <div className="flex justify-between items-center pt-2">
-                <span className="text-gray-800 font-bold text-xl">Balance Due</span>
-                <span className={`font-bold text-2xl ${jobCard.balance_amount > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                  {formatCurrency(jobCard.balance_amount)}
-                </span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Payments Section */}
-        <section ref={paymentsRef} className="scroll-mt-40">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-bold text-gray-800">💳 Payment History</h2>
-            {user.permissions.includes('add_payments') && jobCard.balance_amount > 0 && (
-              <button className="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-lg font-semibold">
-                ➕ Record Payment
-              </button>
-            )}
-          </div>
-
-          {jobCard.payments && jobCard.payments.length > 0 ? (
-            <div className="bg-white rounded-xl shadow-md overflow-hidden">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-600">Payment #</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-600">Date</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-600">Amount</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-600">Method</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-600">Type</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-600">Received By</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {jobCard.payments.map((payment) => (
-                    <tr key={payment.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 font-semibold text-primary">{payment.payment_number}</td>
-                      <td className="px-6 py-4 text-gray-700">
-                        {new Date(payment.payment_date).toLocaleDateString()}
-                      </td>
-                      <td className="px-6 py-4 font-bold text-green-600">{formatCurrency(payment.amount)}</td>
-                      <td className="px-6 py-4 text-gray-700 capitalize">{payment.payment_method.replace('_', ' ')}</td>
-                      <td className="px-6 py-4">
-                        <span className="px-3 py-1 rounded-full text-sm font-semibold bg-blue-100 text-blue-800 capitalize">
-                          {payment.payment_type}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-gray-700">{payment.received_by?.name}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="bg-white rounded-xl shadow-md p-12 text-center">
-              <div className="text-gray-400 text-lg">No payments recorded yet</div>
-            </div>
-          )}
+          <PaymentManagement 
+            jobCard={jobCard} 
+            onUpdate={fetchJobCard}
+            user={user}
+          />
         </section>
 
         {/* Inspection Section */}
@@ -668,6 +446,8 @@ function JobCardDetail({ jobCardId, onClose, user }) {
           </div>
         </section>
       </div>
+
+      <JobCardPrint ref={printRef} jobCard={jobCard} />
     </div>
   )
 }

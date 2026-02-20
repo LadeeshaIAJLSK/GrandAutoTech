@@ -1,6 +1,17 @@
 import { useState, useEffect } from 'react'
+import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from 'react-router-dom'
 import Login from './pages/Login'
-import Dashboard from './pages/Dashboard'
+import AnalyticsDashboard from './components/dashboard/AnalyticsDashboard'
+import UserManagement from './pages/UserManagement'
+import CustomerManagement from './pages/CustomerManagement'
+import JobCardManagement from './pages/JobCardManagement'
+import JobCardDetail from './pages/JobCardDetail'
+import QuotationManagement from './pages/QuotationManagement'
+import FinancialReports from './pages/FinancialReports'
+import PettyCashManagement from './pages/PettyCashManagement'
+import AccessRightsManagement from './pages/AccessRightsManagement'
+import BranchOverview from './pages/BranchOverview'
+import Layout from './components/Layout'
 
 function App() {
   const [user, setUser] = useState(null)
@@ -36,14 +47,94 @@ function App() {
   }
 
   return (
-    <>
-      {!user ? (
-        <Login onLoginSuccess={handleLoginSuccess} />
-      ) : (
-        <Dashboard user={user} onLogout={handleLogout} />
-      )}
-    </>
+    <Router>
+      <Routes>
+        <Route 
+          path="/login" 
+          element={user ? <Navigate to="/dashboard" /> : <Login onLoginSuccess={handleLoginSuccess} />} 
+        />
+        
+        {/* Protected Routes with Layout */}
+        <Route 
+          path="/dashboard" 
+          element={user ? <Layout user={user} onLogout={handleLogout}><AnalyticsDashboard user={user} /></Layout> : <Navigate to="/login" />} 
+        />
+        
+        <Route 
+          path="/users" 
+          element={user ? <Layout user={user} onLogout={handleLogout}><UserManagement user={user} roleFilter={null} /></Layout> : <Navigate to="/login" />} 
+        />
+        
+        <Route 
+          path="/users/:role" 
+          element={user ? <Layout user={user} onLogout={handleLogout}><UserManagementRoute user={user} /></Layout> : <Navigate to="/login" />} 
+        />
+        
+        <Route 
+          path="/customers" 
+          element={user ? <Layout user={user} onLogout={handleLogout}><CustomerManagement user={user} /></Layout> : <Navigate to="/login" />} 
+        />
+        
+        <Route 
+          path="/job-cards" 
+          element={user ? <Layout user={user} onLogout={handleLogout}><JobCardManagement user={user} /></Layout> : <Navigate to="/login" />} 
+        />
+        
+        <Route 
+          path="/job-cards/:id" 
+          element={user ? <Layout user={user} onLogout={handleLogout}><JobCardDetail user={user} /></Layout> : <Navigate to="/login" />} 
+        />
+        
+        <Route 
+          path="/quotations" 
+          element={user ? <Layout user={user} onLogout={handleLogout}><QuotationManagement user={user} /></Layout> : <Navigate to="/login" />} 
+        />
+        
+        <Route 
+          path="/reports" 
+          element={user ? <Layout user={user} onLogout={handleLogout}><FinancialReports user={user} /></Layout> : <Navigate to="/login" />} 
+        />
+        
+        <Route 
+          path="/petty-cash" 
+          element={user ? <Layout user={user} onLogout={handleLogout}><PettyCashManagement user={user} /></Layout> : <Navigate to="/login" />} 
+        />
+        
+        <Route 
+          path="/access-rights" 
+          element={user ? <Layout user={user} onLogout={handleLogout}><AccessRightsManagement user={user} /></Layout> : <Navigate to="/login" />} 
+        />
+        
+        <Route 
+          path="/branch-overview" 
+          element={user ? <Layout user={user} onLogout={handleLogout}><BranchOverview user={user} /></Layout> : <Navigate to="/login" />} 
+        />
+        
+        <Route 
+          path="/" 
+          element={user ? <Navigate to="/dashboard" /> : <Navigate to="/login" />} 
+        />
+        <Route 
+          path="*" 
+          element={user ? <Navigate to="/dashboard" /> : <Navigate to="/login" />} 
+        />
+      </Routes>
+    </Router>
   )
+}
+
+// Wrapper component to extract role from URL params
+function UserManagementRoute({ user }) {
+  const { role } = useParams()
+  const roleMap = {
+    'branch_admin': { name: 'branch_admin', displayName: 'Branch Admins' },
+    'accountant': { name: 'accountant', displayName: 'Accountants' },
+    'employee': { name: 'employee', displayName: 'Technicians' },
+    'support_staff': { name: 'support_staff', displayName: 'Support Staff' },
+    'customer': { name: 'customer', displayName: 'Customers' }
+  }
+  const roleFilter = roleMap[role] || null
+  return <UserManagement user={user} roleFilter={roleFilter} />
 }
 
 export default App

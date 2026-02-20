@@ -22,11 +22,11 @@ class CustomerController extends Controller
             ->where('role_permissions.role_id', $user->role_id)
             ->pluck('permissions.name')
             ->toArray();
-        
+        //Does this user have permission to view customers
         if (!in_array('view_customers', $permissions)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
-
+        //Fetch customers AND their vehicles together
         $query = Customer::with('vehicles');
 
         // Search filter

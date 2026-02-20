@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react'
-import JobCardDetail from './JobCardDetail'  // ADD THIS
+import { useNavigate } from 'react-router-dom'
 import JobCardCreateWizard from '../components/jobcards/JobCardCreateWizard'  // ADD THIS
 import axiosClient from '../api/axios'
 
-function JobCardManagement({ user }) {
+function JobCardManagement({ user, selectedBranchId }) {
+  const navigate = useNavigate()
   const [jobCards, setJobCards] = useState([])
   const [statistics, setStatistics] = useState(null)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
-  const [selectedJobCardId, setSelectedJobCardId] = useState(null) // ADD THIS
   const [showCreateWizard, setShowCreateWizard] = useState(false) // ADD THIS
 
   const canAdd = user.permissions.includes('add_job_cards')
@@ -19,7 +19,7 @@ function JobCardManagement({ user }) {
   useEffect(() => {
     fetchJobCards()
     fetchStatistics()
-  }, [search, statusFilter])
+  }, [search, statusFilter, selectedBranchId])
 
   const fetchJobCards = async () => {
     try {
@@ -27,6 +27,7 @@ function JobCardManagement({ user }) {
       const params = {}
       if (search) params.search = search
       if (statusFilter) params.status = statusFilter
+      if (selectedBranchId) params.branch_id = selectedBranchId
 
       const response = await axiosClient.get('/job-cards', {
         params,
@@ -112,14 +113,20 @@ function JobCardManagement({ user }) {
     }
   }
 
-  if (selectedJobCardId) {
-    return (
-      <JobCardDetail 
-        jobCardId={selectedJobCardId} 
-        onClose={() => setSelectedJobCardId(null)}
-        user={user}
-      />
-    )
+  const handleStatusChange = async (jobCardId, newStatus) => {
+    try {
+      const token = localStorage.getItem('token')
+      await axiosClient.patch(`/job-cards/${jobCardId}/status`, {
+        status: newStatus
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      alert(`✅ Status updated to ${formatStatus(newStatus)}`)
+      fetchJobCards()
+      fetchStatistics()
+    } catch (error) {
+      alert(error.response?.data?.message || 'Error updating status')
+    }
   }
 
   if (loading) {
@@ -248,9 +255,28 @@ function JobCardManagement({ user }) {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(jobCard.status)}`}>
-                        {getStatusIcon(jobCard.status)} {formatStatus(jobCard.status)}
-                      </span>
+                      {canUpdate && jobCard.status !== 'paid' && jobCard.status !== 'cancelled' ? (
+                        <select
+                          value={jobCard.status}
+                          onChange={(e) => handleStatusChange(jobCard.id, e.target.value)}
+                          className={`px-3 py-1 rounded-full text-sm font-medium border-2 cursor-pointer transition-colors ${getStatusColor(jobCard.status)}`}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <option value="pending">⏳ Pending</option>
+                          <option value="in_progress">🔧 In Progress</option>
+                          <option value="waiting_parts">📦 Waiting Parts</option>
+                          <option value="waiting_customer">⏰ Waiting Customer</option>
+                          <option value="quality_check">✓ Quality Check</option>
+                          <option value="completed">✅ Completed</option>
+                          <option value="invoiced">📄 Invoiced</option>
+                          <option value="paid">💰 Paid</option>
+                          <option value="cancelled">❌ Cancelled</option>
+                        </select>
+                      ) : (
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(jobCard.status)}`}>
+                          {getStatusIcon(jobCard.status)} {formatStatus(jobCard.status)}
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <div className="font-bold text-gray-800">
@@ -271,7 +297,7 @@ function JobCardManagement({ user }) {
                     <td className="px-6 py-4">
                       <div className="flex gap-2">
                         <button
-                          onClick={() => setSelectedJobCardId(jobCard.id)}
+                          onClick={() => navigate(`/job-cards/${jobCard.id}`)}
                           className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg transition-colors text-sm"
                         >
                           👁️ View

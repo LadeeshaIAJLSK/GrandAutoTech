@@ -54,7 +54,8 @@ class AuthController extends Controller
             $branch = DB::table('branches')->where('id', $user->branch_id)->first();
         }
 
-        // Create token
+        // Create token  Login once → get token → send token every request
+
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
@@ -94,7 +95,8 @@ class AuthController extends Controller
     }
 
     /**
-     * Get authenticated user info
+     * Get authenticated user info havent't used yet, but this will be useful for fetching user details on 
+     * frontend after login and also for token validation on each request
      */
     public function me(Request $request)
     {
@@ -108,6 +110,8 @@ class AuthController extends Controller
             ->where('role_permissions.granted', true)
             ->pluck('permissions.name')
             ->toArray();
+
+               //Does this user have branch assigned?fetch that branch 
 
         $branch = null;
         if ($user->branch_id) {
