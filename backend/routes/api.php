@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\QuotationController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\PettyCashController;
 use App\Http\Controllers\Api\AccessRightsController;
+use App\Http\Controllers\Api\BranchController;
 
 
 // Public routes
@@ -156,4 +157,13 @@ Route::get('/access-rights/stats', [AccessRightsController::class, 'getPermissio
 
 // Multi-Branch Statistics (Super Admin Only)
 Route::get('/branches/statistics', [JobCardController::class, 'getBranchStatistics']);
+
+// Branch Management (Super Admin Only)
+Route::get('/branches', [BranchController::class, 'index']);
+Route::get('/branches/{id}', [BranchController::class, 'show']);
+Route::post('/branches', [BranchController::class, 'store']);
+Route::put('/branches/{id}', [BranchController::class, 'update']);
+Route::delete('/branches/{id}', [BranchController::class, 'destroy']);
+Route::patch('/branches/{id}/toggle-status', [BranchController::class, 'toggleStatus']);
+Route::get('/branches/{id}/statistics', [BranchController::class, 'getStatistics']);
 });

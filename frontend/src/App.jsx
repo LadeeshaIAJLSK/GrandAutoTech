@@ -10,6 +10,7 @@ import QuotationManagement from './pages/QuotationManagement'
 import FinancialReports from './pages/FinancialReports'
 import PettyCashManagement from './pages/PettyCashManagement'
 import AccessRightsManagement from './pages/AccessRightsManagement'
+import BranchManagement from './pages/BranchManagement'
 import BranchOverview from './pages/BranchOverview'
 import Layout from './components/Layout'
 
@@ -106,6 +107,11 @@ function App() {
         />
         
         <Route 
+          path="/branch-management" 
+          element={user ? <Layout user={user} onLogout={handleLogout}><BranchManagement user={user} /></Layout> : <Navigate to="/login" />} 
+        />
+        
+        <Route 
           path="/branch-overview" 
           element={user ? <Layout user={user} onLogout={handleLogout}><BranchOverview user={user} /></Layout> : <Navigate to="/login" />} 
         />
@@ -130,8 +136,7 @@ function UserManagementRoute({ user }) {
     'branch_admin': { name: 'branch_admin', displayName: 'Branch Admins' },
     'accountant': { name: 'accountant', displayName: 'Accountants' },
     'employee': { name: 'employee', displayName: 'Technicians' },
-    'support_staff': { name: 'support_staff', displayName: 'Support Staff' },
-    'customer': { name: 'customer', displayName: 'Customers' }
+    'support_staff': { name: 'support_staff', displayName: 'Support Staff' }
   }
   const roleFilter = roleMap[role] || null
   return <UserManagement user={user} roleFilter={roleFilter} />

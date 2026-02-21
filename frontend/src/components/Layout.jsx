@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import axiosClient from '../api/axios'
 import AccessRightsManagement from '../pages/AccessRightsManagement'
+import BranchManagement from '../pages/BranchManagement'
 import BranchOverview from '../pages/BranchOverview'
 import BranchSelector from './common/BranchSelector'
 
@@ -167,17 +168,6 @@ function Layout({ user, onLogout, children }) {
                     >
                       📞 Support Staff
                     </button>
-
-                    <button
-                      onClick={() => navigate('/users/customer')}
-                      className={`w-full text-left px-6 py-3 pl-12 text-sm border-l-4 transition-all ${
-                        location.pathname === '/users/customer'
-                          ? 'border-primary bg-sidebar-hover text-primary font-semibold'
-                          : 'border-transparent text-gray-400 hover:bg-sidebar hover:text-gray-200'
-                      }`}
-                    >
-                      👤 Customers
-                    </button>
                   </div>
                 )}
               </div>
@@ -264,6 +254,20 @@ function Layout({ user, onLogout, children }) {
                 onClick={() => navigate('/access-rights')}
               >
                 🔐 Access Rights
+              </button>
+            )}
+
+            {/* Branch Management (Super Admin Only) */}
+            {user.role.name === 'super_admin' && (
+              <button
+                className={`w-full text-left px-6 py-3 transition-colors ${
+                  isActive('/branch-management')
+                    ? 'bg-primary text-white font-semibold'
+                    : 'text-gray-300 hover:bg-sidebar-hover'
+                }`}
+                onClick={() => navigate('/branch-management')}
+              >
+                🏢 Branch Management
               </button>
             )}
 

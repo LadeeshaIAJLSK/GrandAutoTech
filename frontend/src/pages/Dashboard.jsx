@@ -174,17 +174,6 @@ function Dashboard({ user, onLogout }) {
                     >
                       📞 Support Staff
                     </button>
-
-                    <button
-                      onClick={() => handleRoleTabClick('customer', 'Customers')}
-                      className={`w-full text-left px-6 py-3 pl-12 text-sm border-l-4 transition-all ${
-                        currentRoleFilter?.name === 'customer'
-                          ? 'border-primary bg-sidebar-hover text-primary font-semibold'
-                          : 'border-transparent text-gray-400 hover:bg-sidebar hover:text-gray-200'
-                      }`}
-                    >
-                      👤 Customers
-                    </button>
                   </div>
                 )}
               </div>

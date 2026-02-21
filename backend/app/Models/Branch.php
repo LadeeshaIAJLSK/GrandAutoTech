@@ -26,4 +26,9 @@ class Branch extends Model
     {
         return $this->hasMany(User::class);
     }
+
+    public function jobCards()
+    {
+        return $this->hasMany(JobCard::class);
+    }
 }
