@@ -92,6 +92,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/tasks/{id}/stop', [TaskController::class, 'stopTask']);
     Route::post('/tasks/{id}/complete', [TaskController::class, 'completeTask']);
     Route::get('/employees/available', [TaskController::class, 'getAvailableEmployees']);
+    Route::get('/my-tasks', [TaskController::class, 'getMyTasks']);
+    Route::get('/all-tasks', [TaskController::class, 'getAllTasks']);
+    Route::get('/my-tasks/active-timer', [TaskController::class, 'getActiveTimer']);
+    Route::post('/tasks/{id}/mark-done', [TaskController::class, 'markAsDone']);
 
 
     // Spare Parts Management
@@ -104,6 +108,7 @@ Route::delete('/spare-parts/{id}', [SparePartsRequestController::class, 'destroy
 Route::post('/spare-parts/{id}/approve/employee', [SparePartsRequestController::class, 'employeeApprove']);
 Route::post('/spare-parts/{id}/approve/admin', [SparePartsRequestController::class, 'adminApprove']);
 Route::post('/spare-parts/{id}/approve/customer', [SparePartsRequestController::class, 'customerApprove']);
+Route::post('/spare-parts/{id}/confirm-delivery', [SparePartsRequestController::class, 'confirmDelivery']);
 Route::get('/spare-parts/pending/approvals', [SparePartsRequestController::class, 'getPendingApprovals']);
 
 // Status Updates

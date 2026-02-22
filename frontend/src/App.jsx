@@ -13,6 +13,7 @@ import AccessRightsManagement from './pages/AccessRightsManagement'
 import BranchManagement from './pages/BranchManagement'
 import BranchOverview from './pages/BranchOverview'
 import Layout from './components/Layout'
+import MyTasks from './pages/MyTasks'
 
 function App() {
   const [user, setUser] = useState(null)
@@ -100,7 +101,17 @@ function App() {
           path="/petty-cash" 
           element={user ? <Layout user={user} onLogout={handleLogout}><PettyCashManagement user={user} /></Layout> : <Navigate to="/login" />} 
         />
-        
+
+        {/* My Tasks (Employee & Super Admin) */}
+        <Route
+          path="/my-tasks"
+          element={user && ['employee', 'super_admin'].includes(user.role.name) ? (
+            <Layout user={user} onLogout={handleLogout}>
+              <MyTasks user={user} />
+            </Layout>
+          ) : <Navigate to="/login" />}
+        />
+
         <Route 
           path="/access-rights" 
           element={user ? <Layout user={user} onLogout={handleLogout}><AccessRightsManagement user={user} /></Layout> : <Navigate to="/login" />} 

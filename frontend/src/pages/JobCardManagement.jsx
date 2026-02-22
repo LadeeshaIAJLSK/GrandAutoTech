@@ -10,7 +10,8 @@ function JobCardManagement({ user, selectedBranchId }) {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
-  const [showCreateWizard, setShowCreateWizard] = useState(false) // ADD THIS
+  const [showCreateWizard, setShowCreateWizard] = useState(false)
+  const [pendingPartsCounts, setPendingPartsCounts] = useState({}) // Track pending parts per job card
 
   const canAdd = user.permissions.includes('add_job_cards')
   const canUpdate = user.permissions.includes('update_job_cards')
@@ -20,6 +21,36 @@ function JobCardManagement({ user, selectedBranchId }) {
     fetchJobCards()
     fetchStatistics()
   }, [search, statusFilter, selectedBranchId])
+
+  const fetchPendingPartsCounts = async (cards) => {
+    if (!['super_admin', 'branch_admin'].includes(user?.role?.name)) return
+
+    try {
+      const token = localStorage.getItem('token')
+      const counts = {}
+
+      // Fetch pending parts for each job card
+      for (const card of cards) {
+        try {
+          const response = await axiosClient.get(`/job-cards/${card.id}/spare-parts`, {
+            headers: { Authorization: `Bearer ${token}` }
+          })
+          // Count parts pending admin approval
+          const pendingCount = response.data.filter(
+            p => p.admin_status === 'pending'
+          ).length
+          if (pendingCount > 0) {
+            counts[card.id] = pendingCount
+          }
+        } catch (error) {
+          console.error(`Error fetching parts for job card ${card.id}:`, error)
+        }
+      }
+      setPendingPartsCounts(counts)
+    } catch (error) {
+      console.error('Error fetching pending parts counts:', error)
+    }
+  }
 
   const fetchJobCards = async () => {
     try {
@@ -34,6 +65,10 @@ function JobCardManagement({ user, selectedBranchId }) {
         headers: { Authorization: `Bearer ${token}` }
       })
       setJobCards(response.data.data)
+      // Fetch pending parts counts for admins
+      if (['super_admin', 'branch_admin'].includes(user?.role?.name)) {
+        await fetchPendingPartsCounts(response.data.data)
+      }
     } catch (error) {
       console.error('Error fetching job cards:', error)
     } finally {
@@ -235,11 +270,22 @@ function JobCardManagement({ user, selectedBranchId }) {
                 </tr>
               ) : (
                 jobCards.map(jobCard => (
-                  <tr key={jobCard.id} className="hover:bg-gray-50 transition-colors">
+                  <tr key={jobCard.id} className={`hover:bg-gray-50 transition-colors ${
+                    pendingPartsCounts[jobCard.id] ? 'bg-red-50 border-l-4 border-red-500' : ''
+                  }`}>
                     <td className="px-6 py-4">
-                      <div className="font-bold text-primary">{jobCard.job_card_number}</div>
-                      <div className="text-sm text-gray-500">
-                        {new Date(jobCard.created_at).toLocaleDateString()}
+                      <div className="flex items-center gap-2">
+                        {pendingPartsCounts[jobCard.id] > 0 && (
+                          <span title={`${pendingPartsCounts[jobCard.id]} parts pending approval`} className="text-red-600 font-bold">
+                            ⚠️
+                          </span>
+                        )}
+                        <div>
+                          <div className="font-bold text-primary">{jobCard.job_card_number}</div>
+                          <div className="text-sm text-gray-500">
+                            {new Date(jobCard.created_at).toLocaleDateString()}
+                          </div>
+                        </div>
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -255,7 +301,7 @@ function JobCardManagement({ user, selectedBranchId }) {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      {canUpdate && jobCard.status !== 'paid' && jobCard.status !== 'cancelled' ? (
+                      {canUpdate && jobCard.status !== 'cancelled' ? (
                         <select
                           value={jobCard.status}
                           onChange={(e) => handleStatusChange(jobCard.id, e.target.value)}
@@ -264,13 +310,7 @@ function JobCardManagement({ user, selectedBranchId }) {
                         >
                           <option value="pending">⏳ Pending</option>
                           <option value="in_progress">🔧 In Progress</option>
-                          <option value="waiting_parts">📦 Waiting Parts</option>
-                          <option value="waiting_customer">⏰ Waiting Customer</option>
-                          <option value="quality_check">✓ Quality Check</option>
                           <option value="completed">✅ Completed</option>
-                          <option value="invoiced">📄 Invoiced</option>
-                          <option value="paid">💰 Paid</option>
-                          <option value="cancelled">❌ Cancelled</option>
                         </select>
                       ) : (
                         <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(jobCard.status)}`}>

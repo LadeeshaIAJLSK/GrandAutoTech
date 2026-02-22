@@ -79,8 +79,8 @@ class SparePartsRequest extends Model
 
     public function isFullyApproved()
     {
-        return $this->employee_status === 'approved' 
-            && $this->admin_status === 'approved' 
+        // Only admin and customer approval required (employee level removed)
+        return $this->admin_status === 'approved' 
             && $this->customer_status === 'approved';
     }
 

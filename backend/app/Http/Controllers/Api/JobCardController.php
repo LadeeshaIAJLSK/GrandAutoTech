@@ -136,7 +136,7 @@ class JobCardController extends Controller
     }
 
     /**
-     * Create new job card
+     * Create new job card (updated version)
      */
     public function store(Request $request)
     {
@@ -155,30 +155,46 @@ class JobCardController extends Controller
         $validated = $request->validate([
             'customer_id' => 'required|exists:customers,id',
             'vehicle_id' => 'required|exists:vehicles,id',
-            'current_mileage' => 'nullable|integer|min:0',
-            'customer_complaint' => 'required|string',
-            'initial_inspection_notes' => 'nullable|string',
-            'recommendations' => 'nullable|string',
-            'estimated_completion_date' => 'nullable|date',
+            'expected_completion_date' => 'nullable|date',
+            'test_run_required' => 'required|boolean',
+            'details' => 'nullable|string',
+            'current_mileage' => 'nullable|integer',
+            'tasks' => 'nullable|array',
+            'tasks.*.description' => 'required|string',
+            'tasks.*.category' => 'required|string',
         ]);
 
-        // Auto-generate job card number
-        $validated['job_card_number'] = $this->generateJobCardNumber();
-        $validated['created_by'] = $user->id;
-        $validated['branch_id'] = $user->branch_id;
-        $validated['status'] = 'pending';
+        // Generate job card number
+        $jobCardNumber = $this->generateJobCardNumber();
 
-        // Update vehicle mileage if provided
-        if (isset($validated['current_mileage'])) {
-            $vehicle = Vehicle::find($validated['vehicle_id']);
-            $vehicle->updateMileage($validated['current_mileage']);
+        // Create job card
+        $jobCard = JobCard::create([
+            'job_card_number' => $jobCardNumber,
+            'customer_id' => $validated['customer_id'],
+            'vehicle_id' => $validated['vehicle_id'],
+            'branch_id' => $user->branch_id,
+            'created_by' => $user->id,
+            'expected_completion_date' => $validated['expected_completion_date'] ?? null,
+            'customer_complaint' => $validated['details'] ?? '',
+            'current_mileage' => $validated['current_mileage'] ?? null,
+            'status' => 'pending',
+        ]);
+
+        // Create tasks if provided
+        if (!empty($validated['tasks'])) {
+            foreach ($validated['tasks'] as $taskData) {
+                Task::create([
+                    'job_card_id' => $jobCard->id,
+                    'task_name' => $taskData['description'],
+                    'category' => $taskData['category'],
+                    'status' => 'pending',
+                ]);
+            }
         }
-
-        $jobCard = JobCard::create($validated);
 
         return response()->json([
             'message' => 'Job card created successfully',
-            'job_card' => $jobCard->load(['customer', 'vehicle', 'creator'])
+            'job_card' => $jobCard->load(['customer', 'vehicle', 'tasks'])
         ], 201);
     }
 

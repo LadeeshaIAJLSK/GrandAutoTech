@@ -117,6 +117,15 @@ class UserController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
+        // Prevent anyone from creating super_admin users (only one super_admin allowed)
+        $requestedRoleId = $request->input('role_id');
+        if ($requestedRoleId) {
+            $requestedRole = DB::table('roles')->where('id', $requestedRoleId)->first();
+            if ($requestedRole && $requestedRole->name === 'super_admin') {
+                return response()->json(['message' => 'Cannot create super admin users. There is only one super admin in the system.'], 403);
+            }
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',

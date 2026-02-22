@@ -5,6 +5,7 @@ import TaskManagement from '../components/jobcards/TaskManagement'
 import SparePartsManagement from '../components/jobcards/SparePartsManagement'
 import PaymentManagement from '../components/jobcards/PaymentManagement'
 import JobCardPrint from '../components/jobcards/JobCardPrint'
+import PartsApprovalPanel from '../components/jobcards/PartsApprovalPanel'
 import axiosClient from '../api/axios'
 
 function JobCardDetail({ jobCardId, onClose, user } = {}) {
@@ -317,6 +318,15 @@ function JobCardDetail({ jobCardId, onClose, user } = {}) {
 
         {/* Spare Parts Section */}
         <section ref={partsRef} className="scroll-mt-40">
+          {/* Admin Approval Panel */}
+          {['super_admin', 'branch_admin'].includes(user?.role?.name) && (
+            <PartsApprovalPanel 
+              jobCard={jobCard}
+              user={user}
+              onUpdate={fetchJobCard}
+            />
+          )}
+
           <SparePartsManagement 
             jobCard={jobCard} 
             onUpdate={fetchJobCard}

@@ -187,6 +187,21 @@ function Layout({ user, onLogout, children }) {
               </button>
             )}
 
+
+            {/* My Tasks (Employee & Super Admin) */}
+            {['employee', 'super_admin'].includes(user.role.name) && (
+              <button
+                className={`w-full text-left px-6 py-3 transition-colors ${
+                  isActive('/my-tasks')
+                    ? 'bg-primary text-white font-semibold'
+                    : 'text-gray-300 hover:bg-sidebar-hover'
+                }`}
+                onClick={() => navigate('/my-tasks')}
+              >
+                📝 My Tasks
+              </button>
+            )}
+
             {/* Job Cards Menu */}
             {user.permissions.includes('view_job_cards') && (
               <button

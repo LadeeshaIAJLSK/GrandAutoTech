@@ -192,7 +192,7 @@ class SparePartsRequestController extends Controller
     }
 
     /**
-     * Admin approval (Level 2)
+     * Admin approval (Level 1)
      */
     public function adminApprove(Request $request, $id)
     {
@@ -209,11 +209,6 @@ class SparePartsRequestController extends Controller
         $role = DB::table('roles')->where('id', $user->role_id)->first();
         if (!in_array($role->name, ['super_admin', 'branch_admin'])) {
             return response()->json(['message' => 'Only admins can perform this action'], 403);
-        }
-
-        // Must be approved by employee first
-        if ($part->employee_status !== 'approved') {
-            return response()->json(['message' => 'Must be approved by employee first'], 400);
         }
 
         if ($part->admin_status !== 'pending') {
@@ -269,7 +264,7 @@ class SparePartsRequestController extends Controller
         if ($validated['status'] === 'rejected') {
             $part->update(['overall_status' => 'rejected']);
         } else {
-            // All three levels approved!
+            // Both levels approved (Admin & Customer)!
             $part->update(['overall_status' => 'approved']);
         }
 
@@ -289,13 +284,9 @@ class SparePartsRequestController extends Controller
 
         $query = SparePartsRequest::with(['jobCard.customer', 'jobCard.vehicle', 'requestedBy']);
 
-        if (in_array($role->name, ['employee'])) {
-            // Employee level approvals
-            $query->where('employee_status', 'pending');
-        } elseif (in_array($role->name, ['super_admin', 'branch_admin'])) {
-            // Admin level approvals (after employee approved)
-            $query->where('employee_status', 'approved')
-                  ->where('admin_status', 'pending');
+        if (in_array($role->name, ['super_admin', 'branch_admin'])) {
+            // Admin level approvals only
+            $query->where('admin_status', 'pending');
         } else {
             return response()->json([]);
         }
@@ -303,6 +294,43 @@ class SparePartsRequestController extends Controller
         $parts = $query->orderBy('created_at', 'desc')->get();
 
         return response()->json($parts);
+    }
+
+    /**
+     * Confirm delivery (parts received by warehouse/customer)
+     */
+    public function confirmDelivery(Request $request, $id)
+    {
+        $user = $request->user();
+        
+        $part = SparePartsRequest::findOrFail($id);
+
+        // Must be either 'approved' (have it) or 'received' (ordered and got it)
+        if (!in_array($part->overall_status, ['approved', 'received'])) {
+            return response()->json([
+                'message' => 'Parts must be approved by admin and customer first'
+            ], 400);
+        }
+
+        // Check authorization: must be the requesting employee OR authorized staff
+        $isAuthorizedStaff = in_array($user->role->name ?? '', ['super_admin', 'branch_admin']);
+        $isRequestingEmployee = $part->requested_by === $user->id;
+        
+        if (!$isAuthorizedStaff && !$isRequestingEmployee) {
+            return response()->json([
+                'message' => 'Only the requesting employee or authorized staff can confirm delivery'
+            ], 403);
+        }
+
+        // Update status to installed (fully delivered)
+        $part->update([
+            'overall_status' => 'installed'
+        ]);
+
+        return response()->json([
+            'message' => '✅ Parts delivery confirmed!',
+            'part' => $part->fresh()
+        ]);
     }
 
     /**
@@ -324,6 +352,7 @@ class SparePartsRequestController extends Controller
 
         $validated = $request->validate([
             'overall_status' => 'required|in:ordered,received,installed',
+            'actual_cost' => 'nullable|numeric|min:0',
         ]);
 
         $part = SparePartsRequest::findOrFail($id);
@@ -335,9 +364,17 @@ class SparePartsRequestController extends Controller
             ], 400);
         }
 
-        $part->update([
+        $updateData = [
             'overall_status' => $validated['overall_status']
-        ]);
+        ];
+
+        // If marking as received, save the actual cost
+        if ($validated['overall_status'] === 'received' && isset($validated['actual_cost'])) {
+            $updateData['unit_cost'] = $validated['actual_cost'];
+            $updateData['total_cost'] = $validated['actual_cost'] * $part->quantity;
+        }
+
+        $part->update($updateData);
 
         return response()->json([
             'message' => "Status updated to {$validated['overall_status']}",

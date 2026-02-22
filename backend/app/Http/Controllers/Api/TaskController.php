@@ -6,12 +6,165 @@ use App\Http\Controllers\Controller;
 use App\Models\Task;
 use App\Models\TaskAssignment;
 use App\Models\TaskTimeTracking;
+use App\Models\SparePartsRequest;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class TaskController extends Controller
 {
+    /**
+     * Get tasks assigned to current employee
+     */
+    public function getMyTasks(Request $request)
+    {
+        $user = $request->user();
+        
+        // Get tasks where user is assigned
+        $tasks = Task::whereHas('assignments', function($query) use ($user) {
+            $query->where('user_id', $user->id);
+        })
+        ->with([
+            'jobCard.customer',
+            'jobCard.vehicle',
+            'assignments' => function($query) use ($user) {
+                $query->where('user_id', $user->id);
+            },
+            'timeTracking' => function($query) use ($user) {
+                $query->where('user_id', $user->id);
+            }
+        ])
+        ->orderBy('created_at', 'desc')
+        ->get();
+
+        return response()->json($tasks);
+    }
+
+    /**
+     * Get all tasks (for super admin to see all employee tasks)
+     */
+    public function getAllTasks(Request $request)
+    {
+        $user = $request->user();
+        
+        // Only super admin can view all tasks
+        if ($user->role->name !== 'super_admin') {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        
+        // Get all tasks with their assignments and relationships
+        $tasks = Task::with([
+            'jobCard.customer',
+            'jobCard.vehicle',
+            'assignments.employee',
+            'timeTracking'
+        ])
+        ->orderBy('created_at', 'desc')
+        ->get()
+        ->map(function($task) {
+            // Add assigned_to_user field from first assignment
+            if ($task->assignments && $task->assignments->count() > 0) {
+                $task->assigned_to_user = $task->assignments->first()->employee;
+            }
+            return $task;
+        });
+
+        return response()->json($tasks);
+    }
+
+    /**
+     * Get active time tracking for user
+     */
+    public function getActiveTimer(Request $request)
+    {
+        $user = $request->user();
+        
+        $activeTimer = DB::table('task_time_tracking')
+            ->where('user_id', $user->id)
+            ->whereNull('end_time')
+            ->first();
+        
+        if ($activeTimer) {
+            $task = Task::with('jobCard')->find($activeTimer->task_id);
+            return response()->json([
+                'has_active_timer' => true,
+                'timer' => $activeTimer,
+                'task' => $task
+            ]);
+        }
+        
+        return response()->json(['has_active_timer' => false]);
+    }
+
+    /**
+     * Mark task as done (employee completes)
+     */
+    public function markAsDone(Request $request, $id)
+    {
+        $user = $request->user();
+        $task = Task::findOrFail($id);
+        
+        // Check if user is assigned to this task or is super admin
+        $assignment = TaskAssignment::where('task_id', $id)
+            ->where('user_id', $user->id)
+            ->first();
+        
+        if (!$assignment && $user->role->name !== 'super_admin') {
+            return response()->json(['message' => 'You are not assigned to this task'], 403);
+        }
+        
+        // Check if there are any pending/undelivered parts for this task
+        $pendingParts = SparePartsRequest::where('task_id', $id)
+            ->whereNotIn('overall_status', ['received', 'installed', 'rejected'])
+            ->count();
+        
+        if ($pendingParts > 0) {
+            return response()->json([
+                'message' => '⚠️ Cannot complete task! All requested parts must be delivered first.',
+                'pending_parts' => $pendingParts
+            ], 400);
+        }
+        
+        // Stop any active time tracking
+        $activeTracking = TaskTimeTracking::where('task_id', $id)
+            ->where('user_id', $user->id)
+            ->whereNull('end_time')
+            ->first();
+        
+        if ($activeTracking) {
+            $activeTracking->update([
+                'end_time' => now(),
+                'duration_minutes' => now()->diffInMinutes($activeTracking->start_time)
+            ]);
+        }
+        
+        // Calculate total time spent
+        $totalMinutes = TaskTimeTracking::where('task_id', $id)
+            ->where('user_id', $user->id)
+            ->sum('duration_minutes');
+        
+        // Update task
+        $task->update([
+            'status' => 'completed',
+            'completed_at' => now(),
+            'actual_duration_minutes' => $totalMinutes
+        ]);
+        
+        // Update assignment (only if assignment exists)
+        if ($assignment) {
+            $assignment->update([
+                'status' => 'completed',
+                'completed_at' => now()
+            ]);
+        }
+        
+        return response()->json([
+            'message' => 'Task marked as done',
+            'task' => $task->fresh(),
+            'total_time_spent' => $totalMinutes
+        ]);
+    }
+
     /**
      * Get all tasks for a job card
      */
@@ -184,12 +337,12 @@ class TaskController extends Controller
         $user = $request->user();
         $task = Task::findOrFail($id);
 
-        // Check if user is assigned to this task
+        // Check if user is assigned to this task or is super admin
         $assignment = TaskAssignment::where('task_id', $task->id)
             ->where('user_id', $user->id)
             ->first();
 
-        if (!$assignment) {
+        if (!$assignment && $user->role->name !== 'super_admin') {
             return response()->json([
                 'message' => 'You are not assigned to this task'
             ], 403);
@@ -210,11 +363,13 @@ class TaskController extends Controller
             ]);
         }
 
-        // Update assignment status
-        $assignment->update([
-            'status' => 'in_progress',
-            'started_at' => now()
-        ]);
+        // Update assignment status (only if assignment exists)
+        if ($assignment) {
+            $assignment->update([
+                'status' => 'in_progress',
+                'started_at' => now()
+            ]);
+        }
 
         return response()->json([
             'message' => 'Task started',
@@ -270,7 +425,7 @@ class TaskController extends Controller
 
         $task = Task::findOrFail($id);
 
-        // Check if user is assigned or has permission
+        // Check if user is assigned or has permission or is super admin
         $assignment = TaskAssignment::where('task_id', $task->id)
             ->where('user_id', $user->id)
             ->first();
@@ -281,7 +436,7 @@ class TaskController extends Controller
             ->pluck('permissions.name')
             ->toArray();
 
-        if (!$assignment && !in_array('update_tasks', $permissions)) {
+        if (!$assignment && !in_array('update_tasks', $permissions) && $user->role->name !== 'super_admin') {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
