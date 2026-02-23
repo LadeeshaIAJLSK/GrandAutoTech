@@ -100,14 +100,14 @@ function MyTasks({ user }) {
   }
 
   const handleMarkAsDone = async (taskId) => {
-    if (!confirm('✅ Mark this task as DONE? This will stop the timer and complete the task.')) return
+    if (!confirm('✅ Submit this task for approval?')) return
 
     try {
       const token = localStorage.getItem('token')
       const response = await axiosClient.post(`/tasks/${taskId}/mark-done`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      alert(`✅ Task completed! Total time: ${Math.floor(response.data.total_time_spent / 60)}h ${response.data.total_time_spent % 60}m`)
+      alert(`✅ Task submitted for approval! Total time: ${Math.floor(response.data.total_time_spent / 60)}h ${response.data.total_time_spent % 60}m`)
       fetchMyTasks()
       checkActiveTimer()
     } catch (error) {
@@ -209,6 +209,7 @@ function MyTasks({ user }) {
   // Separate tasks by status
   const activeTasks = filteredTasks.filter(t => t.status === 'in_progress')
   const assignedTasks = filteredTasks.filter(t => t.status === 'assigned')
+  const awaitingApprovalTasks = filteredTasks.filter(t => t.status === 'awaiting_approval')
   const completedTasks = filteredTasks.filter(t => t.status === 'completed')
 
   return (
@@ -327,11 +328,12 @@ function MyTasks({ user }) {
                             <p className="font-semibold text-gray-800">{part.part_name}</p>
                             <p className="text-sm text-gray-600">Qty: {part.quantity} | Status: <span className={`font-bold ${
                               part.overall_status === 'approved' ? 'text-green-600' :
-                              part.overall_status === 'received' ? 'text-blue-600' :
+                              part.overall_status === 'process' ? 'text-blue-600' :
+                              part.overall_status === 'delivered' ? 'text-green-700' :
                               'text-yellow-600'
                             }`}>{part.overall_status.toUpperCase()}</span></p>
                           </div>
-                          {part.overall_status === 'approved' && part.overall_status !== 'received' && (
+                          {part.overall_status === 'process' && (
                             <button
                               onClick={() => handleConfirmDelivery(part.id)}
                               className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded font-semibold text-sm ml-3"
@@ -339,8 +341,8 @@ function MyTasks({ user }) {
                               ✅ Mark Delivered
                             </button>
                           )}
-                          {part.overall_status === 'received' && (
-                            <span className="text-blue-600 font-bold ml-3">✅ Delivered</span>
+                          {part.overall_status === 'delivered' && (
+                            <span className="text-green-700 font-bold ml-3">✅ Delivered to Employee</span>
                           )}
                         </div>
                       ))}
@@ -385,6 +387,42 @@ function MyTasks({ user }) {
               </div>
             )
           })}
+        </div>
+      )}
+
+      {/* Awaiting Approval Tasks */}
+      {awaitingApprovalTasks.length > 0 && (
+        <div className="space-y-4">
+          <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+            <span className="text-2xl">⏳</span>
+            Awaiting Approval ({awaitingApprovalTasks.length})
+          </h3>
+          
+          {awaitingApprovalTasks.map(task => (
+            <div key={task.id} className="bg-white border-2 border-orange-300 rounded-xl shadow-md p-6">
+              <div className="flex justify-between items-start">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <h4 className="text-xl font-bold text-gray-800">{task.task_name}</h4>
+                    <span className="px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm font-bold border-2 border-orange-300">
+                      ⏳ AWAITING APPROVAL
+                    </span>
+                  </div>
+                  <div className="text-gray-600 mb-2">{task.description}</div>
+                  <div className="flex items-center gap-4 text-sm">
+                    <span className="font-semibold text-primary">
+                      📋 {task.job_card.job_card_number}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 p-4 bg-orange-50 rounded-lg">
+                <div className="text-orange-800 font-semibold">
+                  ⏳ Waiting for supervisor approval...
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

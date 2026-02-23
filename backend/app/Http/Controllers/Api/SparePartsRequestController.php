@@ -297,7 +297,7 @@ class SparePartsRequestController extends Controller
     }
 
     /**
-     * Confirm delivery (parts received by warehouse/customer)
+     * Confirm delivery (parts handed over to employee)
      */
     public function confirmDelivery(Request $request, $id)
     {
@@ -305,10 +305,10 @@ class SparePartsRequestController extends Controller
         
         $part = SparePartsRequest::findOrFail($id);
 
-        // Must be either 'approved' (have it) or 'received' (ordered and got it)
-        if (!in_array($part->overall_status, ['approved', 'received'])) {
+        // Must be in 'process' status (either from stock or received from supplier)
+        if ($part->overall_status !== 'process') {
             return response()->json([
-                'message' => 'Parts must be approved by admin and customer first'
+                'message' => 'Parts must be in process status (available)'
             ], 400);
         }
 
@@ -322,9 +322,9 @@ class SparePartsRequestController extends Controller
             ], 403);
         }
 
-        // Update status to installed (fully delivered)
+        // Update status to delivered
         $part->update([
-            'overall_status' => 'installed'
+            'overall_status' => 'delivered'
         ]);
 
         return response()->json([
@@ -351,7 +351,7 @@ class SparePartsRequestController extends Controller
         }
 
         $validated = $request->validate([
-            'overall_status' => 'required|in:ordered,received,installed',
+            'overall_status' => 'required|in:ordered,process,delivered',
             'actual_cost' => 'nullable|numeric|min:0',
         ]);
 
@@ -368,8 +368,8 @@ class SparePartsRequestController extends Controller
             'overall_status' => $validated['overall_status']
         ];
 
-        // If marking as received, save the actual cost
-        if ($validated['overall_status'] === 'received' && isset($validated['actual_cost'])) {
+        // If marking as process (received from supplier), save the actual cost
+        if ($validated['overall_status'] === 'process' && isset($validated['actual_cost'])) {
             $updateData['unit_cost'] = $validated['actual_cost'];
             $updateData['total_cost'] = $validated['actual_cost'] * $part->quantity;
         }

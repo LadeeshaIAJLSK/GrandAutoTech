@@ -8,6 +8,7 @@ use App\Models\TaskAssignment;
 use App\Models\TaskTimeTracking;
 use App\Models\SparePartsRequest;
 use App\Models\User;
+use App\Models\JobCard;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -97,32 +98,20 @@ class TaskController extends Controller
     }
 
     /**
-     * Mark task as done (employee completes)
+     * Mark task as done (employee completes) - NOW GOES TO AWAITING APPROVAL
      */
     public function markAsDone(Request $request, $id)
     {
         $user = $request->user();
         $task = Task::findOrFail($id);
         
-        // Check if user is assigned to this task or is super admin
+        // Check if user is assigned to this task
         $assignment = TaskAssignment::where('task_id', $id)
             ->where('user_id', $user->id)
             ->first();
         
-        if (!$assignment && $user->role->name !== 'super_admin') {
+        if (!$assignment) {
             return response()->json(['message' => 'You are not assigned to this task'], 403);
-        }
-        
-        // Check if there are any pending/undelivered parts for this task
-        $pendingParts = SparePartsRequest::where('task_id', $id)
-            ->whereNotIn('overall_status', ['received', 'installed', 'rejected'])
-            ->count();
-        
-        if ($pendingParts > 0) {
-            return response()->json([
-                'message' => '⚠️ Cannot complete task! All requested parts must be delivered first.',
-                'pending_parts' => $pendingParts
-            ], 400);
         }
         
         // Stop any active time tracking
@@ -143,25 +132,213 @@ class TaskController extends Controller
             ->where('user_id', $user->id)
             ->sum('duration_minutes');
         
-        // Update task
+        // Update task to AWAITING APPROVAL (not completed yet!)
         $task->update([
-            'status' => 'completed',
-            'completed_at' => now(),
+            'status' => 'awaiting_approval',
             'actual_duration_minutes' => $totalMinutes
         ]);
         
-        // Update assignment (only if assignment exists)
-        if ($assignment) {
-            $assignment->update([
-                'status' => 'completed',
-                'completed_at' => now()
-            ]);
-        }
+        // Update assignment
+        $assignment->update([
+            'status' => 'awaiting_approval'
+        ]);
         
         return response()->json([
-            'message' => 'Task marked as done',
+            'message' => 'Task submitted for approval',
             'task' => $task->fresh(),
             'total_time_spent' => $totalMinutes
+        ]);
+    }
+
+    /**
+     * Get tasks awaiting approval (for admin/supervisor)
+     */
+    public function getTasksAwaitingApproval(Request $request)
+    {
+        $user = $request->user();
+        
+        $permissions = DB::table('permissions')
+            ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
+            ->where('role_permissions.role_id', $user->role_id)
+            ->pluck('permissions.name')
+            ->toArray();
+        
+        if (!in_array('approve_tasks', $permissions) && !in_array($user->role->name, ['super_admin', 'branch_admin'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $query = Task::where('status', 'awaiting_approval')
+            ->with([
+                'jobCard.customer',
+                'jobCard.vehicle',
+                'jobCard.branch',
+                'assignedEmployees',
+                'timeTracking'
+            ]);
+
+        // Branch filter
+        $role = DB::table('roles')->where('id', $user->role_id)->first();
+        if ($role->name === 'branch_admin' && $user->branch_id) {
+            $query->whereHas('jobCard', function($q) use ($user) {
+                $q->where('branch_id', $user->branch_id);
+            });
+        }
+
+        $tasks = $query->orderBy('created_at', 'desc')->get();
+
+        // Group by job card
+        $groupedByJobCard = $tasks->groupBy('job_card_id')->map(function($tasks, $jobCardId) {
+            $jobCard = $tasks->first()->jobCard;
+            return [
+                'job_card' => $jobCard,
+                'tasks' => $tasks,
+                'all_tasks_count' => Task::where('job_card_id', $jobCardId)->count(),
+                'awaiting_count' => $tasks->count(),
+            ];
+        })->values();
+
+        return response()->json($groupedByJobCard);
+    }
+
+    /**
+     * Approve individual task
+     */
+    public function approveTask(Request $request, $id)
+    {
+        $user = $request->user();
+        
+        $permissions = DB::table('permissions')
+            ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
+            ->where('role_permissions.role_id', $user->role_id)
+            ->pluck('permissions.name')
+            ->toArray();
+        
+        if (!in_array('approve_tasks', $permissions) && !in_array($user->role->name, ['super_admin', 'branch_admin'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'approval_notes' => 'nullable|string',
+        ]);
+
+        $task = Task::findOrFail($id);
+
+        if ($task->status !== 'awaiting_approval') {
+            return response()->json(['message' => 'Task is not awaiting approval'], 400);
+        }
+
+        $task->update([
+            'status' => 'completed',
+            'completed_at' => now(),
+            'approval_notes' => $validated['approval_notes'] ?? null,
+            'approved_by' => $user->id,
+            'approved_at' => now(),
+        ]);
+
+        // Update all assignments for this task
+        TaskAssignment::where('task_id', $id)->update([
+            'status' => 'completed',
+            'completed_at' => now(),
+        ]);
+
+        // Check if all tasks in job card are completed
+        $jobCard = $task->jobCard;
+        $allTasksCompleted = !Task::where('job_card_id', $jobCard->id)
+            ->whereNotIn('status', ['completed', 'cancelled'])
+            ->exists();
+
+        return response()->json([
+            'message' => 'Task approved',
+            'task' => $task->fresh(),
+            'all_tasks_completed' => $allTasksCompleted,
+            'job_card' => $jobCard
+        ]);
+    }
+
+    /**
+     * Reject task (send back to employee)
+     */
+    public function rejectTask(Request $request, $id)
+    {
+        $user = $request->user();
+        
+        $permissions = DB::table('permissions')
+            ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
+            ->where('role_permissions.role_id', $user->role_id)
+            ->pluck('permissions.name')
+            ->toArray();
+        
+        if (!in_array('approve_tasks', $permissions) && !in_array($user->role->name, ['super_admin', 'branch_admin'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'rejection_reason' => 'required|string',
+        ]);
+
+        $task = Task::findOrFail($id);
+
+        if ($task->status !== 'awaiting_approval') {
+            return response()->json(['message' => 'Task is not awaiting approval'], 400);
+        }
+
+        $task->update([
+            'status' => 'in_progress', // Send back to work
+            'rejection_reason' => $validated['rejection_reason'],
+            'rejected_by' => $user->id,
+            'rejected_at' => now(),
+        ]);
+
+        // Update assignments
+        TaskAssignment::where('task_id', $id)->update([
+            'status' => 'in_progress',
+        ]);
+
+        return response()->json([
+            'message' => 'Task rejected and sent back to employee',
+            'task' => $task->fresh()
+        ]);
+    }
+
+    /**
+     * Approve entire job card (after all tasks approved)
+     */
+    public function approveJobCard(Request $request, $jobCardId)
+    {
+        $user = $request->user();
+        
+        $permissions = DB::table('permissions')
+            ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
+            ->where('role_permissions.role_id', $user->role_id)
+            ->pluck('permissions.name')
+            ->toArray();
+        
+        if (!in_array('approve_tasks', $permissions) && !in_array($user->role->name, ['super_admin', 'branch_admin'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $jobCard = JobCard::findOrFail($jobCardId);
+
+        // Check if all tasks are completed
+        $hasIncompleteTasks = Task::where('job_card_id', $jobCardId)
+            ->whereNotIn('status', ['completed', 'cancelled'])
+            ->exists();
+
+        if ($hasIncompleteTasks) {
+            return response()->json([
+                'message' => 'Cannot approve job card. Some tasks are still incomplete.'
+            ], 400);
+        }
+
+        // Update job card status
+        $jobCard->update([
+            'status' => 'completed',
+            'completed_at' => now(),
+        ]);
+
+        return response()->json([
+            'message' => 'Job card approved and marked as completed',
+            'job_card' => $jobCard->fresh()
         ]);
     }
 

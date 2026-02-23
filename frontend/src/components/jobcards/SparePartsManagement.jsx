@@ -140,8 +140,8 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
     }
   }
 
-  const handleConfirmDelivery = async (partId) => {
-    if (!confirm('✅ Confirm that parts have been delivered?')) return
+  const handleMarkAsDelivered = async (partId) => {
+    if (!confirm('✅ Confirm that parts have been handed over to employee?')) return
 
     try {
       const token = localStorage.getItem('token')
@@ -177,7 +177,22 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
       alert(error.response?.data?.message || 'Error marking as ordered')
     }
   }
-
+  // Mark as have it (when they have it in stock) - Path A direct to process
+  const handleHaveIt = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      await axiosClient.patch(`/spare-parts/${selectedPart.id}/status`, {
+        overall_status: 'process'
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      alert('✅ Part marked as available!')
+      setShowHavePartModal(false)
+      onUpdate()
+    } catch (error) {
+      alert(error.response?.data?.message || 'Error marking as available')
+    }
+  }
   // Mark as received with cost (after order is received from supplier)
   const openReceivedCostModal = (part) => {
     setSelectedPart(part)
@@ -194,12 +209,12 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
     try {
       const token = localStorage.getItem('token')
       await axiosClient.patch(`/spare-parts/${selectedPart.id}/status`, {
-        overall_status: 'received',
+        overall_status: 'process',
         actual_cost: receivedCost
       }, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      alert('✅ Part marked as received')
+      alert('✅ Part received from supplier and available!')
       setShowReceivedCostModal(false)
       onUpdate()
     } catch (error) {
@@ -408,20 +423,20 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
                     </button>
                   )}
 
-                  {/* When received, show confirmation button for employee/staff */}
-                  {part.overall_status === 'received' && (
+                  {/* When process (available), show button to mark as delivered */}
+                  {part.overall_status === 'process' && (
                     <button
-                      onClick={() => handleConfirmDelivery(part.id)}
+                      onClick={() => handleMarkAsDelivered(part.id)}
                       className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors text-sm font-semibold"
                     >
-                      ✅ Confirm Delivery to Customer
+                      ✅ Mark as Delivered
                     </button>
                   )}
 
                   {/* Show delivered status */}
-                  {part.overall_status === 'installed' && (
+                  {part.overall_status === 'delivered' && (
                     <span className="bg-green-100 text-green-800 px-4 py-2 rounded-lg text-sm font-semibold">
-                      ✅ Delivered & Installed
+                      ✅ Delivered to Employee
                     </span>
                   )}
 
@@ -690,7 +705,7 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
                 📥 Need to Order
               </button>
               <button
-                onClick={handleMarkAsDeliveredDirect}
+                onClick={handleHaveIt}
                 className="px-6 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold"
               >
                 ✅ Have it (Deliver Now)

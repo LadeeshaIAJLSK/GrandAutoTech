@@ -171,4 +171,11 @@ Route::put('/branches/{id}', [BranchController::class, 'update']);
 Route::delete('/branches/{id}', [BranchController::class, 'destroy']);
 Route::patch('/branches/{id}/toggle-status', [BranchController::class, 'toggleStatus']);
 Route::get('/branches/{id}/statistics', [BranchController::class, 'getStatistics']);
+
+
+// Task Approval System
+Route::get('/tasks/awaiting-approval', [TaskController::class, 'getTasksAwaitingApproval']);
+Route::post('/tasks/{id}/approve', [TaskController::class, 'approveTask']);
+Route::post('/tasks/{id}/reject', [TaskController::class, 'rejectTask']);
+Route::post('/job-cards/{jobCardId}/approve', [TaskController::class, 'approveJobCard']);
 });

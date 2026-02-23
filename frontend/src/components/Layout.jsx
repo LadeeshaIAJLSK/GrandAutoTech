@@ -5,6 +5,7 @@ import AccessRightsManagement from '../pages/AccessRightsManagement'
 import BranchManagement from '../pages/BranchManagement'
 import BranchOverview from '../pages/BranchOverview'
 import BranchSelector from './common/BranchSelector'
+import TaskApproval from '../pages/TaskApproval'
 
 function Layout({ user, onLogout, children }) {
   const navigate = useNavigate()
@@ -213,6 +214,20 @@ function Layout({ user, onLogout, children }) {
                 onClick={() => navigate('/job-cards')}
               >
                 📋 Job Cards
+              </button>
+            )}
+
+            {/* Task Approval (Admin/Supervisor) */}
+            {['super_admin', 'branch_admin'].includes(user.role.name) && (
+              <button
+                className={`w-full text-left px-6 py-3 transition-colors ${
+                  isActive('/task-approval')
+                    ? 'bg-primary text-white font-semibold'
+                    : 'text-gray-300 hover:bg-sidebar-hover'
+                }`}
+                onClick={() => navigate('/task-approval')}
+              >
+                ✅ Task Approval
               </button>
             )}
 

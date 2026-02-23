@@ -14,6 +14,7 @@ import BranchManagement from './pages/BranchManagement'
 import BranchOverview from './pages/BranchOverview'
 import Layout from './components/Layout'
 import MyTasks from './pages/MyTasks'
+import TaskApproval from './pages/TaskApproval'
 
 function App() {
   const [user, setUser] = useState(null)
@@ -108,6 +109,16 @@ function App() {
           element={user && ['employee', 'super_admin'].includes(user.role.name) ? (
             <Layout user={user} onLogout={handleLogout}>
               <MyTasks user={user} />
+            </Layout>
+          ) : <Navigate to="/login" />}
+        />
+
+        {/* Task Approval (Admin/Supervisor) */}
+        <Route
+          path="/task-approval"
+          element={user && ['super_admin', 'branch_admin'].includes(user.role.name) ? (
+            <Layout user={user} onLogout={handleLogout}>
+              <TaskApproval user={user} />
             </Layout>
           ) : <Navigate to="/login" />}
         />

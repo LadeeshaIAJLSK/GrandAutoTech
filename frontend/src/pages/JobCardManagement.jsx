@@ -24,18 +24,21 @@ function JobCardManagement({ user, selectedBranchId }) {
 
   const fetchPendingPartsCounts = async (cards) => {
     if (!['super_admin', 'branch_admin'].includes(user?.role?.name)) return
+    if (cards.length === 0) return
 
     try {
       const token = localStorage.getItem('token')
       const counts = {}
 
-      // Fetch pending parts for each job card
-      for (const card of cards) {
+      // Get all pending parts in a single API call if available
+      // Otherwise, only fetch for first 5 visible job cards
+      const cardsToCheck = cards.slice(0, 5)
+      
+      for (const card of cardsToCheck) {
         try {
           const response = await axiosClient.get(`/job-cards/${card.id}/spare-parts`, {
             headers: { Authorization: `Bearer ${token}` }
           })
-          // Count parts pending admin approval
           const pendingCount = response.data.filter(
             p => p.admin_status === 'pending'
           ).length
@@ -64,13 +67,20 @@ function JobCardManagement({ user, selectedBranchId }) {
         params,
         headers: { Authorization: `Bearer ${token}` }
       })
-      setJobCards(response.data.data)
-      // Fetch pending parts counts for admins
+      
+      // Handle both paginated and non-paginated responses
+      const jobCardsData = response.data.data || response.data
+      setJobCards(Array.isArray(jobCardsData) ? jobCardsData : [])
+      
+      // LAZY LOAD: Fetch pending parts AFTER page loads (don't wait for this)
       if (['super_admin', 'branch_admin'].includes(user?.role?.name)) {
-        await fetchPendingPartsCounts(response.data.data)
+        setTimeout(() => {
+          fetchPendingPartsCounts(Array.isArray(jobCardsData) ? jobCardsData : [])
+        }, 500)
       }
     } catch (error) {
       console.error('Error fetching job cards:', error)
+      alert('Error fetching job cards: ' + (error.response?.data?.message || error.message))
     } finally {
       setLoading(false)
     }
