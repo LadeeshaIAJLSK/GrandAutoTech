@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import JobCardCreateWizard from '../components/jobcards/JobCardCreateWizard'  // ADD THIS
+import JobCardCreateWizard from '../components/jobcards/JobCardCreateWizard'
 import axiosClient from '../api/axios'
+import { createPortal } from 'react-dom'
 
 function JobCardManagement({ user, selectedBranchId }) {
   const navigate = useNavigate()
@@ -11,7 +12,10 @@ function JobCardManagement({ user, selectedBranchId }) {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [showCreateWizard, setShowCreateWizard] = useState(false)
-  const [pendingPartsCounts, setPendingPartsCounts] = useState({}) // Track pending parts per job card
+  const [pendingPartsCounts, setPendingPartsCounts] = useState({})
+  const [openMenuId, setOpenMenuId] = useState(null)
+  const [menuPos, setMenuPos] = useState({ top: 0, right: 0 })
+  const buttonRefs = useRef({})
 
   const canAdd = user.permissions.includes('add_job_cards')
   const canUpdate = user.permissions.includes('update_job_cards')
@@ -22,29 +26,26 @@ function JobCardManagement({ user, selectedBranchId }) {
     fetchStatistics()
   }, [search, statusFilter, selectedBranchId])
 
+  useEffect(() => {
+    const handleClick = () => setOpenMenuId(null)
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
   const fetchPendingPartsCounts = async (cards) => {
     if (!['super_admin', 'branch_admin'].includes(user?.role?.name)) return
     if (cards.length === 0) return
-
     try {
       const token = localStorage.getItem('token')
       const counts = {}
-
-      // Get all pending parts in a single API call if available
-      // Otherwise, only fetch for first 5 visible job cards
       const cardsToCheck = cards.slice(0, 5)
-      
       for (const card of cardsToCheck) {
         try {
           const response = await axiosClient.get(`/job-cards/${card.id}/spare-parts`, {
             headers: { Authorization: `Bearer ${token}` }
           })
-          const pendingCount = response.data.filter(
-            p => p.admin_status === 'pending'
-          ).length
-          if (pendingCount > 0) {
-            counts[card.id] = pendingCount
-          }
+          const pendingCount = response.data.filter(p => p.admin_status === 'pending').length
+          if (pendingCount > 0) counts[card.id] = pendingCount
         } catch (error) {
           console.error(`Error fetching parts for job card ${card.id}:`, error)
         }
@@ -62,17 +63,12 @@ function JobCardManagement({ user, selectedBranchId }) {
       if (search) params.search = search
       if (statusFilter) params.status = statusFilter
       if (selectedBranchId) params.branch_id = selectedBranchId
-
       const response = await axiosClient.get('/job-cards', {
         params,
         headers: { Authorization: `Bearer ${token}` }
       })
-      
-      // Handle both paginated and non-paginated responses
       const jobCardsData = response.data.data || response.data
       setJobCards(Array.isArray(jobCardsData) ? jobCardsData : [])
-      
-      // LAZY LOAD: Fetch pending parts AFTER page loads (don't wait for this)
       if (['super_admin', 'branch_admin'].includes(user?.role?.name)) {
         setTimeout(() => {
           fetchPendingPartsCounts(Array.isArray(jobCardsData) ? jobCardsData : [])
@@ -98,38 +94,38 @@ function JobCardManagement({ user, selectedBranchId }) {
     }
   }
 
-  const getStatusColor = (status) => {
-    const colors = {
-      pending: 'bg-yellow-100 text-yellow-800',
-      in_progress: 'bg-blue-100 text-blue-800',
-      waiting_parts: 'bg-purple-100 text-purple-800',
-      waiting_customer: 'bg-orange-100 text-orange-800',
-      quality_check: 'bg-indigo-100 text-indigo-800',
-      completed: 'bg-green-100 text-green-800',
-      invoiced: 'bg-teal-100 text-teal-800',
-      paid: 'bg-emerald-100 text-emerald-800',
-      cancelled: 'bg-red-100 text-red-800',
+  const getStatusStyle = (status) => {
+    const styles = {
+      pending:          'bg-yellow-50 text-yellow-700 border-yellow-200',
+      in_progress:      'bg-blue-50 text-blue-700 border-blue-200',
+      waiting_parts:    'bg-purple-50 text-purple-700 border-purple-200',
+      waiting_customer: 'bg-orange-50 text-orange-700 border-orange-200',
+      quality_check:    'bg-indigo-50 text-indigo-700 border-indigo-200',
+      completed:        'bg-green-50 text-green-700 border-green-200',
+      invoiced:         'bg-teal-50 text-teal-700 border-teal-200',
+      paid:             'bg-emerald-50 text-emerald-700 border-emerald-200',
+      cancelled:        'bg-red-50 text-red-600 border-red-200',
     }
-    return colors[status] || 'bg-gray-100 text-gray-800'
+    return styles[status] || 'bg-gray-50 text-gray-700 border-gray-200'
   }
 
-  const getStatusIcon = (status) => {
-    const icons = {
-      pending: '⏳',
-      in_progress: '🔧',
-      waiting_parts: '📦',
-      waiting_customer: '⏰',
-      quality_check: '✓',
-      completed: '✅',
-      invoiced: '📄',
-      paid: '💰',
-      cancelled: '❌',
+  const getStatusDot = (status) => {
+    const dots = {
+      pending:          'bg-yellow-400',
+      in_progress:      'bg-blue-500',
+      waiting_parts:    'bg-purple-500',
+      waiting_customer: 'bg-orange-400',
+      quality_check:    'bg-indigo-500',
+      completed:        'bg-green-500',
+      invoiced:         'bg-teal-500',
+      paid:             'bg-emerald-500',
+      cancelled:        'bg-red-400',
     }
-    return icons[status] || '📋'
+    return dots[status] || 'bg-gray-400'
   }
 
   const formatStatus = (status) => {
-    return status.split('_').map(word => 
+    return status.split('_').map(word =>
       word.charAt(0).toUpperCase() + word.slice(1)
     ).join(' ')
   }
@@ -143,14 +139,13 @@ function JobCardManagement({ user, selectedBranchId }) {
   }
 
   const handleDelete = async (jobCardId) => {
-    if (!confirm('⚠️ Are you sure you want to delete this job card?')) return
-
+    if (!confirm('Are you sure you want to delete this job card?')) return
     try {
       const token = localStorage.getItem('token')
       await axiosClient.delete(`/job-cards/${jobCardId}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      alert('✅ Job card deleted successfully!')
+      alert('Job card deleted successfully!')
       fetchJobCards()
       fetchStatistics()
     } catch (error) {
@@ -161,12 +156,10 @@ function JobCardManagement({ user, selectedBranchId }) {
   const handleStatusChange = async (jobCardId, newStatus) => {
     try {
       const token = localStorage.getItem('token')
-      await axiosClient.patch(`/job-cards/${jobCardId}/status`, {
-        status: newStatus
-      }, {
+      await axiosClient.patch(`/job-cards/${jobCardId}/status`, { status: newStatus }, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      alert(`✅ Status updated to ${formatStatus(newStatus)}`)
+      alert(`Status updated to ${formatStatus(newStatus)}`)
       fetchJobCards()
       fetchStatistics()
     } catch (error) {
@@ -174,67 +167,174 @@ function JobCardManagement({ user, selectedBranchId }) {
     }
   }
 
+  const toggleMenu = (e, id) => {
+    e.stopPropagation()
+    if (openMenuId === id) { setOpenMenuId(null); return }
+    const btn = buttonRefs.current[id]
+    if (btn) {
+      const rect = btn.getBoundingClientRect()
+      const spaceBelow = window.innerHeight - rect.bottom
+      if (spaceBelow < 120) {
+        setMenuPos({ bottom: window.innerHeight - rect.top + 4, right: window.innerWidth - rect.right, top: undefined })
+      } else {
+        setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right, bottom: undefined })
+      }
+    }
+    setOpenMenuId(id)
+  }
+
+  const DropdownMenu = ({ jobCard }) => createPortal(
+    <div
+      onMouseDown={(e) => e.stopPropagation()}
+      style={{ position: 'fixed', top: menuPos.top ?? 'auto', bottom: menuPos.bottom ?? 'auto', right: menuPos.right, zIndex: 9999, width: '160px' }}
+      className="bg-white rounded-lg shadow-lg border border-gray-100 py-1"
+    >
+      <button
+        onClick={() => { navigate(`/job-cards/${jobCard.id}`); setOpenMenuId(null) }}
+        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+        </svg>
+        View
+      </button>
+      {canUpdate && jobCard.status !== 'paid' && jobCard.status !== 'cancelled' && (
+        <button
+          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+          onClick={() => setOpenMenuId(null)}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+          Edit
+        </button>
+      )}
+      {canDelete && (jobCard.status === 'pending' || jobCard.status === 'cancelled') && (
+        <button
+          onClick={() => { handleDelete(jobCard.id); setOpenMenuId(null) }}
+          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+          Delete
+        </button>
+      )}
+    </div>,
+    document.body
+  )
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-lg text-gray-600">Loading job cards...</div>
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-7 h-7 border-[3px] border-primary border-t-transparent rounded-full animate-spin" />
+          <span className="text-sm text-gray-400">Loading job cards...</span>
+        </div>
       </div>
     )
   }
 
   return (
-    <div>
+    <div className="space-y-5">
+
       {/* Statistics Cards */}
       {statistics && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-xl shadow-md p-5 border-l-4 border-blue-500">
-            <div className="text-sm text-gray-600 mb-1">Total Job Cards</div>
-            <div className="text-3xl font-bold text-gray-800">{statistics.total}</div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex items-center gap-4">
+            <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Total</p>
+              <p className="text-2xl font-bold text-gray-900">{statistics.total}</p>
+            </div>
           </div>
-          <div className="bg-white rounded-xl shadow-md p-5 border-l-4 border-yellow-500">
-            <div className="text-sm text-gray-600 mb-1">Pending</div>
-            <div className="text-3xl font-bold text-yellow-600">{statistics.pending}</div>
+
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex items-center gap-4">
+            <div className="w-10 h-10 rounded-lg bg-yellow-50 flex items-center justify-center flex-shrink-0">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Pending</p>
+              <p className="text-2xl font-bold text-yellow-600">{statistics.pending}</p>
+            </div>
           </div>
-          <div className="bg-white rounded-xl shadow-md p-5 border-l-4 border-purple-500">
-            <div className="text-sm text-gray-600 mb-1">In Progress</div>
-            <div className="text-3xl font-bold text-purple-600">{statistics.in_progress}</div>
+
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex items-center gap-4">
+            <div className="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center flex-shrink-0">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">In Progress</p>
+              <p className="text-2xl font-bold text-purple-600">{statistics.in_progress}</p>
+            </div>
           </div>
-          <div className="bg-white rounded-xl shadow-md p-5 border-l-4 border-green-500">
-            <div className="text-sm text-gray-600 mb-1">Total Revenue</div>
-            <div className="text-2xl font-bold text-green-600">{formatCurrency(statistics.total_revenue)}</div>
+
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex items-center gap-4">
+            <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center flex-shrink-0">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Revenue</p>
+              <p className="text-lg font-bold text-green-600">{formatCurrency(statistics.total_revenue)}</p>
+            </div>
           </div>
         </div>
       )}
 
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-3xl font-bold text-gray-800">📋 Job Cards</h2>
+      <div className="flex justify-between items-center bg-white border border-gray-200 rounded-xl px-6 py-4 shadow-sm">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900 tracking-tight">Job Cards</h2>
+          <p className="text-sm text-gray-400 mt-0.5">Manage and track all service jobs</p>
+        </div>
         {canAdd && (
           <button
             onClick={() => setShowCreateWizard(true)}
-            className="bg-primary hover:bg-primary-dark text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+            className="inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-px active:translate-y-0"
+            style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
           >
-            ➕ Create Job Card
+            <span className="flex items-center justify-center w-5 h-5 bg-white/25 rounded-md">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+              </svg>
+            </span>
+            Create Job Card
           </button>
         )}
       </div>
 
       {/* Filters */}
-      <div className="flex gap-4 mb-5">
-        <input
-          type="text"
-          placeholder="🔍 Search by job card #, customer, license plate..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-primary focus:outline-none"
-        />
+      <div className="flex gap-3 items-center">
+        <div className="relative flex-1 max-w-sm">
+          <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Search by job card #, customer, license plate..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-lg bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all shadow-sm"
+          />
+        </div>
 
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-primary focus:outline-none min-w-[200px]"
+          className="px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all min-w-[180px] shadow-sm"
         >
-          <option value="">All Status</option>
+          <option value="">All Statuses</option>
           <option value="pending">Pending</option>
           <option value="in_progress">In Progress</option>
           <option value="waiting_parts">Waiting Parts</option>
@@ -245,129 +345,132 @@ function JobCardManagement({ user, selectedBranchId }) {
           <option value="paid">Paid</option>
           <option value="cancelled">Cancelled</option>
         </select>
+
+        <div className="ml-auto flex items-center gap-1.5 bg-white border border-gray-200 rounded-lg px-3.5 py-2 shadow-sm">
+          <span className="w-2 h-2 rounded-full bg-primary opacity-80" />
+          <span className="text-sm font-semibold text-gray-700">{jobCards.length}</span>
+          <span className="text-sm text-gray-400">{jobCards.length !== 1 ? 'job cards' : 'job card'}</span>
+        </div>
       </div>
 
-      {/* Count */}
-      <div className="bg-gray-50 px-4 py-3 rounded-lg mb-5">
-        <span className="text-primary text-xl font-bold">{jobCards.length}</span>
-        <span className="text-gray-600 ml-2">job card{jobCards.length !== 1 ? 's' : ''} found</span>
-      </div>
-
-      {/* Job Cards Table */}
-      <div className="bg-white rounded-xl shadow-md overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b-2 border-gray-200">
-              <tr>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Job Card #</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Customer</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Vehicle</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Status</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Total Amount</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Created</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Actions</th>
+      {/* Table */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+        <div className="overflow-x-auto rounded-xl">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b-2 border-gray-100 bg-gradient-to-r from-gray-50 to-gray-50/60">
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Job Card #</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Customer</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Vehicle</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Amount</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Created</th>
+                <th className="px-5 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {jobCards.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="px-6 py-12 text-center">
-                    <div className="text-gray-400 text-lg">📭 No job cards found</div>
-                    <p className="text-gray-500 text-sm mt-2">
-                      {canAdd ? 'Create your first job card to get started' : 'No job cards available'}
-                    </p>
+                  <td colSpan="7" className="px-5 py-16 text-center">
+                    <div className="flex flex-col items-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <p className="text-gray-400 font-medium">No job cards found</p>
+                      <p className="text-gray-300 text-xs">
+                        {canAdd ? 'Create your first job card to get started' : 'No job cards available'}
+                      </p>
+                    </div>
                   </td>
                 </tr>
               ) : (
                 jobCards.map(jobCard => (
-                  <tr key={jobCard.id} className={`hover:bg-gray-50 transition-colors ${
-                    pendingPartsCounts[jobCard.id] ? 'bg-red-50 border-l-4 border-red-500' : ''
-                  }`}>
-                    <td className="px-6 py-4">
+                  <tr
+                    key={jobCard.id}
+                    className={`transition-colors ${
+                      pendingPartsCounts[jobCard.id]
+                        ? 'bg-red-50/60 border-l-[3px] border-red-400 hover:bg-red-50'
+                        : 'hover:bg-gray-50/70'
+                    }`}
+                  >
+                    <td className="px-5 py-4">
                       <div className="flex items-center gap-2">
                         {pendingPartsCounts[jobCard.id] > 0 && (
-                          <span title={`${pendingPartsCounts[jobCard.id]} parts pending approval`} className="text-red-600 font-bold">
-                            ⚠️
+                          <span
+                            title={`${pendingPartsCounts[jobCard.id]} parts pending approval`}
+                            className="flex items-center justify-center w-4 h-4 rounded-full bg-red-100 flex-shrink-0"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
                           </span>
                         )}
                         <div>
-                          <div className="font-bold text-primary">{jobCard.job_card_number}</div>
-                          <div className="text-sm text-gray-500">
+                          <div className="font-bold text-primary text-sm">{jobCard.job_card_number}</div>
+                          <div className="text-xs text-gray-400 mt-0.5">
                             {new Date(jobCard.created_at).toLocaleDateString()}
                           </div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="font-semibold text-gray-800">{jobCard.customer?.name}</div>
-                      <div className="text-sm text-gray-500">{jobCard.customer?.phone}</div>
+                    <td className="px-5 py-4">
+                      <div className="font-semibold text-gray-900">{jobCard.customer?.name}</div>
+                      <div className="text-xs text-gray-400 mt-0.5">{jobCard.customer?.phone}</div>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="font-semibold text-gray-800">
+                    <td className="px-5 py-4">
+                      <div className="font-semibold text-gray-700 text-xs tracking-widest font-mono bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-md inline-block">
                         {jobCard.vehicle?.license_plate}
                       </div>
-                      <div className="text-sm text-gray-500">
-                        {jobCard.vehicle?.make} {jobCard.vehicle?.model} ({jobCard.vehicle?.year})
+                      <div className="text-xs text-gray-400 mt-1">
+                        {jobCard.vehicle?.make} {jobCard.vehicle?.model} · {jobCard.vehicle?.year}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-5 py-4">
                       {canUpdate && jobCard.status !== 'cancelled' ? (
                         <select
                           value={jobCard.status}
                           onChange={(e) => handleStatusChange(jobCard.id, e.target.value)}
-                          className={`px-3 py-1 rounded-full text-sm font-medium border-2 cursor-pointer transition-colors ${getStatusColor(jobCard.status)}`}
                           onClick={(e) => e.stopPropagation()}
+                          className={`text-xs font-semibold px-2.5 py-1 rounded-full border cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/10 ${getStatusStyle(jobCard.status)}`}
                         >
-                          <option value="pending">⏳ Pending</option>
-                          <option value="in_progress">🔧 In Progress</option>
-                          <option value="completed">✅ Completed</option>
+                          <option value="pending">Pending</option>
+                          <option value="in_progress">In Progress</option>
+                          <option value="completed">Completed</option>
                         </select>
                       ) : (
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(jobCard.status)}`}>
-                          {getStatusIcon(jobCard.status)} {formatStatus(jobCard.status)}
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getStatusStyle(jobCard.status)}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${getStatusDot(jobCard.status)}`} />
+                          {formatStatus(jobCard.status)}
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="font-bold text-gray-800">
-                        {formatCurrency(jobCard.total_amount)}
-                      </div>
+                    <td className="px-5 py-4">
+                      <div className="font-bold text-gray-800 text-sm">{formatCurrency(jobCard.total_amount)}</div>
                       {jobCard.balance_amount > 0 && (
-                        <div className="text-sm text-red-600">
+                        <div className="text-xs text-red-500 mt-0.5">
                           Balance: {formatCurrency(jobCard.balance_amount)}
                         </div>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-gray-700">
-                      <div className="text-sm">{jobCard.creator?.name}</div>
-                      <div className="text-xs text-gray-500">
+                    <td className="px-5 py-4">
+                      <div className="text-sm text-gray-700">{jobCard.creator?.name}</div>
+                      <div className="text-xs text-gray-400 mt-0.5">
                         {new Date(jobCard.created_at).toLocaleTimeString()}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex gap-2">
+                    <td className="px-5 py-4 text-right">
+                      <>
                         <button
-                          onClick={() => navigate(`/job-cards/${jobCard.id}`)}
-                          className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg transition-colors text-sm"
+                          ref={el => buttonRefs.current[jobCard.id] = el}
+                          onClick={(e) => toggleMenu(e, jobCard.id)}
+                          className="p-1.5 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
                         >
-                          👁️ View
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                          </svg>
                         </button>
-                        {canUpdate && jobCard.status !== 'paid' && jobCard.status !== 'cancelled' && (
-                          <button
-                            className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded-lg transition-colors text-sm"
-                          >
-                            ✏️ Edit
-                          </button>
-                        )}
-                        {canDelete && (jobCard.status === 'pending' || jobCard.status === 'cancelled') && (
-                          <button
-                            onClick={() => handleDelete(jobCard.id)}
-                            className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg transition-colors text-sm"
-                          >
-                            🗑️
-                          </button>
-                        )}
-                      </div>
+                        {openMenuId === jobCard.id && <DropdownMenu jobCard={jobCard} />}
+                      </>
                     </td>
                   </tr>
                 ))
@@ -376,6 +479,7 @@ function JobCardManagement({ user, selectedBranchId }) {
           </table>
         </div>
       </div>
+
       <JobCardCreateWizard
         show={showCreateWizard}
         onClose={() => setShowCreateWizard(false)}

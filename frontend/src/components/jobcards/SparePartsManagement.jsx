@@ -25,27 +25,16 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
   const canUpdate = user.permissions.includes('update_spare_parts')
   const canDelete = user.permissions.includes('delete_spare_parts')
   const canApprove = user.permissions.includes('approve_spare_parts')
-
   const role = user.role.name
 
   const handleAddPart = async (e) => {
     e.preventDefault()
     try {
       const token = localStorage.getItem('token')
-      await axiosClient.post(`/job-cards/${jobCard.id}/spare-parts`, partForm, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      alert('✅ Spare part requested successfully!')
+      await axiosClient.post(`/job-cards/${jobCard.id}/spare-parts`, partForm, { headers: { Authorization: `Bearer ${token}` } })
+      alert('Spare part requested successfully!')
       setShowAddModal(false)
-      setPartForm({
-        task_id: '',
-        part_name: '',
-        part_number: '',
-        description: '',
-        quantity: 1,
-        unit_cost: '',
-        selling_price: '',
-      })
+      setPartForm({ task_id: '', part_name: '', part_number: '', description: '', quantity: 1, unit_cost: '', selling_price: '' })
       onUpdate()
     } catch (error) {
       alert(error.response?.data?.message || 'Error requesting part')
@@ -53,57 +42,36 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
   }
 
   const openApprovalModal = (part, level) => {
-    setSelectedPart(part)
-    setApprovalLevel(level)
-    setApprovalNotes('')
-    setShowApprovalModal(true)
+    setSelectedPart(part); setApprovalLevel(level); setApprovalNotes(''); setShowApprovalModal(true)
   }
 
   const handleApproval = async (status) => {
     try {
       const token = localStorage.getItem('token')
-      await axiosClient.post(`/spare-parts/${selectedPart.id}/approve/${approvalLevel}`, {
-        status,
-        notes: approvalNotes
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      alert(`✅ ${status === 'approved' ? 'Approved' : 'Rejected'} successfully!`)
-      setShowApprovalModal(false)
-      onUpdate()
+      await axiosClient.post(`/spare-parts/${selectedPart.id}/approve/${approvalLevel}`, { status, notes: approvalNotes }, { headers: { Authorization: `Bearer ${token}` } })
+      alert(`${status === 'approved' ? 'Approved' : 'Rejected'} successfully!`)
+      setShowApprovalModal(false); onUpdate()
     } catch (error) {
       alert(error.response?.data?.message || 'Error processing approval')
     }
   }
 
-  // Direct Admin Approval (without modal)
   const handleAdminApproveDirectly = async (partId, status) => {
     try {
       const token = localStorage.getItem('token')
-      await axiosClient.post(`/spare-parts/${partId}/approve/admin`, {
-        status: status,
-        notes: ''
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      alert(`✅ Part ${status === 'approved' ? 'APPROVED' : 'REJECTED'} by Admin!`)
+      await axiosClient.post(`/spare-parts/${partId}/approve/admin`, { status, notes: '' }, { headers: { Authorization: `Bearer ${token}` } })
+      alert(`Part ${status === 'approved' ? 'approved' : 'rejected'} by Admin!`)
       onUpdate()
     } catch (error) {
       alert(error.response?.data?.message || 'Error processing approval')
     }
   }
 
-  // Direct Customer Approval (without modal)
   const handleCustomerApproveDirectly = async (partId, status) => {
     try {
       const token = localStorage.getItem('token')
-      await axiosClient.post(`/spare-parts/${partId}/approve/customer`, {
-        status: status,
-        notes: ''
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      alert(`✅ Part ${status === 'approved' ? 'APPROVED' : 'REJECTED'} by Customer!`)
+      await axiosClient.post(`/spare-parts/${partId}/approve/customer`, { status, notes: '' }, { headers: { Authorization: `Bearer ${token}` } })
+      alert(`Part ${status === 'approved' ? 'approved' : 'rejected'} by Customer!`)
       onUpdate()
     } catch (error) {
       alert(error.response?.data?.message || 'Error processing approval')
@@ -113,360 +81,346 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
   const handleStatusUpdate = async (partId, newStatus) => {
     try {
       const token = localStorage.getItem('token')
-      await axiosClient.patch(`/spare-parts/${partId}/status`, {
-        overall_status: newStatus
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      alert(`✅ Status updated to ${newStatus}`)
-      onUpdate()
+      await axiosClient.patch(`/spare-parts/${partId}/status`, { overall_status: newStatus }, { headers: { Authorization: `Bearer ${token}` } })
+      alert(`Status updated to ${newStatus}`); onUpdate()
     } catch (error) {
       alert(error.response?.data?.message || 'Error updating status')
     }
   }
 
   const handleDeletePart = async (partId) => {
-    if (!confirm('⚠️ Are you sure you want to delete this request?')) return
-
+    if (!confirm('Are you sure you want to delete this request?')) return
     try {
       const token = localStorage.getItem('token')
-      await axiosClient.delete(`/spare-parts/${partId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      alert('✅ Spare part deleted!')
-      onUpdate()
+      await axiosClient.delete(`/spare-parts/${partId}`, { headers: { Authorization: `Bearer ${token}` } })
+      alert('Spare part deleted!'); onUpdate()
     } catch (error) {
       alert(error.response?.data?.message || 'Error deleting part')
     }
   }
 
   const handleMarkAsDelivered = async (partId) => {
-    if (!confirm('✅ Confirm that parts have been handed over to employee?')) return
-
+    if (!confirm('Confirm that parts have been handed over to employee?')) return
     try {
       const token = localStorage.getItem('token')
-      await axiosClient.post(`/spare-parts/${partId}/confirm-delivery`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      alert('✅ Parts delivery confirmed!')
-      onUpdate()
+      await axiosClient.post(`/spare-parts/${partId}/confirm-delivery`, {}, { headers: { Authorization: `Bearer ${token}` } })
+      alert('Parts delivery confirmed!'); onUpdate()
     } catch (error) {
       alert(error.response?.data?.message || 'Error confirming delivery')
     }
   }
 
-  // Ask if parts are in stock or need to be ordered
-  const openHavePartModal = (part) => {
-    setSelectedPart(part)
-    setShowHavePartModal(true)
-  }
+  const openHavePartModal = (part) => { setSelectedPart(part); setShowHavePartModal(true) }
 
-  // Mark as ordered (when they don't have it)
   const handleMarkAsOrdered = async () => {
     try {
       const token = localStorage.getItem('token')
-      await axiosClient.patch(`/spare-parts/${selectedPart.id}/status`, {
-        overall_status: 'ordered'
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      alert('✅ Part marked as ordered')
-      setShowHavePartModal(false)
-      onUpdate()
+      await axiosClient.patch(`/spare-parts/${selectedPart.id}/status`, { overall_status: 'ordered' }, { headers: { Authorization: `Bearer ${token}` } })
+      alert('Part marked as ordered'); setShowHavePartModal(false); onUpdate()
     } catch (error) {
       alert(error.response?.data?.message || 'Error marking as ordered')
     }
   }
-  // Mark as have it (when they have it in stock) - Path A direct to process
+
   const handleHaveIt = async () => {
     try {
       const token = localStorage.getItem('token')
-      await axiosClient.patch(`/spare-parts/${selectedPart.id}/status`, {
-        overall_status: 'process'
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      alert('✅ Part marked as available!')
-      setShowHavePartModal(false)
-      onUpdate()
+      await axiosClient.patch(`/spare-parts/${selectedPart.id}/status`, { overall_status: 'process' }, { headers: { Authorization: `Bearer ${token}` } })
+      alert('Part marked as available!'); setShowHavePartModal(false); onUpdate()
     } catch (error) {
       alert(error.response?.data?.message || 'Error marking as available')
     }
   }
-  // Mark as received with cost (after order is received from supplier)
-  const openReceivedCostModal = (part) => {
-    setSelectedPart(part)
-    setReceivedCost('')
-    setShowReceivedCostModal(true)
-  }
+
+  const openReceivedCostModal = (part) => { setSelectedPart(part); setReceivedCost(''); setShowReceivedCostModal(true) }
 
   const handleMarkAsReceived = async () => {
-    if (!receivedCost || receivedCost <= 0) {
-      alert('⚠️ Please enter the actual cost')
-      return
-    }
-
+    if (!receivedCost || receivedCost <= 0) { alert('Please enter the actual cost'); return }
     try {
       const token = localStorage.getItem('token')
-      await axiosClient.patch(`/spare-parts/${selectedPart.id}/status`, {
-        overall_status: 'process',
-        actual_cost: receivedCost
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      alert('✅ Part received from supplier and available!')
-      setShowReceivedCostModal(false)
-      onUpdate()
+      await axiosClient.patch(`/spare-parts/${selectedPart.id}/status`, { overall_status: 'process', actual_cost: receivedCost }, { headers: { Authorization: `Bearer ${token}` } })
+      alert('Part received from supplier and available!'); setShowReceivedCostModal(false); onUpdate()
     } catch (error) {
       alert(error.response?.data?.message || 'Error marking as received')
     }
   }
 
-  // Mark as delivered directly (when they have it in stock)
   const handleMarkAsDeliveredDirect = async () => {
     try {
       const token = localStorage.getItem('token')
-      await axiosClient.post(`/spare-parts/${selectedPart.id}/confirm-delivery`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      alert('✅ Parts marked as delivered!')
-      setShowHavePartModal(false)
-      onUpdate()
+      await axiosClient.post(`/spare-parts/${selectedPart.id}/confirm-delivery`, {}, { headers: { Authorization: `Bearer ${token}` } })
+      alert('Parts marked as delivered!'); setShowHavePartModal(false); onUpdate()
     } catch (error) {
       alert(error.response?.data?.message || 'Error marking as delivered')
     }
   }
 
-  const getApprovalStatusColor = (status) => {
-    if (status === 'approved') return 'bg-green-100 text-green-800'
-    if (status === 'rejected') return 'bg-red-100 text-red-800'
-    return 'bg-yellow-100 text-yellow-800'
+  const getApprovalStyle = (status) => {
+    if (status === 'approved') return { cls: 'bg-green-50 text-green-700 border-green-200', dot: 'bg-green-500' }
+    if (status === 'rejected') return { cls: 'bg-red-50 text-red-600 border-red-200', dot: 'bg-red-400' }
+    return { cls: 'bg-yellow-50 text-yellow-700 border-yellow-200', dot: 'bg-yellow-400' }
   }
 
-  const getApprovalIcon = (status) => {
-    if (status === 'approved') return '✅'
-    if (status === 'rejected') return '❌'
-    return '⏳'
+  const getOverallStatusStyle = (status) => {
+    const map = {
+      pending:   'bg-yellow-50 text-yellow-700 border-yellow-200',
+      approved:  'bg-green-50 text-green-700 border-green-200',
+      rejected:  'bg-red-50 text-red-600 border-red-200',
+      ordered:   'bg-blue-50 text-blue-700 border-blue-200',
+      process:   'bg-indigo-50 text-indigo-700 border-indigo-200',
+      delivered: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    }
+    return map[status] || 'bg-gray-50 text-gray-700 border-gray-200'
   }
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-LK', {
-      style: 'currency',
-      currency: 'LKR',
-    }).format(amount)
-  }
+  const formatCurrency = (amount) => new Intl.NumberFormat('en-LK', { style: 'currency', currency: 'LKR' }).format(amount)
 
   const parts = jobCard.spare_parts_requests || []
 
+  const ModalWrapper = ({ children, onClose }) => (
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        {children}
+      </div>
+    </div>
+  )
+
+  const ModalHeader = ({ title, subtitle, onClose }) => (
+    <div className="flex justify-between items-start px-7 py-5 border-b border-gray-100">
+      <div>
+        <h3 className="text-lg font-bold text-gray-900">{title}</h3>
+        {subtitle && <p className="text-sm text-gray-400 mt-0.5">{subtitle}</p>}
+      </div>
+      <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+  )
+
   return (
     <div>
+      {/* Section Header */}
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-xl font-bold text-gray-800">Spare Parts Requests ({parts.length})</h3>
+        <h3 className="text-base font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
+          </svg>
+          Spare Parts
+          <span className="text-xs font-semibold bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{parts.length}</span>
+        </h3>
         {canAdd && (
           <button
             onClick={() => setShowAddModal(true)}
-            className="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-lg font-semibold transition-colors"
+            className="inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm hover:shadow-md hover:-translate-y-px"
+            style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
           >
-            ➕ Request Parts
+            <span className="flex items-center justify-center w-4 h-4 bg-white/25 rounded">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+              </svg>
+            </span>
+            Request Parts
           </button>
         )}
       </div>
 
       {parts.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-md p-12 text-center">
-          <div className="text-gray-400 text-lg">No spare parts requested yet</div>
-          {canAdd && (
-            <p className="text-gray-500 text-sm mt-2">Request parts needed for repairs</p>
-          )}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 text-center">
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 text-gray-200 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
+          </svg>
+          <p className="text-gray-400 font-medium text-sm">No spare parts requested yet</p>
+          {canAdd && <p className="text-gray-300 text-xs mt-1">Request parts needed for repairs</p>}
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {parts.map((part) => {
-            // Only Admin and Customer approvals (Employee just requests)
             const canApproveAdmin = ['super_admin', 'branch_admin'].includes(role) && part.admin_status === 'pending'
             const canApproveCustomer = ['super_admin', 'branch_admin'].includes(role) && part.customer_status === 'pending' && part.admin_status === 'approved'
-            // Delivery confirmation: when both approvals are done (check either overall_status OR individual statuses)
-            const canConfirmDelivery = part.overall_status === 'approved' || (part.admin_status === 'approved' && part.customer_status === 'approved')
+            const adminStyle = getApprovalStyle(part.admin_status)
+            const customerStyle = getApprovalStyle(part.customer_status)
 
             return (
-              <div key={part.id} className="bg-white rounded-xl shadow-md p-6">
+              <div key={part.id} className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+                {/* Part Header */}
                 <div className="flex justify-between items-start mb-4">
-                  <div className="flex-1">
-                    <h4 className="text-xl font-bold text-gray-800">{part.part_name}</h4>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                      <h4 className="font-bold text-gray-900">{part.part_name}</h4>
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border capitalize ${getOverallStatusStyle(part.overall_status)}`}>
+                        {part.overall_status}
+                      </span>
+                    </div>
                     {part.part_number && (
-                      <p className="text-gray-600">Part #: {part.part_number}</p>
+                      <p className="text-xs text-gray-400 mt-0.5 font-mono">#{part.part_number}</p>
                     )}
                     {part.description && (
-                      <p className="text-gray-600 mt-1">{part.description}</p>
+                      <p className="text-sm text-gray-500 mt-1">{part.description}</p>
                     )}
                   </div>
-                  <div className="text-right">
-                    <div className="text-sm text-gray-600">Quantity</div>
-                    <div className="text-3xl font-bold text-gray-800">{part.quantity}</div>
+                  <div className="text-right flex-shrink-0 ml-4">
+                    <p className="text-xs text-gray-400 uppercase tracking-wide">Qty</p>
+                    <p className="text-2xl font-bold text-gray-800">{part.quantity}</p>
                   </div>
                 </div>
 
-                {/* 3-Level Approval Status */}
-                <div className="grid grid-cols-2 gap-4 mb-4 p-4 bg-gray-50 rounded-lg">
-                  <div className="text-center">
-                    <div className="text-xs text-gray-600 mb-2 font-semibold">LEVEL 1: Admin</div>
-                    <div className={`px-3 py-2 rounded-full text-sm font-semibold ${getApprovalStatusColor(part.admin_status)}`}>
-                      {getApprovalIcon(part.admin_status)} {part.admin_status.toUpperCase()}
-                    </div>
-                    {part.admin_approved_at && (
-                      <div className="text-xs text-gray-500 mt-1">
-                        {new Date(part.admin_approved_at).toLocaleDateString()}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="text-center">
-                    <div className="text-xs text-gray-600 mb-2 font-semibold">LEVEL 2: Customer</div>
-                    <div className={`px-3 py-2 rounded-full text-sm font-semibold ${getApprovalStatusColor(part.customer_status)}`}>
-                      {getApprovalIcon(part.customer_status)} {part.customer_status.toUpperCase()}
-                    </div>
-                    {part.customer_approved_at && (
-                      <div className="text-xs text-gray-500 mt-1">
-                        {new Date(part.customer_approved_at).toLocaleDateString()}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Overall Status */}
-                <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-semibold text-gray-700">Overall Status:</span>
-                    <span className="px-3 py-1 bg-blue-600 text-white rounded-full text-sm font-bold uppercase">
-                      {part.overall_status}
+                {/* Approval Status Grid */}
+                <div className="grid grid-cols-2 gap-3 mb-4 p-3 bg-gray-50 rounded-lg">
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Level 1 · Admin</p>
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${adminStyle.cls}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${adminStyle.dot}`} />
+                      {part.admin_status.charAt(0).toUpperCase() + part.admin_status.slice(1)}
                     </span>
+                    {part.admin_approved_at && (
+                      <p className="text-xs text-gray-400 mt-1">{new Date(part.admin_approved_at).toLocaleDateString()}</p>
+                    )}
                   </div>
-                  {/* Debug info */}
-                  {process.env.NODE_ENV === 'development' && (
-                    <div className="text-xs text-gray-600 mt-2">
-                      Admin: {part.admin_status}, Customer: {part.customer_status}, Overall: {part.overall_status}
-                    </div>
-                  )}
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Level 2 · Customer</p>
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${customerStyle.cls}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${customerStyle.dot}`} />
+                      {part.customer_status.charAt(0).toUpperCase() + part.customer_status.slice(1)}
+                    </span>
+                    {part.customer_approved_at && (
+                      <p className="text-xs text-gray-400 mt-1">{new Date(part.customer_approved_at).toLocaleDateString()}</p>
+                    )}
+                  </div>
                 </div>
 
-                {/* Pricing */}
-                <div className="grid grid-cols-3 gap-4 mb-4 pt-4 border-t">
-                  <div>
-                    <div className="text-sm text-gray-600">Unit Cost</div>
-                    <div className="font-semibold text-gray-800">{formatCurrency(part.unit_cost)}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-600">Selling Price</div>
-                    <div className="font-semibold text-gray-800">{formatCurrency(part.selling_price)}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-600">Total</div>
-                    <div className="font-bold text-primary text-lg">{formatCurrency(part.total_cost)}</div>
-                  </div>
+                {/* Pricing Row */}
+                <div className="grid grid-cols-3 gap-3 mb-4 pt-3 border-t border-gray-100">
+                  {[
+                    { label: 'Unit Cost', value: formatCurrency(part.unit_cost) },
+                    { label: 'Selling Price', value: formatCurrency(part.selling_price) },
+                    { label: 'Total', value: formatCurrency(part.total_cost), highlight: true },
+                  ].map(f => (
+                    <div key={f.label}>
+                      <p className="text-xs text-gray-400 uppercase tracking-wide">{f.label}</p>
+                      <p className={`font-bold text-sm mt-0.5 ${f.highlight ? 'text-primary text-base' : 'text-gray-800'}`}>{f.value}</p>
+                    </div>
+                  ))}
                 </div>
+
+                {/* Dev debug */}
+                {process.env.NODE_ENV === 'development' && (
+                  <div className="text-xs text-gray-400 mb-3 font-mono bg-gray-50 px-2 py-1 rounded">
+                    admin: {part.admin_status} · customer: {part.customer_status} · overall: {part.overall_status}
+                  </div>
+                )}
 
                 {/* Action Buttons */}
-                <div className="flex flex-wrap gap-2 pt-4 border-t">
-                  {/* ADMIN APPROVAL BUTTONS - Direct approve/reject */}
+                <div className="flex flex-wrap gap-2 pt-3 border-t border-gray-100">
                   {canApproveAdmin && (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleAdminApproveDirectly(part.id, 'approved')}
-                        className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors text-sm font-semibold"
-                      >
-                        ✅ Admin Approve
+                    <>
+                      <button onClick={() => handleAdminApproveDirectly(part.id, 'approved')}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 rounded-lg text-xs font-semibold transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                        Admin Approve
                       </button>
-                      <button
-                        onClick={() => handleAdminApproveDirectly(part.id, 'rejected')}
-                        className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors text-sm font-semibold"
-                      >
-                        ❌ Admin Reject
+                      <button onClick={() => handleAdminApproveDirectly(part.id, 'rejected')}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg text-xs font-semibold transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                        Admin Reject
                       </button>
-                    </div>
+                    </>
                   )}
 
-                  {/* CUSTOMER APPROVAL BUTTONS - Direct approve/reject */}
                   {canApproveCustomer && (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleCustomerApproveDirectly(part.id, 'approved')}
-                        className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors text-sm font-semibold"
-                      >
-                        ✅ Customer Approve
+                    <>
+                      <button onClick={() => handleCustomerApproveDirectly(part.id, 'approved')}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 rounded-lg text-xs font-semibold transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                        Customer Approve
                       </button>
-                      <button
-                        onClick={() => handleCustomerApproveDirectly(part.id, 'rejected')}
-                        className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors text-sm font-semibold"
-                      >
-                        ❌ Customer Reject
+                      <button onClick={() => handleCustomerApproveDirectly(part.id, 'rejected')}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg text-xs font-semibold transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                        Customer Reject
                       </button>
-                    </div>
+                    </>
                   )}
 
-                  {/* STEP 3: Show "Have it or Order?" ONLY after BOTH are approved */}
                   {!canApproveAdmin && !canApproveCustomer && part.overall_status === 'approved' && (
-                    <button
-                      onClick={() => openHavePartModal(part)}
-                      className="bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-2 rounded-lg transition-colors text-sm font-semibold"
-                    >
-                      ❓ Have it or Order?
+                    <button onClick={() => openHavePartModal(part)}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-cyan-50 hover:bg-cyan-100 text-cyan-700 border border-cyan-200 rounded-lg text-xs font-semibold transition-colors">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      In Stock or Order?
                     </button>
                   )}
 
-                  {/* When ordered, show button to mark as received with cost */}
                   {canUpdate && part.overall_status === 'ordered' && (
-                    <button
-                      onClick={() => openReceivedCostModal(part)}
-                      className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition-colors text-sm font-semibold"
-                    >
-                      📥 Mark as Received
+                    <button onClick={() => openReceivedCostModal(part)}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 rounded-lg text-xs font-semibold transition-colors">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                      </svg>
+                      Mark as Received
                     </button>
                   )}
 
-                  {/* When process (available), show button to mark as delivered */}
                   {part.overall_status === 'process' && (
-                    <button
-                      onClick={() => handleMarkAsDelivered(part.id)}
-                      className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors text-sm font-semibold"
-                    >
-                      ✅ Mark as Delivered
+                    <button onClick={() => handleMarkAsDelivered(part.id)}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 rounded-lg text-xs font-semibold transition-colors">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Mark as Delivered
                     </button>
                   )}
 
-                  {/* Show delivered status */}
                   {part.overall_status === 'delivered' && (
-                    <span className="bg-green-100 text-green-800 px-4 py-2 rounded-lg text-sm font-semibold">
-                      ✅ Delivered to Employee
+                    <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-semibold">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                      Delivered to Employee
                     </span>
                   )}
 
                   {canDelete && part.overall_status === 'pending' && (
-                    <button
-                      onClick={() => handleDeletePart(part.id)}
-                      className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg transition-colors text-sm"
-                    >
-                      🗑️ Delete
+                    <button onClick={() => handleDeletePart(part.id)}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg text-xs font-semibold transition-colors ml-auto">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      Delete
                     </button>
                   )}
                 </div>
 
                 {/* Notes */}
                 {(part.employee_notes || part.admin_notes || part.customer_notes) && (
-                  <div className="mt-4 pt-4 border-t space-y-2">
-                    <div className="text-sm font-semibold text-gray-700">Notes:</div>
+                  <div className="mt-4 pt-4 border-t border-gray-100 space-y-2">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Notes</p>
                     {part.employee_notes && (
-                      <div className="text-sm bg-yellow-50 p-2 rounded">
-                        <strong>Employee:</strong> {part.employee_notes}
+                      <div className="text-xs bg-yellow-50 border border-yellow-100 px-3 py-2 rounded-lg">
+                        <span className="font-semibold text-yellow-700">Employee:</span>
+                        <span className="text-yellow-800 ml-1">{part.employee_notes}</span>
                       </div>
                     )}
                     {part.admin_notes && (
-                      <div className="text-sm bg-blue-50 p-2 rounded">
-                        <strong>Admin:</strong> {part.admin_notes}
+                      <div className="text-xs bg-blue-50 border border-blue-100 px-3 py-2 rounded-lg">
+                        <span className="font-semibold text-blue-700">Admin:</span>
+                        <span className="text-blue-800 ml-1">{part.admin_notes}</span>
                       </div>
                     )}
                     {part.customer_notes && (
-                      <div className="text-sm bg-purple-50 p-2 rounded">
-                        <strong>Customer:</strong> {part.customer_notes}
+                      <div className="text-xs bg-purple-50 border border-purple-100 px-3 py-2 rounded-lg">
+                        <span className="font-semibold text-purple-700">Customer:</span>
+                        <span className="text-purple-800 ml-1">{part.customer_notes}</span>
                       </div>
                     )}
                   </div>
@@ -479,126 +433,55 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
 
       {/* Add Part Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b">
-              <h3 className="text-2xl font-bold text-gray-800">Request Spare Part</h3>
-            </div>
-
-            <form onSubmit={handleAddPart} className="p-6 space-y-4">
-              <div>
-                <label className="block text-gray-700 font-semibold mb-2">Related Task (Optional)</label>
-                <select
-                  value={partForm.task_id}
-                  onChange={(e) => setPartForm({...partForm, task_id: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-primary focus:outline-none"
-                >
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <ModalHeader title="Request Spare Part" subtitle="Fill in the part details below" onClose={() => setShowAddModal(false)} />
+            <form onSubmit={handleAddPart} className="px-7 py-6 space-y-5">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Related Task</label>
+                <select value={partForm.task_id} onChange={(e) => setPartForm({...partForm, task_id: e.target.value})}
+                  className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all">
                   <option value="">Not linked to specific task</option>
-                  {jobCard.tasks?.map(task => (
-                    <option key={task.id} value={task.id}>{task.task_name}</option>
-                  ))}
+                  {jobCard.tasks?.map(task => <option key={task.id} value={task.id}>{task.task_name}</option>)}
                 </select>
               </div>
-
-              <div>
-                <label className="block text-gray-700 font-semibold mb-2">Part Name *</label>
-                <input
-                  type="text"
-                  value={partForm.part_name}
-                  onChange={(e) => setPartForm({...partForm, part_name: e.target.value})}
-                  required
-                  placeholder="e.g., Brake Pads Front"
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-primary focus:outline-none"
-                />
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Part Name <span className="text-red-400">*</span></label>
+                <input type="text" value={partForm.part_name} onChange={(e) => setPartForm({...partForm, part_name: e.target.value})} required placeholder="e.g., Brake Pads Front"
+                  className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all" />
               </div>
-
-              <div>
-                <label className="block text-gray-700 font-semibold mb-2">Part Number</label>
-                <input
-                  type="text"
-                  value={partForm.part_number}
-                  onChange={(e) => setPartForm({...partForm, part_number: e.target.value})}
-                  placeholder="e.g., BP-12345"
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-primary focus:outline-none"
-                />
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Part Number</label>
+                <input type="text" value={partForm.part_number} onChange={(e) => setPartForm({...partForm, part_number: e.target.value})} placeholder="e.g., BP-12345"
+                  className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all" />
               </div>
-
-              <div>
-                <label className="block text-gray-700 font-semibold mb-2">Description</label>
-                <textarea
-                  value={partForm.description}
-                  onChange={(e) => setPartForm({...partForm, description: e.target.value})}
-                  placeholder="Additional details about the part..."
-                  rows="2"
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-primary focus:outline-none"
-                />
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Description</label>
+                <textarea value={partForm.description} onChange={(e) => setPartForm({...partForm, description: e.target.value})} placeholder="Additional details..." rows="2" 
+                  className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all resize-none" />
               </div>
-
               <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-gray-700 font-semibold mb-2">Quantity *</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={partForm.quantity}
-                    onChange={(e) => setPartForm({...partForm, quantity: e.target.value})}
-                    required
-                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-primary focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-gray-700 font-semibold mb-2">Unit Cost (LKR) *</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={partForm.unit_cost}
-                    onChange={(e) => setPartForm({...partForm, unit_cost: e.target.value})}
-                    required
-                    placeholder="3000"
-                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-primary focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-gray-700 font-semibold mb-2">Selling Price (LKR) *</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={partForm.selling_price}
-                    onChange={(e) => setPartForm({...partForm, selling_price: e.target.value})}
-                    required
-                    placeholder="4500"
-                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-primary focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              {partForm.quantity && partForm.selling_price && (
-                <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4">
-                  <div className="text-sm text-gray-600">Total Amount:</div>
-                  <div className="text-2xl font-bold text-green-600">
-                    {formatCurrency(partForm.quantity * partForm.selling_price)}
+                {[
+                  { label: 'Quantity *', key: 'quantity', type: 'number', min: '1', placeholder: '1' },
+                  { label: 'Unit Cost (LKR) *', key: 'unit_cost', type: 'number', min: '0', step: '0.01', placeholder: '3000' },
+                  { label: 'Selling Price (LKR) *', key: 'selling_price', type: 'number', min: '0', step: '0.01', placeholder: '4500' },
+                ].map(f => (
+                  <div key={f.key} className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">{f.label}</label>
+                    <input type={f.type} min={f.min} step={f.step} value={partForm[f.key]} onChange={(e) => setPartForm({...partForm, [f.key]: e.target.value})} required placeholder={f.placeholder}
+                      className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all" />
                   </div>
+                ))}
+              </div>
+              {partForm.quantity && partForm.selling_price && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Total Amount</span>
+                  <span className="text-lg font-bold text-green-600">{formatCurrency(partForm.quantity * partForm.selling_price)}</span>
                 </div>
               )}
-
-              <div className="flex justify-end gap-3 pt-4 border-t">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-semibold"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-6 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg font-semibold"
-                >
-                  Request Part
-                </button>
+              <div className="flex justify-end gap-3 pt-5 border-t border-gray-100">
+                <button type="button" onClick={() => setShowAddModal(false)} className="px-5 py-2.5 text-sm bg-white hover:bg-gray-50 text-gray-700 rounded-lg font-semibold border border-gray-300 shadow-sm transition-colors">Cancel</button>
+                <button type="submit" className="px-5 py-2.5 text-sm bg-primary hover:bg-primary-dark text-white rounded-lg font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-px" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>Request Part</button>
               </div>
             </form>
           </div>
@@ -607,166 +490,82 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
 
       {/* Approval Modal */}
       {showApprovalModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
-            <div className="p-6 border-b">
-              <h3 className="text-2xl font-bold text-gray-800 capitalize">
-                {approvalLevel} Approval
-              </h3>
-              <p className="text-gray-600 mt-1">{selectedPart?.part_name}</p>
-            </div>
-
-            <div className="p-6 space-y-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <span className="text-gray-600">Quantity:</span>
-                    <span className="ml-2 font-bold">{selectedPart?.quantity}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">Price:</span>
-                    <span className="ml-2 font-bold">{formatCurrency(selectedPart?.selling_price)}</span>
-                  </div>
-                  <div className="col-span-2">
-                    <span className="text-gray-600">Total:</span>
-                    <span className="ml-2 font-bold text-primary text-lg">
-                      {formatCurrency(selectedPart?.total_cost)}
-                    </span>
-                  </div>
-                </div>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+            <ModalHeader title={`${approvalLevel.charAt(0).toUpperCase() + approvalLevel.slice(1)} Approval`} subtitle={selectedPart?.part_name} onClose={() => setShowApprovalModal(false)} />
+            <div className="px-7 py-5 space-y-4">
+              <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 grid grid-cols-2 gap-3 text-sm">
+                <div><span className="text-gray-500">Quantity</span><p className="font-bold text-gray-800">{selectedPart?.quantity}</p></div>
+                <div><span className="text-gray-500">Price</span><p className="font-bold text-gray-800">{formatCurrency(selectedPart?.selling_price)}</p></div>
+                <div className="col-span-2"><span className="text-gray-500">Total</span><p className="font-bold text-primary text-base">{formatCurrency(selectedPart?.total_cost)}</p></div>
               </div>
-
-              <div>
-                <label className="block text-gray-700 font-semibold mb-2">Notes (Optional)</label>
-                <textarea
-                  value={approvalNotes}
-                  onChange={(e) => setApprovalNotes(e.target.value)}
-                  placeholder="Add your notes here..."
-                  rows="3"
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-primary focus:outline-none"
-                />
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Notes (Optional)</label>
+                <textarea value={approvalNotes} onChange={(e) => setApprovalNotes(e.target.value)} placeholder="Add your notes here..." rows="3"
+                  className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all resize-none" />
               </div>
             </div>
-
-            <div className="p-6 border-t flex justify-end gap-3">
-              <button
-                onClick={() => setShowApprovalModal(false)}
-                className="px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-semibold"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleApproval('rejected')}
-                className="px-6 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-semibold"
-              >
-                ❌ Reject
-              </button>
-              <button
-                onClick={() => handleApproval('approved')}
-                className="px-6 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold"
-              >
-                ✅ Approve
-              </button>
+            <div className="flex justify-end gap-3 px-7 py-4 border-t border-gray-100">
+              <button onClick={() => setShowApprovalModal(false)} className="px-5 py-2 text-sm bg-white hover:bg-gray-50 text-gray-700 rounded-lg font-semibold border border-gray-300 shadow-sm">Cancel</button>
+              <button onClick={() => handleApproval('rejected')} className="px-5 py-2 text-sm bg-red-500 hover:bg-red-600 text-white rounded-lg font-bold transition-colors shadow-sm">Reject</button>
+              <button onClick={() => handleApproval('approved')} className="px-5 py-2 text-sm bg-green-500 hover:bg-green-600 text-white rounded-lg font-bold transition-colors shadow-sm">Approve</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal: Do you have the part or need to order? */}
+      {/* In Stock or Order Modal */}
       {showHavePartModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
-            <div className="p-6 border-b">
-              <h3 className="text-2xl font-bold text-gray-800">
-                📦 {selectedPart?.part_name}
-              </h3>
-              <p className="text-gray-600 mt-2">Do you have this part in stock, or need to order it?</p>
-            </div>
-
-            <div className="p-6 space-y-4">
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <p className="text-sm text-gray-700">
-                  <strong>Quantity:</strong> {selectedPart?.quantity} units
-                </p>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+            <ModalHeader title="Part Availability" subtitle={selectedPart?.part_name} onClose={() => setShowHavePartModal(false)} />
+            <div className="px-7 py-5">
+              <p className="text-sm text-gray-600 mb-4">Is this part available in stock, or does it need to be ordered?</p>
+              <div className="bg-amber-50 border border-amber-100 rounded-lg p-3">
+                <p className="text-sm text-gray-700"><span className="font-semibold">Quantity needed:</span> {selectedPart?.quantity} units</p>
               </div>
             </div>
-
-            <div className="p-6 border-t flex justify-end gap-3">
-              <button
-                onClick={() => setShowHavePartModal(false)}
-                className="px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-semibold"
-              >
-                Cancel
+            <div className="flex justify-end gap-3 px-7 py-4 border-t border-gray-100">
+              <button onClick={() => setShowHavePartModal(false)} className="px-5 py-2 text-sm bg-white hover:bg-gray-50 text-gray-700 rounded-lg font-semibold border border-gray-300 shadow-sm">Cancel</button>
+              <button onClick={handleMarkAsOrdered} className="inline-flex items-center gap-1.5 px-5 py-2 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-bold transition-colors shadow-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
+                Need to Order
               </button>
-              <button
-                onClick={handleMarkAsOrdered}
-                className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-semibold"
-              >
-                📥 Need to Order
-              </button>
-              <button
-                onClick={handleHaveIt}
-                className="px-6 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold"
-              >
-                ✅ Have it (Deliver Now)
+              <button onClick={handleHaveIt} className="inline-flex items-center gap-1.5 px-5 py-2 text-sm bg-green-500 hover:bg-green-600 text-white rounded-lg font-bold transition-colors shadow-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                In Stock — Deliver
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal: Enter cost when marking as received */}
+      {/* Received Cost Modal */}
       {showReceivedCostModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
-            <div className="p-6 border-b">
-              <h3 className="text-2xl font-bold text-gray-800">
-                📥 Part Received
-              </h3>
-              <p className="text-gray-600 mt-1">{selectedPart?.part_name}</p>
-            </div>
-
-            <div className="p-6 space-y-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-sm text-gray-700">
-                  <strong>Quantity:</strong> {selectedPart?.quantity} units
-                </p>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+            <ModalHeader title="Part Received" subtitle={selectedPart?.part_name} onClose={() => setShowReceivedCostModal(false)} />
+            <div className="px-7 py-5 space-y-4">
+              <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
+                <p className="text-sm text-gray-700"><span className="font-semibold">Quantity:</span> {selectedPart?.quantity} units</p>
               </div>
-
-              <div>
-                <label className="block text-gray-700 font-semibold mb-2">
-                  💰 Actual Cost Paid (Per Unit)
-                </label>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Actual Cost Paid (Per Unit) <span className="text-red-400">*</span></label>
                 <div className="flex items-center gap-2">
-                  <span className="text-gray-600 font-semibold">LKR</span>
-                  <input
-                    type="number"
-                    value={receivedCost}
-                    onChange={(e) => setReceivedCost(e.target.value)}
-                    placeholder="Enter amount"
-                    className="flex-1 px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-primary focus:outline-none"
-                    step="0.01"
-                    min="0"
-                  />
+                  <span className="text-sm text-gray-500 font-medium">LKR</span>
+                  <input type="number" value={receivedCost} onChange={(e) => setReceivedCost(e.target.value)} placeholder="Enter amount" step="0.01" min="0"
+                    className="flex-1 px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all" />
                 </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  Total: LKR {receivedCost ? (receivedCost * selectedPart?.quantity).toFixed(2) : '0.00'}
-                </p>
+                {receivedCost > 0 && (
+                  <p className="text-xs text-gray-500 mt-1">Total: <span className="font-semibold text-gray-700">LKR {(receivedCost * selectedPart?.quantity).toFixed(2)}</span></p>
+                )}
               </div>
             </div>
-
-            <div className="p-6 border-t flex justify-end gap-3">
-              <button
-                onClick={() => setShowReceivedCostModal(false)}
-                className="px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-semibold"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleMarkAsReceived}
-                className="px-6 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold"
-              >
-                ✅ Mark as Received
+            <div className="flex justify-end gap-3 px-7 py-4 border-t border-gray-100">
+              <button onClick={() => setShowReceivedCostModal(false)} className="px-5 py-2 text-sm bg-white hover:bg-gray-50 text-gray-700 rounded-lg font-semibold border border-gray-300 shadow-sm">Cancel</button>
+              <button onClick={handleMarkAsReceived} className="inline-flex items-center gap-1.5 px-5 py-2 text-sm bg-green-500 hover:bg-green-600 text-white rounded-lg font-bold transition-colors shadow-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                Mark as Received
               </button>
             </div>
           </div>

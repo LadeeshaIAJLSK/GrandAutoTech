@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\JobCard;
 use App\Models\JobCardImage;
+use App\Models\OtherCharge;
 use App\Models\Task;
 use App\Models\Customer;
 use App\Models\Vehicle;
@@ -132,7 +133,13 @@ class JobCardController extends Controller
             return response()->json(['message' => 'Unauthorized - Different branch'], 403);
         }
 
-        return response()->json($jobCard);
+        // Manually fetch and attach otherCharges
+        $jobCard->otherCharges = OtherCharge::where('job_card_id', $jobCard->id)->get()->toArray();
+
+        return response()->json([
+            'success' => true,
+            'data' => $jobCard
+        ]);
     }
 
     /**
@@ -307,12 +314,13 @@ class JobCardController extends Controller
         $request->validate([
             'images' => 'required|array|max:10',
             'images.*' => 'image|mimes:jpeg,png,jpg|max:5120', // 5MB max
-            'image_type' => 'required|in:before,during,after',
+            'image_type' => 'nullable|in:before,during,after',
             'descriptions' => 'nullable|array',
         ]);
 
         $jobCard = JobCard::findOrFail($id);
         $uploadedImages = [];
+        $imageType = $request->image_type ?? 'before'; // Default to 'before' if not provided
 
         foreach ($request->file('images') as $index => $image) {
             // Store image
@@ -322,7 +330,7 @@ class JobCardController extends Controller
             $jobCardImage = JobCardImage::create([
                 'job_card_id' => $jobCard->id,
                 'image_path' => $path,
-                'image_type' => $request->image_type,
+                'image_type' => $imageType,
                 'description' => $request->descriptions[$index] ?? null,
                 'order' => $index,
             ]);
@@ -408,6 +416,49 @@ class JobCardController extends Controller
         return response()->json([
             'message' => 'Task added successfully',
             'task' => $task
+        ], 201);
+    }
+
+    /**
+     * Add charge to job card
+     */
+    public function addCharge(Request $request, $id)
+    {
+        $user = $request->user();
+        
+        $permissions = DB::table('permissions')
+            ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
+            ->where('role_permissions.role_id', $user->role_id)
+            ->pluck('permissions.name')
+            ->toArray();
+        
+        if (!in_array('add_job_cards', $permissions)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'description' => 'required|string|max:255',
+            'cost_price' => 'required|numeric|min:0',
+            'amount' => 'required|numeric|min:0',
+        ]);
+
+        $jobCard = JobCard::findOrFail($id);
+        
+        // Create the charge record
+        $charge = OtherCharge::create([
+            'job_card_id' => $jobCard->id,
+            'description' => $validated['description'],
+            'cost_price' => $validated['cost_price'],
+            'amount' => $validated['amount'],
+        ]);
+
+        // Update job card other_charges total
+        $jobCard->other_charges += $validated['amount'];
+        $jobCard->save();
+
+        return response()->json([
+            'message' => 'Charge added successfully',
+            'charge' => $charge
         ], 201);
     }
 

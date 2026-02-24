@@ -49,278 +49,262 @@ function Layout({ user, onLogout, children }) {
     }
   }
 
+  const NavItem = ({ path, icon, label, badge, onClick, children: subItems }) => {
+    const active = isActive(path)
+    return (
+      <button
+        onClick={onClick || (() => navigate(path))}
+        className={`w-full text-left px-5 py-3 flex items-center justify-between gap-3 transition-all group ${
+          active
+            ? 'bg-primary/15 text-white border-l-[3px] border-primary'
+            : 'text-gray-400 hover:bg-white/5 hover:text-gray-200 border-l-[3px] border-transparent'
+        }`}
+      >
+        <div className="flex items-center gap-3">
+          <span className={`transition-colors ${active ? 'text-primary' : 'text-gray-500 group-hover:text-gray-300'}`}>
+            {icon}
+          </span>
+          <span className="text-sm font-medium">{label}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          {badge > 0 && (
+            <span className="bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full font-bold animate-pulse min-w-[20px] text-center">
+              {badge}
+            </span>
+          )}
+          {subItems && (
+            <svg xmlns="http://www.w3.org/2000/svg" className={`w-3.5 h-3.5 transition-transform ${usersMenuOpen ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          )}
+        </div>
+      </button>
+    )
+  }
+
+  const SubNavItem = ({ path, icon, label }) => {
+    const active = location.pathname === path
+    return (
+      <button
+        onClick={() => navigate(path)}
+        className={`w-full text-left pl-12 pr-5 py-2.5 flex items-center gap-3 text-sm transition-all group ${
+          active
+            ? 'text-primary bg-primary/10 font-semibold'
+            : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'
+        }`}
+      >
+        <span className={`${active ? 'text-primary' : 'text-gray-600 group-hover:text-gray-400'}`}>{icon}</span>
+        {label}
+      </button>
+    )
+  }
+
+  // SVG Icons
+  const icons = {
+    dashboard: <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>,
+    users: <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>,
+    customers: <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>,
+    tasks: <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>,
+    jobCards: <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>,
+    approval: <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+    quotations: <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>,
+    reports: <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>,
+    cash: <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>,
+    access: <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>,
+    branch: <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>,
+    allUsers: <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>,
+    branchAdmin: <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+    accountant: <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>,
+    technician: <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>,
+    support: <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" /></svg>,
+    logout: <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>,
+    user: <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>,
+  }
+
   return (
-    <div className="min-h-screen bg-gray-100">
-      {/* Header */}
-      <div className="bg-white shadow-sm">
-        <div className="px-8 py-5 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-primary">🚗 Grand Auto Tech</h1>
-          <div className="flex items-center gap-5">
+    <div className="min-h-screen bg-gray-100 flex flex-col">
+
+      {/* Top Header */}
+      <header className="bg-white border-b border-gray-200 shadow-sm z-20 sticky top-0">
+        <div className="px-6 h-16 flex justify-between items-center">
+          {/* Brand */}
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <span className="text-lg font-bold text-gray-900 tracking-tight">Grand Auto Tech</span>
+          </div>
+
+          {/* Right side */}
+          <div className="flex items-center gap-4">
             {user.role.name === 'super_admin' && (
-              <BranchSelector 
-                user={user} 
+              <BranchSelector
+                user={user}
                 onBranchChange={(branchId) => setSelectedBranchId(branchId)}
               />
             )}
-            <span className="font-semibold text-gray-700">👤 {user.name}</span>
-            <span className="text-sm text-gray-500">({user.role.display_name})</span>
+
+            {/* User info */}
+            <div className="flex items-center gap-2.5 pl-4 border-l border-gray-200">
+              <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              </div>
+              <div className="hidden sm:block">
+                <p className="text-sm font-semibold text-gray-800 leading-tight">{user.name}</p>
+                <p className="text-xs text-gray-400 leading-tight">{user.role.display_name}</p>
+              </div>
+            </div>
+
             <button
               onClick={handleLogout}
-              className="bg-primary hover:bg-primary-dark text-white px-5 py-2 rounded-lg font-semibold transition-colors"
+              className="flex items-center gap-2 px-3.5 py-2 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors border border-gray-200 hover:border-red-200"
             >
-              🚪 Logout
+              {icons.logout}
+              <span className="hidden sm:inline">Logout</span>
             </button>
           </div>
         </div>
-      </div>
+      </header>
 
-      <div className="flex min-h-[calc(100vh-80px)]">
+      <div className="flex flex-1">
+
         {/* Sidebar */}
-        <div className="w-64 bg-sidebar text-white">
-          <nav className="py-5">
+        <aside className="w-60 bg-sidebar flex-shrink-0 flex flex-col">
+
+          {/* Nav */}
+          <nav className="flex-1 py-4 space-y-0.5 overflow-y-auto">
+
             {/* Dashboard */}
-            <button
-              onClick={() => navigate('/dashboard')}
-              className={`w-full text-left px-6 py-3 transition-colors flex items-center justify-between ${
-                isActive('/dashboard') 
-                  ? 'bg-primary text-white font-semibold' 
-                  : 'text-gray-300 hover:bg-sidebar-hover'
-              }`}
-            >
-              <span>📊 Dashboard</span>
-              {pendingApprovalsCount > 0 && (
-                <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full font-bold animate-pulse">
-                  {pendingApprovalsCount}
-                </span>
-              )}
-            </button>
+            <NavItem
+              path="/dashboard"
+              icon={icons.dashboard}
+              label="Dashboard"
+              badge={pendingApprovalsCount}
+            />
 
             {/* Users with Submenu */}
             {canViewUsers && (
               <div>
                 <button
                   onClick={() => setUsersMenuOpen(!usersMenuOpen)}
-                  className={`w-full text-left px-6 py-3 flex justify-between items-center transition-colors ${
+                  className={`w-full text-left px-5 py-3 flex items-center justify-between gap-3 transition-all group border-l-[3px] ${
                     isActive('/users')
-                      ? 'bg-primary text-white font-semibold'
-                      : 'text-gray-300 hover:bg-sidebar-hover'
+                      ? 'bg-primary/15 text-white border-primary'
+                      : 'text-gray-400 hover:bg-white/5 hover:text-gray-200 border-transparent'
                   }`}
                 >
-                  <span>👥 Users</span>
-                  <span className={`text-xs transition-transform ${usersMenuOpen ? 'rotate-90' : ''}`}>
-                    ▶
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className={`${isActive('/users') ? 'text-primary' : 'text-gray-500 group-hover:text-gray-300'}`}>
+                      {icons.users}
+                    </span>
+                    <span className="text-sm font-medium">Users</span>
+                  </div>
+                  <svg xmlns="http://www.w3.org/2000/svg" className={`w-3.5 h-3.5 transition-transform text-gray-500 ${usersMenuOpen ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
                 </button>
 
-                {/* Submenu */}
                 {usersMenuOpen && (
-                  <div className="bg-sidebar-dark">
-                    <button
-                      onClick={() => navigate('/users')}
-                      className={`w-full text-left px-6 py-3 pl-12 text-sm border-l-4 transition-all ${
-                        location.pathname === '/users'
-                          ? 'border-primary bg-sidebar-hover text-primary font-semibold'
-                          : 'border-transparent text-gray-400 hover:bg-sidebar hover:text-gray-200'
-                      }`}
-                    >
-                      📋 All Users
-                    </button>
-
-                    <button
-                      onClick={() => navigate('/users/branch_admin')}
-                      className={`w-full text-left px-6 py-3 pl-12 text-sm border-l-4 transition-all ${
-                        location.pathname === '/users/branch_admin'
-                          ? 'border-primary bg-sidebar-hover text-primary font-semibold'
-                          : 'border-transparent text-gray-400 hover:bg-sidebar hover:text-gray-200'
-                      }`}
-                    >
-                      👔 Branch Admins
-                    </button>
-
-                    <button
-                      onClick={() => navigate('/users/accountant')}
-                      className={`w-full text-left px-6 py-3 pl-12 text-sm border-l-4 transition-all ${
-                        location.pathname === '/users/accountant'
-                          ? 'border-primary bg-sidebar-hover text-primary font-semibold'
-                          : 'border-transparent text-gray-400 hover:bg-sidebar hover:text-gray-200'
-                      }`}
-                    >
-                      💼 Accountants
-                    </button>
-
-                    <button
-                      onClick={() => navigate('/users/employee')}
-                      className={`w-full text-left px-6 py-3 pl-12 text-sm border-l-4 transition-all ${
-                        location.pathname === '/users/employee'
-                          ? 'border-primary bg-sidebar-hover text-primary font-semibold'
-                          : 'border-transparent text-gray-400 hover:bg-sidebar hover:text-gray-200'
-                      }`}
-                    >
-                      🔧 Technicians
-                    </button>
-
-                    <button
-                      onClick={() => navigate('/users/support_staff')}
-                      className={`w-full text-left px-6 py-3 pl-12 text-sm border-l-4 transition-all ${
-                        location.pathname === '/users/support_staff'
-                          ? 'border-primary bg-sidebar-hover text-primary font-semibold'
-                          : 'border-transparent text-gray-400 hover:bg-sidebar hover:text-gray-200'
-                      }`}
-                    >
-                      📞 Support Staff
-                    </button>
+                  <div className="bg-black/10 py-1">
+                    <SubNavItem path="/users" icon={icons.allUsers} label="All Users" />
+                    <SubNavItem path="/users/branch_admin" icon={icons.branchAdmin} label="Branch Admins" />
+                    <SubNavItem path="/users/accountant" icon={icons.accountant} label="Accountants" />
+                    <SubNavItem path="/users/employee" icon={icons.technician} label="Technicians" />
+                    <SubNavItem path="/users/support_staff" icon={icons.support} label="Support Staff" />
                   </div>
                 )}
               </div>
             )}
 
-            {/* Customers & Vehicles Menu */}
+            {/* Customers & Vehicles */}
             {(user.permissions.includes('view_customers') || user.permissions.includes('view_vehicles')) && (
-              <button
-                onClick={() => navigate('/customers')}
-                className={`w-full text-left px-6 py-3 flex justify-between items-center transition-colors ${
-                  isActive('/customers')
-                    ? 'bg-primary text-white font-semibold'
-                    : 'text-gray-300 hover:bg-sidebar-hover'
-                }`}
-              >
-                <span>👥 Customers & Vehicles</span>
-              </button>
+              <NavItem path="/customers" icon={icons.customers} label="Customers & Vehicles" />
             )}
 
-
-            {/* My Tasks (Employee & Super Admin) */}
+            {/* My Tasks */}
             {['employee', 'super_admin'].includes(user.role.name) && (
-              <button
-                className={`w-full text-left px-6 py-3 transition-colors ${
-                  isActive('/my-tasks')
-                    ? 'bg-primary text-white font-semibold'
-                    : 'text-gray-300 hover:bg-sidebar-hover'
-                }`}
-                onClick={() => navigate('/my-tasks')}
-              >
-                📝 My Tasks
-              </button>
+              <NavItem path="/my-tasks" icon={icons.tasks} label="My Tasks" />
             )}
 
-            {/* Job Cards Menu */}
+            {/* Job Cards */}
             {user.permissions.includes('view_job_cards') && (
-              <button
-                className={`w-full text-left px-6 py-3 transition-colors ${
-                  isActive('/job-cards')
-                    ? 'bg-primary text-white font-semibold'
-                    : 'text-gray-300 hover:bg-sidebar-hover'
-                }`}
-                onClick={() => navigate('/job-cards')}
-              >
-                📋 Job Cards
-              </button>
+              <NavItem path="/job-cards" icon={icons.jobCards} label="Job Cards" />
             )}
 
-            {/* Task Approval (Admin/Supervisor) */}
+            {/* Task Approval */}
             {['super_admin', 'branch_admin'].includes(user.role.name) && (
-              <button
-                className={`w-full text-left px-6 py-3 transition-colors ${
-                  isActive('/task-approval')
-                    ? 'bg-primary text-white font-semibold'
-                    : 'text-gray-300 hover:bg-sidebar-hover'
-                }`}
-                onClick={() => navigate('/task-approval')}
-              >
-                ✅ Task Approval
-              </button>
+              <NavItem path="/task-approval" icon={icons.approval} label="Task Approval" />
             )}
 
             {/* Quotations */}
             {['super_admin', 'branch_admin', 'accountant'].includes(user.role.name) && (
-              <button
-                className={`w-full text-left px-6 py-3 transition-colors ${
-                  isActive('/quotations')
-                    ? 'bg-primary text-white font-semibold'
-                    : 'text-gray-300 hover:bg-sidebar-hover'
-                }`}
-                onClick={() => navigate('/quotations')}
-              >
-                📋 Quotations
-              </button>
+              <NavItem path="/quotations" icon={icons.quotations} label="Quotations" />
+            )}
+
+            {/* Divider for admin section */}
+            {['super_admin', 'branch_admin', 'accountant'].includes(user.role.name) && (
+              <div className="px-5 pt-4 pb-1">
+                <p className="text-xs font-semibold text-gray-600 uppercase tracking-widest">Finance</p>
+              </div>
             )}
 
             {/* Financial Reports */}
             {['super_admin', 'branch_admin', 'accountant'].includes(user.role.name) && (
-              <button
-                className={`w-full text-left px-6 py-3 transition-colors ${
-                  isActive('/reports')
-                    ? 'bg-primary text-white font-semibold'
-                    : 'text-gray-300 hover:bg-sidebar-hover'
-                }`}
-                onClick={() => navigate('/reports')}
-              >
-                💰 Financial Reports
-              </button>
+              <NavItem path="/reports" icon={icons.reports} label="Financial Reports" />
             )}
 
             {/* Petty Cash */}
             {['super_admin', 'branch_admin', 'accountant'].includes(user.role.name) && (
-              <button
-                className={`w-full text-left px-6 py-3 transition-colors ${
-                  isActive('/petty-cash')
-                    ? 'bg-primary text-white font-semibold'
-                    : 'text-gray-300 hover:bg-sidebar-hover'
-                }`}
-                onClick={() => navigate('/petty-cash')}
-              >
-                💵 Petty Cash
-              </button>
+              <NavItem path="/petty-cash" icon={icons.cash} label="Petty Cash" />
             )}
 
-            {/* Access Rights (Super Admin Only) */}
+            {/* Admin section */}
             {user.role.name === 'super_admin' && (
-              <button
-                className={`w-full text-left px-6 py-3 transition-colors ${
-                  isActive('/access-rights')
-                    ? 'bg-primary text-white font-semibold'
-                    : 'text-gray-300 hover:bg-sidebar-hover'
-                }`}
-                onClick={() => navigate('/access-rights')}
-              >
-                🔐 Access Rights
-              </button>
+              <div className="px-5 pt-4 pb-1">
+                <p className="text-xs font-semibold text-gray-600 uppercase tracking-widest">Administration</p>
+              </div>
             )}
 
-            {/* Branch Management (Super Admin Only) */}
+            {/* Access Rights */}
             {user.role.name === 'super_admin' && (
-              <button
-                className={`w-full text-left px-6 py-3 transition-colors ${
-                  isActive('/branch-management')
-                    ? 'bg-primary text-white font-semibold'
-                    : 'text-gray-300 hover:bg-sidebar-hover'
-                }`}
-                onClick={() => navigate('/branch-management')}
-              >
-                🏢 Branch Management
-              </button>
+              <NavItem path="/access-rights" icon={icons.access} label="Access Rights" />
             )}
 
-            {/* Branch Overview (Super Admin Only) */}
+            {/* Branch Management */}
             {user.role.name === 'super_admin' && (
-              <button
-                className={`w-full text-left px-6 py-3 transition-colors ${
-                  isActive('/branch-overview')
-                    ? 'bg-primary text-white font-semibold'
-                    : 'text-gray-300 hover:bg-sidebar-hover'
-                }`}
-                onClick={() => navigate('/branch-overview')}
-              >
-                🏢 Branch Overview
-              </button>
+              <NavItem path="/branch-management" icon={icons.branch} label="Branch Management" />
+            )}
+
+            {/* Branch Overview */}
+            {user.role.name === 'super_admin' && (
+              <NavItem path="/branch-overview" icon={icons.branch} label="Branch Overview" />
             )}
           </nav>
-        </div>
+
+          {/* Sidebar footer */}
+          <div className="p-4 border-t border-white/5">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 bg-primary/20 rounded-full flex items-center justify-center flex-shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-gray-300 truncate">{user.name}</p>
+                <p className="text-xs text-gray-600 truncate">{user.role.display_name}</p>
+              </div>
+            </div>
+          </div>
+        </aside>
 
         {/* Main Content */}
-        <div className="flex-1 p-8 overflow-y-auto">
+        <main className="flex-1 p-7 overflow-y-auto bg-gray-50">
           {React.cloneElement(children, { selectedBranchId })}
-        </div>
+        </main>
       </div>
     </div>
   )

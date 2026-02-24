@@ -35,11 +35,30 @@ function JobCardDetail({ jobCardId, onClose, user } = {}) {
     try {
       setLoading(true)
       const response = await axiosClient.get(`/job-cards/${actualJobCardId}`)
-      if (response.data?.data) {
-        setJobCard(response.data.data)
-      } else {
-        setJobCard(response.data)
+      console.log('[FETCH] Raw API Response:', response.data)
+      console.log('[FETCH] Response has .success?', response.data?.success)
+      console.log('[FETCH] Response has .data?', !!response.data?.data)
+      console.log('[FETCH] Response otherChargesCount:', response.data?.otherChargesCount)
+      console.log('[FETCH] Response DEBUG_otherCharges:', response.data?.DEBUG_otherCharges)
+      
+      let jobCardData = response.data
+      
+      // Handle wrapped response (success: true, data: {...})
+      if (response.data?.success && response.data?.data) {
+        jobCardData = response.data.data
+        console.log('[FETCH] Extracted jobCard from .data wrapper')
       }
+      // Handle legacy response.data.data format
+      else if (response.data?.data && typeof response.data.data === 'object' && response.data.data.id) {
+        jobCardData = response.data.data
+        console.log('[FETCH] Extracted jobCard from legacy .data.data wrapper')
+      }
+      
+      console.log('[FETCH] Final jobCard data:', jobCardData)
+      console.log('[FETCH] jobCard.otherCharges:', jobCardData?.otherCharges)
+      console.log('[FETCH] jobCard.other_charges (total):', jobCardData?.other_charges)
+      
+      setJobCard(jobCardData)
     } catch (error) {
       console.error('Error fetching job card:', error)
       alert('Error loading job card: ' + (error.response?.data?.message || error.message))

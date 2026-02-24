@@ -9,6 +9,8 @@ class TaskTimeTracking extends Model
 {
     use HasFactory;
 
+    protected $table = 'task_time_tracking';
+
     protected $fillable = [
         'task_id',
         'user_id',

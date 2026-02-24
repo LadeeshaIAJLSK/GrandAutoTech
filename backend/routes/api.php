@@ -82,6 +82,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // Job Card Tasks
     Route::post('/job-cards/{id}/tasks', [JobCardController::class, 'addTask']);
 
+    // Job Card Charges
+    Route::post('/job-cards/{id}/charges', [JobCardController::class, 'addCharge']);
+
     // Tasks Management
     Route::get('/job-cards/{jobCardId}/tasks', [TaskController::class, 'index']);
     Route::get('/tasks/{id}', [TaskController::class, 'show']);

@@ -47,16 +47,9 @@ function TaskManagement({ jobCard, onUpdate, user }) {
       await axiosClient.post(`/job-cards/${jobCard.id}/tasks`, taskForm, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      alert('✅ Task added successfully!')
+      alert('Task added successfully!')
       setShowAddTaskModal(false)
-      setTaskForm({
-        task_name: '',
-        description: '',
-        category: 'mechanical',
-        priority: 0,
-        labor_hours: '',
-        labor_rate_per_hour: '5000',
-      })
+      setTaskForm({ task_name: '', description: '', category: 'mechanical', priority: 0, labor_hours: '', labor_rate_per_hour: '5000' })
       onUpdate()
     } catch (error) {
       alert(error.response?.data?.message || 'Error adding task')
@@ -65,7 +58,6 @@ function TaskManagement({ jobCard, onUpdate, user }) {
 
   const openAssignModal = (task) => {
     setSelectedTask(task)
-    // Pre-select already assigned employees
     const assignedIds = task.assigned_employees?.map(e => e.id) || []
     setSelectedEmployees(assignedIds)
     setShowAssignModal(true)
@@ -84,7 +76,6 @@ function TaskManagement({ jobCard, onUpdate, user }) {
       alert('Please select at least one employee')
       return
     }
-
     try {
       const token = localStorage.getItem('token')
       await axiosClient.post(`/tasks/${selectedTask.id}/assign`, {
@@ -92,7 +83,7 @@ function TaskManagement({ jobCard, onUpdate, user }) {
       }, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      alert(`✅ ${selectedEmployees.length} employee(s) assigned successfully!`)
+      alert(`${selectedEmployees.length} employee(s) assigned successfully!`)
       setShowAssignModal(false)
       setSelectedEmployees([])
       onUpdate()
@@ -104,10 +95,8 @@ function TaskManagement({ jobCard, onUpdate, user }) {
   const handleStartTask = async (taskId) => {
     try {
       const token = localStorage.getItem('token')
-      await axiosClient.post(`/tasks/${taskId}/start`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      alert('✅ Task started! Timer is running.')
+      await axiosClient.post(`/tasks/${taskId}/start`, {}, { headers: { Authorization: `Bearer ${token}` } })
+      alert('Task started! Timer is running.')
       onUpdate()
     } catch (error) {
       alert(error.response?.data?.message || 'Error starting task')
@@ -117,10 +106,8 @@ function TaskManagement({ jobCard, onUpdate, user }) {
   const handleStopTask = async (taskId) => {
     try {
       const token = localStorage.getItem('token')
-      await axiosClient.post(`/tasks/${taskId}/stop`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      alert('⏸️ Task paused!')
+      await axiosClient.post(`/tasks/${taskId}/stop`, {}, { headers: { Authorization: `Bearer ${token}` } })
+      alert('Task paused!')
       onUpdate()
     } catch (error) {
       alert(error.response?.data?.message || 'Error stopping task')
@@ -129,16 +116,11 @@ function TaskManagement({ jobCard, onUpdate, user }) {
 
   const handleCompleteTask = async (taskId) => {
     const notes = prompt('Completion notes (optional):')
-    if (notes === null) return // User cancelled
-
+    if (notes === null) return
     try {
       const token = localStorage.getItem('token')
-      await axiosClient.post(`/tasks/${taskId}/complete`, {
-        completion_notes: notes
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      alert('✅ Task completed!')
+      await axiosClient.post(`/tasks/${taskId}/complete`, { completion_notes: notes }, { headers: { Authorization: `Bearer ${token}` } })
+      alert('Task completed!')
       onUpdate()
     } catch (error) {
       alert(error.response?.data?.message || 'Error completing task')
@@ -146,104 +128,151 @@ function TaskManagement({ jobCard, onUpdate, user }) {
   }
 
   const handleDeleteTask = async (taskId) => {
-    if (!confirm('⚠️ Are you sure you want to delete this task?')) return
-
+    if (!confirm('Are you sure you want to delete this task?')) return
     try {
       const token = localStorage.getItem('token')
-      await axiosClient.delete(`/tasks/${taskId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      alert('✅ Task deleted!')
+      await axiosClient.delete(`/tasks/${taskId}`, { headers: { Authorization: `Bearer ${token}` } })
+      alert('Task deleted!')
       onUpdate()
     } catch (error) {
       alert(error.response?.data?.message || 'Error deleting task')
     }
   }
 
-  const getStatusColor = (status) => {
-    const colors = {
-      pending: 'bg-yellow-100 text-yellow-800',
-      assigned: 'bg-blue-100 text-blue-800',
-      in_progress: 'bg-purple-100 text-purple-800',
-      completed: 'bg-green-100 text-green-800',
+  const getStatusStyle = (status) => {
+    const styles = {
+      pending:     'bg-yellow-50 text-yellow-700 border-yellow-200',
+      assigned:    'bg-blue-50 text-blue-700 border-blue-200',
+      in_progress: 'bg-purple-50 text-purple-700 border-purple-200',
+      completed:   'bg-green-50 text-green-700 border-green-200',
     }
-    return colors[status] || 'bg-gray-100 text-gray-800'
+    return styles[status] || 'bg-gray-50 text-gray-700 border-gray-200'
   }
 
-  const getPriorityIcon = (priority) => {
-    if (priority === 2) return '🔴'
-    if (priority === 1) return '🟡'
-    return '🟢'
+  const getStatusDot = (status) => {
+    const dots = {
+      pending:     'bg-yellow-400',
+      assigned:    'bg-blue-500',
+      in_progress: 'bg-purple-500',
+      completed:   'bg-green-500',
+    }
+    return dots[status] || 'bg-gray-400'
+  }
+
+  const getPriorityStyle = (priority) => {
+    if (priority === 2) return { label: 'Urgent', cls: 'bg-red-50 text-red-600 border-red-200', dot: 'bg-red-500' }
+    if (priority === 1) return { label: 'High',   cls: 'bg-amber-50 text-amber-600 border-amber-200', dot: 'bg-amber-400' }
+    return { label: 'Normal', cls: 'bg-green-50 text-green-600 border-green-200', dot: 'bg-green-500' }
   }
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-LK', {
-      style: 'currency',
-      currency: 'LKR',
-    }).format(amount)
+    return new Intl.NumberFormat('en-LK', { style: 'currency', currency: 'LKR' }).format(amount)
   }
 
   const tasks = jobCard.tasks || []
 
   return (
     <div>
+      {/* Section Header */}
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-xl font-bold text-gray-800">🔧 Tasks ({tasks.length})</h3>
+        <h3 className="text-base font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          Tasks
+          <span className="text-xs font-semibold bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{tasks.length}</span>
+        </h3>
         {canAdd && (
           <button
             onClick={() => setShowAddTaskModal(true)}
-            className="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-lg font-semibold transition-colors"
+            className="inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm hover:shadow-md hover:-translate-y-px"
+            style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
           >
-            ➕ Add Task
+            <span className="flex items-center justify-center w-4 h-4 bg-white/25 rounded">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+              </svg>
+            </span>
+            Add Task
           </button>
         )}
       </div>
 
       {tasks.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-md p-12 text-center">
-          <div className="text-gray-400 text-lg">No tasks added yet</div>
-          {canAdd && (
-            <p className="text-gray-500 text-sm mt-2">Add tasks to start working on this job card</p>
-          )}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 text-center">
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 text-gray-200 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+          </svg>
+          <p className="text-gray-400 font-medium text-sm">No tasks added yet</p>
+          {canAdd && <p className="text-gray-300 text-xs mt-1">Add tasks to start working on this job card</p>}
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {tasks.map((task) => {
             const isAssigned = task.assigned_employees && task.assigned_employees.length > 0
             const hasActiveTimer = task.time_tracking?.some(t => !t.end_time)
             const totalTime = task.time_tracking?.reduce((sum, t) => sum + (t.duration_minutes || 0), 0) || 0
             const myAssignment = task.assigned_employees?.find(e => e.id === user.id)
+            const priority = getPriorityStyle(task.priority)
 
             return (
-              <div key={task.id} className="bg-white rounded-xl shadow-md p-6 border-2 border-gray-200">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className="text-2xl">{getPriorityIcon(task.priority)}</span>
-                      <h4 className="text-xl font-bold text-gray-800">{task.task_name}</h4>
-                      <span className={`px-3 py-1 rounded-full text-sm font-semibold ${getStatusColor(task.status)}`}>
-                        {task.status.toUpperCase().replace('_', ' ')}
+              <div
+                key={task.id}
+                className={`bg-white rounded-xl border shadow-sm p-5 ${
+                  hasActiveTimer ? 'border-purple-300 ring-1 ring-purple-200' : 'border-gray-200'
+                }`}
+              >
+                {/* Task Header */}
+                <div className="flex justify-between items-start mb-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                      <h4 className="font-bold text-gray-900 text-base">{task.task_name}</h4>
+
+                      {/* Status badge */}
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getStatusStyle(task.status)}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${getStatusDot(task.status)}`} />
+                        {task.status.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())}
                       </span>
+
+                      {/* Priority badge */}
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${priority.cls}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${priority.dot}`} />
+                        {priority.label}
+                      </span>
+
+                      {/* Active timer badge */}
                       {hasActiveTimer && (
-                        <span className="px-3 py-1 bg-red-500 text-white rounded-full text-sm font-semibold animate-pulse">
-                          ⏱️ TIMER RUNNING
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-500 text-white animate-pulse">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          Timer Running
                         </span>
                       )}
                     </div>
+
                     {task.description && (
-                      <p className="text-gray-600 mb-2">{task.description}</p>
+                      <p className="text-sm text-gray-500 mt-1.5">{task.description}</p>
                     )}
-                    <div className="flex items-center gap-4 text-sm text-gray-600">
-                      <span className="font-semibold capitalize">📂 {task.category}</span>
+
+                    {/* Meta info */}
+                    <div className="flex items-center gap-4 mt-2 flex-wrap">
+                      <span className="inline-flex items-center gap-1 text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded capitalize">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                        </svg>
+                        {task.category}
+                      </span>
                       {task.labor_hours && (
-                        <span>⏱️ {task.labor_hours} hours</span>
+                        <span className="text-xs text-gray-500">{task.labor_hours}h estimated</span>
                       )}
                       {task.labor_cost > 0 && (
-                        <span className="font-bold text-primary">{formatCurrency(task.labor_cost)}</span>
+                        <span className="text-xs font-bold text-primary">{formatCurrency(task.labor_cost)}</span>
                       )}
                       {totalTime > 0 && (
-                        <span className="font-bold text-purple-600">
-                          ⏰ Tracked: {Math.floor(totalTime / 60)}h {totalTime % 60}m
+                        <span className="text-xs font-semibold text-purple-600">
+                          {Math.floor(totalTime / 60)}h {totalTime % 60}m tracked
                         </span>
                       )}
                     </div>
@@ -252,11 +281,11 @@ function TaskManagement({ jobCard, onUpdate, user }) {
 
                 {/* Assigned Employees */}
                 {isAssigned && (
-                  <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-                    <div className="text-sm font-semibold text-gray-700 mb-2">👥 Assigned To:</div>
-                    <div className="flex flex-wrap gap-2">
+                  <div className="mb-3 p-3 bg-blue-50 border border-blue-100 rounded-lg">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Assigned To</p>
+                    <div className="flex flex-wrap gap-1.5">
                       {task.assigned_employees.map(emp => (
-                        <span key={emp.id} className="px-3 py-1 bg-blue-500 text-white rounded-full text-sm font-semibold">
+                        <span key={emp.id} className="px-2.5 py-1 bg-blue-500 text-white rounded-full text-xs font-semibold">
                           {emp.name}
                         </span>
                       ))}
@@ -265,56 +294,69 @@ function TaskManagement({ jobCard, onUpdate, user }) {
                 )}
 
                 {/* Action Buttons */}
-                <div className="flex flex-wrap gap-2 pt-4 border-t">
-                  {/* Assign Button (Admin/Branch Admin) */}
+                <div className="flex flex-wrap gap-2 pt-3 border-t border-gray-100">
                   {canAssign && task.status !== 'completed' && (
                     <button
                       onClick={() => openAssignModal(task)}
-                      className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-xs font-semibold transition-colors"
                     >
-                      {isAssigned ? '👥 Reassign Employees' : '👥 Assign Employees'}
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                      </svg>
+                      {isAssigned ? 'Reassign' : 'Assign Employees'}
                     </button>
                   )}
 
-                  {/* Employee Actions (Only if assigned to them) */}
                   {myAssignment && task.status !== 'completed' && (
                     <>
                       {!hasActiveTimer && task.status === 'assigned' && (
                         <button
                           onClick={() => handleStartTask(task.id)}
-                          className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-semibold transition-colors"
+                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 rounded-lg text-xs font-semibold transition-colors"
                         >
-                          ▶️ Start
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                          </svg>
+                          Start
                         </button>
                       )}
 
                       {hasActiveTimer && (
                         <button
                           onClick={() => handleStopTask(task.id)}
-                          className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-semibold transition-colors animate-pulse"
+                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 rounded-lg text-xs font-semibold transition-colors animate-pulse"
                         >
-                          ⏸️ Stop
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                          Pause
                         </button>
                       )}
 
                       {task.status === 'in_progress' && (
                         <button
                           onClick={() => handleCompleteTask(task.id)}
-                          className="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-lg font-semibold transition-colors"
+                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-primary hover:bg-primary-dark text-white rounded-lg text-xs font-semibold transition-all shadow-sm hover:shadow"
+                          style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
                         >
-                          ✅ Complete
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                          Complete
                         </button>
                       )}
                     </>
                   )}
 
-                  {/* Delete Button (Admin only, not completed) */}
                   {canDelete && task.status !== 'completed' && (
                     <button
                       onClick={() => handleDeleteTask(task.id)}
-                      className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-semibold transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg text-xs font-semibold transition-colors ml-auto"
                     >
-                      🗑️ Delete
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      Delete
                     </button>
                   )}
                 </div>
@@ -326,116 +368,125 @@ function TaskManagement({ jobCard, onUpdate, user }) {
 
       {/* Add Task Modal */}
       {showAddTaskModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b">
-              <h3 className="text-2xl font-bold text-gray-800">➕ Add New Task</h3>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center px-7 py-5 border-b border-gray-100">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Add New Task</h3>
+                <p className="text-sm text-gray-400 mt-0.5">Fill in the details for the new task</p>
+              </div>
+              <button onClick={() => setShowAddTaskModal(false)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
 
-            <form onSubmit={handleAddTask} className="p-6 space-y-4">
-              <div>
-                <label className="block font-semibold mb-2">Task Name *</label>
+            <form onSubmit={handleAddTask} className="px-7 py-6 space-y-5">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Task Name <span className="text-red-400">*</span></label>
                 <input
                   type="text"
                   value={taskForm.task_name}
                   onChange={(e) => setTaskForm({...taskForm, task_name: e.target.value})}
                   required
                   placeholder="e.g., Replace Brake Pads"
-                  className="w-full px-4 py-3 border-2 rounded-lg focus:border-primary focus:outline-none"
+                  className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all"
                 />
               </div>
 
-              <div>
-                <label className="block font-semibold mb-2">Description</label>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Description</label>
                 <textarea
                   value={taskForm.description}
                   onChange={(e) => setTaskForm({...taskForm, description: e.target.value})}
                   placeholder="Additional details about the task..."
                   rows="3"
-                  className="w-full px-4 py-3 border-2 rounded-lg focus:border-primary focus:outline-none"
+                  className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all resize-none"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-semibold mb-2">Category *</label>
+              <div className="grid grid-cols-2 gap-5">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Category <span className="text-red-400">*</span></label>
                   <select
                     value={taskForm.category}
                     onChange={(e) => setTaskForm({...taskForm, category: e.target.value})}
-                    className="w-full px-4 py-3 border-2 rounded-lg focus:border-primary focus:outline-none"
+                    className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all"
                   >
-                    <option value="mechanical">🔧 Mechanical</option>
-                    <option value="electrical">⚡ Electrical</option>
-                    <option value="bodywork">🚗 Bodywork</option>
-                    <option value="painting">🎨 Painting</option>
-                    <option value="diagnostic">🔍 Diagnostic</option>
-                    <option value="maintenance">🛠️ Maintenance</option>
-                    <option value="other">📋 Other</option>
+                    <option value="mechanical">Mechanical</option>
+                    <option value="electrical">Electrical</option>
+                    <option value="bodywork">Bodywork</option>
+                    <option value="painting">Painting</option>
+                    <option value="diagnostic">Diagnostic</option>
+                    <option value="maintenance">Maintenance</option>
+                    <option value="other">Other</option>
                   </select>
                 </div>
 
-                <div>
-                  <label className="block font-semibold mb-2">Priority *</label>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Priority <span className="text-red-400">*</span></label>
                   <select
                     value={taskForm.priority}
                     onChange={(e) => setTaskForm({...taskForm, priority: parseInt(e.target.value)})}
-                    className="w-full px-4 py-3 border-2 rounded-lg focus:border-primary focus:outline-none"
+                    className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all"
                   >
-                    <option value={0}>🟢 Normal</option>
-                    <option value={1}>🟡 High</option>
-                    <option value={2}>🔴 Urgent</option>
+                    <option value={0}>Normal</option>
+                    <option value={1}>High</option>
+                    <option value={2}>Urgent</option>
                   </select>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-semibold mb-2">Labor Hours</label>
+              <div className="grid grid-cols-2 gap-5">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Labor Hours</label>
                   <input
                     type="number"
                     step="0.5"
                     value={taskForm.labor_hours}
                     onChange={(e) => setTaskForm({...taskForm, labor_hours: e.target.value})}
                     placeholder="e.g., 2.5"
-                    className="w-full px-4 py-3 border-2 rounded-lg focus:border-primary focus:outline-none"
+                    className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all"
                   />
                 </div>
 
-                <div>
-                  <label className="block font-semibold mb-2">Rate per Hour (LKR)</label>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Rate per Hour (LKR)</label>
                   <input
                     type="number"
                     step="0.01"
                     value={taskForm.labor_rate_per_hour}
                     onChange={(e) => setTaskForm({...taskForm, labor_rate_per_hour: e.target.value})}
                     placeholder="5000"
-                    className="w-full px-4 py-3 border-2 rounded-lg focus:border-primary focus:outline-none"
+                    className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all"
                   />
                 </div>
               </div>
 
               {taskForm.labor_hours && taskForm.labor_rate_per_hour && (
-                <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4">
-                  <div className="text-sm text-gray-600">Estimated Labor Cost:</div>
-                  <div className="text-2xl font-bold text-green-600">
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Estimated Labor Cost</span>
+                  <span className="text-lg font-bold text-green-600">
                     {formatCurrency(taskForm.labor_hours * taskForm.labor_rate_per_hour)}
-                  </div>
+                  </span>
                 </div>
               )}
 
-              <div className="flex justify-end gap-3 pt-4 border-t">
+              <div className="flex justify-end gap-3 pt-5 border-t border-gray-100">
                 <button
                   type="button"
                   onClick={() => setShowAddTaskModal(false)}
-                  className="px-6 py-2 bg-gray-200 rounded-lg font-semibold"
+                  className="px-5 py-2.5 text-sm bg-white hover:bg-gray-50 text-gray-700 rounded-lg font-semibold border border-gray-300 shadow-sm transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2 bg-primary text-white rounded-lg font-semibold"
+                  className="px-5 py-2.5 text-sm bg-primary hover:bg-primary-dark text-white rounded-lg font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-px"
+                  style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
                 >
-                  ➕ Add Task
+                  Add Task
                 </button>
               </div>
             </form>
@@ -445,30 +496,35 @@ function TaskManagement({ jobCard, onUpdate, user }) {
 
       {/* Assign Employees Modal */}
       {showAssignModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full">
-            <div className="p-6 border-b bg-blue-50">
-              <h3 className="text-2xl font-bold text-gray-800">👥 Assign Employees</h3>
-              <p className="text-gray-600 mt-1">Task: {selectedTask?.task_name}</p>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
+            <div className="flex justify-between items-center px-7 py-5 border-b border-gray-100">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Assign Employees</h3>
+                <p className="text-sm text-gray-400 mt-0.5">{selectedTask?.task_name}</p>
+              </div>
+              <button
+                onClick={() => { setShowAssignModal(false); setSelectedEmployees([]) }}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
 
-            <div className="p-6">
-              <p className="text-gray-700 font-semibold mb-4">
-                Select employees to assign to this task:
-              </p>
-
+            <div className="px-7 py-5">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Select employees to assign</p>
               {availableEmployees.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  No employees available
-                </div>
+                <div className="text-center py-10 text-gray-400 text-sm">No employees available</div>
               ) : (
-                <div className="space-y-3 max-h-96 overflow-y-auto">
+                <div className="space-y-2 max-h-80 overflow-y-auto">
                   {availableEmployees.map(employee => (
                     <label
                       key={employee.id}
-                      className={`flex items-center gap-4 p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                      className={`flex items-center gap-3.5 p-3.5 border-2 rounded-xl cursor-pointer transition-all ${
                         selectedEmployees.includes(employee.id)
-                          ? 'border-primary bg-primary bg-opacity-10'
+                          ? 'border-primary bg-primary/5'
                           : 'border-gray-200 hover:border-gray-300'
                       }`}
                     >
@@ -476,38 +532,41 @@ function TaskManagement({ jobCard, onUpdate, user }) {
                         type="checkbox"
                         checked={selectedEmployees.includes(employee.id)}
                         onChange={() => toggleEmployeeSelection(employee.id)}
-                        className="w-5 h-5"
+                        className="w-4 h-4 text-primary rounded"
                       />
-                      <div className="flex-1">
-                        <div className="font-semibold text-gray-800">{employee.name}</div>
-                        <div className="text-sm text-gray-600">{employee.email}</div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-800">{employee.name}</p>
+                        <p className="text-xs text-gray-400 truncate">{employee.email}</p>
                       </div>
+                      {selectedEmployees.includes(employee.id) && (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-primary flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      )}
                     </label>
                   ))}
                 </div>
               )}
             </div>
 
-            <div className="p-6 border-t bg-gray-50 flex justify-between items-center">
-              <div className="text-gray-700">
-                <span className="font-bold">{selectedEmployees.length}</span> employee(s) selected
-              </div>
+            <div className="flex justify-between items-center px-7 py-4 border-t border-gray-100 bg-gray-50/50 rounded-b-2xl">
+              <span className="text-sm text-gray-500">
+                <span className="font-bold text-gray-800">{selectedEmployees.length}</span> selected
+              </span>
               <div className="flex gap-3">
                 <button
-                  onClick={() => {
-                    setShowAssignModal(false)
-                    setSelectedEmployees([])
-                  }}
-                  className="px-6 py-2 bg-gray-200 rounded-lg font-semibold"
+                  onClick={() => { setShowAssignModal(false); setSelectedEmployees([]) }}
+                  className="px-5 py-2 text-sm bg-white hover:bg-gray-50 text-gray-700 rounded-lg font-semibold border border-gray-300 shadow-sm transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleAssignEmployees}
                   disabled={selectedEmployees.length === 0}
-                  className="px-6 py-2 bg-primary text-white rounded-lg font-semibold disabled:bg-gray-400"
+                  className="px-5 py-2 text-sm bg-primary hover:bg-primary-dark text-white rounded-lg font-bold transition-all shadow-md disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:translate-y-0 hover:-translate-y-px"
+                  style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
                 >
-                  ✅ Assign {selectedEmployees.length > 0 && `(${selectedEmployees.length})`}
+                  Assign {selectedEmployees.length > 0 && `(${selectedEmployees.length})`}
                 </button>
               </div>
             </div>
