@@ -79,20 +79,25 @@ class SparePartsRequestController extends Controller
     {
         $user = $request->user();
         
+        // Check if user is super admin
+        $isSuperAdmin = $user->role && ($user->role->name === 'super_admin' || $user->role_id === 1);
+        
+        // Get user permissions
         $permissions = DB::table('permissions')
             ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
             ->where('role_permissions.role_id', $user->role_id)
             ->pluck('permissions.name')
             ->toArray();
         
-        if (!in_array('update_spare_parts', $permissions)) {
+        // Check authorization: super admin OR has update_spare_parts permission
+        if (!$isSuperAdmin && !in_array('update_spare_parts', $permissions)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
         $part = SparePartsRequest::findOrFail($id);
 
-        // Can only edit if not yet approved
-        if ($part->overall_status !== 'pending') {
+        // Can only edit if not yet approved, UNLESS user is super admin or requesting force_update
+        if (!$isSuperAdmin && !$request->get('force_update') && $part->overall_status !== 'pending') {
             return response()->json([
                 'message' => 'Cannot edit approved/rejected parts'
             ], 400);
@@ -104,8 +109,15 @@ class SparePartsRequestController extends Controller
             'description' => 'nullable|string',
             'quantity' => 'sometimes|integer|min:1',
             'unit_cost' => 'sometimes|numeric|min:0',
+            'cost_price' => 'sometimes|numeric|min:0',
             'selling_price' => 'sometimes|numeric|min:0',
         ]);
+
+        // Map cost_price to unit_cost if provided
+        if (isset($validated['cost_price'])) {
+            $validated['unit_cost'] = $validated['cost_price'];
+            unset($validated['cost_price']);
+        }
 
         $part->update($validated);
         $part->calculateTotal();

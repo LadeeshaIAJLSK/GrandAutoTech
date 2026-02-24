@@ -21,6 +21,7 @@ function JobCardDetail({ jobCardId, onClose, user } = {}) {
   const overviewRef = useRef(null)
   const tasksRef = useRef(null)
   const partsRef = useRef(null)
+  const advancePaymentsRef = useRef(null)
   const pricingRef = useRef(null)
   const inspectionRef = useRef(null)
   const historyRef = useRef(null)
@@ -168,6 +169,16 @@ function JobCardDetail({ jobCardId, onClose, user } = {}) {
               }`}
             >
               🔩 Spare Parts ({jobCard.spare_parts_requests?.length || 0})
+            </button>
+            <button
+              onClick={() => scrollToSection(advancePaymentsRef, 'advancePayments')}
+              className={`px-4 py-2 rounded-lg font-semibold whitespace-nowrap transition-colors ${
+                activeSection === 'advancePayments'
+                  ? 'bg-primary text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              💳 Advance Payments
             </button>
             <button
               onClick={() => scrollToSection(pricingRef, 'pricing')}
@@ -340,6 +351,7 @@ function JobCardDetail({ jobCardId, onClose, user } = {}) {
             jobCard={jobCard} 
             onUpdate={fetchJobCard}
             user={user}
+            advancePaymentsRef={advancePaymentsRef}
           />
         </section>
 

@@ -44,6 +44,14 @@ class SparePartsRequest extends Model
         'customer_approved_at' => 'datetime',
     ];
 
+    protected $appends = ['cost_price'];
+
+    // Accessors
+    public function getCostPriceAttribute()
+    {
+        return $this->unit_cost;
+    }
+
     // Relationships
     public function jobCard()
     {

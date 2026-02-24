@@ -398,6 +398,8 @@ class TaskController extends Controller
             'status' => 'sometimes|in:pending,assigned,in_progress,completed,on_hold,cancelled',
             'labor_hours' => 'nullable|numeric|min:0',
             'labor_rate_per_hour' => 'nullable|numeric|min:0',
+            'cost_price' => 'sometimes|numeric|min:0',
+            'amount' => 'sometimes|numeric|min:0',
             'priority' => 'nullable|integer|in:0,1,2',
             'completion_notes' => 'nullable|string',
         ]);

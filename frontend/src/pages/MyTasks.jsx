@@ -390,8 +390,8 @@ function MyTasks({ user }) {
         </div>
       )}
 
-      {/* Awaiting Approval Tasks */}
-      {awaitingApprovalTasks.length > 0 && (
+      {/* Awaiting Approval Tasks (Employees Only) */}
+      {awaitingApprovalTasks.length > 0 && user.role.name !== 'super_admin' && (
         <div className="space-y-4">
           <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
             <span className="text-2xl">⏳</span>
@@ -409,7 +409,7 @@ function MyTasks({ user }) {
                     </span>
                   </div>
                   <div className="text-gray-600 mb-2">{task.description}</div>
-                  <div className="flex items-center gap-4 text-sm">
+                  <div className="flex items-center gap-4 text-sm flex-wrap">
                     <span className="font-semibold text-primary">
                       📋 {task.job_card.job_card_number}
                     </span>
@@ -423,6 +423,28 @@ function MyTasks({ user }) {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Admin Overview - Pending Approvals Summary */}
+      {user.role.name === 'super_admin' && awaitingApprovalTasks.length > 0 && (
+        <div className="bg-gradient-to-r from-blue-50 to-blue-100 border-2 border-blue-300 rounded-xl shadow-md p-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h3 className="text-2xl font-bold text-blue-900 flex items-center gap-2">
+                <span className="text-3xl">⏳</span>
+                Pending Approvals
+              </h3>
+              <p className="text-blue-700 mt-1">Tasks waiting for your review</p>
+            </div>
+            <div className="text-right">
+              <div className="text-5xl font-bold text-blue-600">{awaitingApprovalTasks.length}</div>
+              <p className="text-blue-700 font-semibold mt-2">tasks pending</p>
+              <a href="/task-approval" className="text-blue-600 font-bold hover:underline mt-3 inline-block">
+                Go to Task Approval →
+              </a>
+            </div>
+          </div>
         </div>
       )}
 
