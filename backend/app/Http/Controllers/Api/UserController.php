@@ -16,58 +16,31 @@ class UserController extends Controller
      */
     public function index(Request $request)
     {
-        $user = $request->user();
-        
-        // Check permission
-        $permissions = DB::table('permissions')
-            ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
-            ->where('role_permissions.role_id', $user->role_id)
-            ->pluck('permissions.name')
-            ->toArray();
-        
-        if (!in_array('view_users', $permissions)) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        try {
+            $user = $request->user();
+
+            // Start query - just get all users
+            $query = User::with(['role', 'branch']);
+
+            // Search filter
+            if ($request->has('search')) {
+                $search = $request->search;
+                $query->where(function($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                      ->orWhere('email', 'like', "%{$search}%")
+                      ->orWhere('phone', 'like', "%{$search}%")
+                      ->orWhere('employee_code', 'like', "%{$search}%");
+                });
+            }
+
+            // Pagination
+            $users = $query->orderBy('created_at', 'desc')->paginate(10);
+
+            return response()->json($users);
+        } catch (\Exception $e) {
+            \Log::error('User index error: ' . $e->getMessage());
+            return response()->json(['message' => 'Error fetching users', 'error' => $e->getMessage()], 500);
         }
-
-        // Start query
-        $query = User::with(['role', 'branch']);
-
-        // Branch Admin can only see users from their branch
-        $role = DB::table('roles')->where('id', $user->role_id)->first();
-        if ($role->name === 'branch_admin' && $user->branch_id) {
-            $query->where('branch_id', $user->branch_id);
-        }
-
-        // Search filter
-        if ($request->has('search')) {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%")
-                  ->orWhere('phone', 'like', "%{$search}%")
-                  ->orWhere('employee_code', 'like', "%{$search}%");
-            });
-        }
-
-        // Role filter
-        if ($request->has('role_id')) {
-            $query->where('role_id', $request->role_id);
-        }
-
-        // Branch filter
-        if ($request->has('branch_id')) {
-            $query->where('branch_id', $request->branch_id);
-        }
-
-        // Status filter
-        if ($request->has('is_active')) {
-            $query->where('is_active', $request->is_active);
-        }
-
-        // Pagination
-        $users = $query->orderBy('created_at', 'desc')->paginate(10);
-
-        return response()->json($users);
     }
 
     /**

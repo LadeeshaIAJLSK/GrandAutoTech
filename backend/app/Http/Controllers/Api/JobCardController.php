@@ -22,18 +22,6 @@ class JobCardController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        
-        // Check permission
-        $permissions = DB::table('permissions')
-            ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
-            ->where('role_permissions.role_id', $user->role_id)
-            ->pluck('permissions.name')
-            ->toArray();
-        
-        if (!in_array('view_job_cards', $permissions)) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
-
         $query = JobCard::with(['customer', 'vehicle', 'creator', 'branch']);
 
         // Search filter
@@ -54,38 +42,6 @@ class JobCardController extends Controller
         // Status filter
         if ($request->has('status')) {
             $query->where('status', $request->status);
-        }
-
-        // Customer filter
-        if ($request->has('customer_id')) {
-            $query->where('customer_id', $request->customer_id);
-        }
-
-        // Vehicle filter
-        if ($request->has('vehicle_id')) {
-            $query->where('vehicle_id', $request->vehicle_id);
-        }
-
-        // Branch filter (for super admin and branch admins)
-        $role = DB::table('roles')->where('id', $user->role_id)->first();
-        // NEW: If branch_id is provided in request, use it (for super admin)
-        if ($request->has('branch_id') && $role->name === 'super_admin') {
-            if ($request->branch_id !== 'all') {
-                $query->where('branch_id', $request->branch_id);
-            }
-            // If 'all', don't filter by branch
-        } elseif ($role->name === 'branch_admin' && $user->branch_id) {
-            // Branch admin can only see their branch
-            $query->where('branch_id', $user->branch_id);
-        }
-        // Super admin without branch filter sees all branches
-
-        // Date range filter
-        if ($request->has('date_from')) {
-            $query->whereDate('created_at', '>=', $request->date_from);
-        }
-        if ($request->has('date_to')) {
-            $query->whereDate('created_at', '<=', $request->date_to);
         }
 
         $jobCards = $query->orderBy('created_at', 'desc')->paginate(15);

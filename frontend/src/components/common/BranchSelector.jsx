@@ -25,6 +25,7 @@ function BranchSelector({ user, onBranchChange }) {
 
   const handleBranchChange = (branchId) => {
     setSelectedBranch(branchId)
+    localStorage.setItem('selectedBranchId', branchId)
     if (onBranchChange) {
       onBranchChange(branchId)
     }

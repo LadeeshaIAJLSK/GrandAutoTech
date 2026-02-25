@@ -21,10 +21,7 @@ function AccessRightsManagement({ user }) {
       })
       setRoles(response.data.roles)
       setGroupedPermissions(response.data.grouped_permissions)
-      
-      if (response.data.roles.length > 0) {
-        selectRole(response.data.roles[0])
-      }
+      if (response.data.roles.length > 0) selectRole(response.data.roles[0])
     } catch (error) {
       console.error('Error:', error)
       alert('Error loading access rights')
@@ -49,16 +46,11 @@ function AccessRightsManagement({ user }) {
   const toggleAllInModule = (module) => {
     const modulePermissions = groupedPermissions[module]
     const modulePermissionIds = modulePermissions.map(p => p.id)
-    
     const allSelected = modulePermissionIds.every(id => selectedPermissions.includes(id))
-    
     if (allSelected) {
-      // Unselect all
       setSelectedPermissions(selectedPermissions.filter(id => !modulePermissionIds.includes(id)))
     } else {
-      // Select all
-      const newPermissions = [...new Set([...selectedPermissions, ...modulePermissionIds])]
-      setSelectedPermissions(newPermissions)
+      setSelectedPermissions([...new Set([...selectedPermissions, ...modulePermissionIds])])
     }
   }
 
@@ -68,10 +60,8 @@ function AccessRightsManagement({ user }) {
       const token = localStorage.getItem('token')
       await axiosClient.put(`/access-rights/roles/${selectedRole.id}`, {
         permission_ids: selectedPermissions
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      alert('✅ Permissions updated successfully!')
+      }, { headers: { Authorization: `Bearer ${token}` } })
+      alert('Permissions updated successfully!')
       fetchRolesAndPermissions()
     } catch (error) {
       alert(error.response?.data?.message || 'Error saving permissions')
@@ -81,35 +71,51 @@ function AccessRightsManagement({ user }) {
   }
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64">Loading...</div>
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-3">
+        <div className="w-7 h-7 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+        <p className="text-sm text-gray-400 font-medium">Loading...</p>
+      </div>
+    )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
+
+      {/* Header */}
       <div className="flex justify-between items-center">
-        <h2 className="text-3xl font-bold text-gray-800">🔐 Access Rights Management</h2>
-        <div className="text-sm text-gray-600">
-          Configure permissions for each role
-        </div>
+        <h2 className="text-base font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+          </svg>
+          Access Rights Management
+        </h2>
+        <p className="text-xs text-gray-400">Configure permissions for each role</p>
       </div>
 
-      <div className="grid grid-cols-12 gap-6">
-        {/* Roles List */}
-        <div className="col-span-3 bg-white rounded-xl shadow-md p-6">
-          <h3 className="text-lg font-bold text-gray-800 mb-4">Roles</h3>
-          <div className="space-y-2">
+      <div className="grid grid-cols-12 gap-5">
+
+        {/* Roles Sidebar */}
+        <div className="col-span-3 bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5 mb-3">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            Roles
+          </p>
+          <div className="space-y-1.5">
             {roles.map(role => (
               <button
                 key={role.id}
                 onClick={() => selectRole(role)}
-                className={`w-full text-left px-4 py-3 rounded-lg transition-colors ${
+                className={`w-full text-left px-3.5 py-3 rounded-lg transition-all ${
                   selectedRole?.id === role.id
-                    ? 'bg-primary text-white font-semibold'
+                    ? 'bg-primary text-white shadow-sm'
                     : 'bg-gray-50 hover:bg-gray-100 text-gray-700'
                 }`}
               >
-                <div className="font-semibold">{role.display_name}</div>
-                <div className="text-xs opacity-75">
+                <div className="text-sm font-semibold">{role.display_name}</div>
+                <div className={`text-xs mt-0.5 ${selectedRole?.id === role.id ? 'text-white/70' : 'text-gray-400'}`}>
                   {role.permissions.length} permission{role.permissions.length !== 1 ? 's' : ''}
                 </div>
               </button>
@@ -117,72 +123,112 @@ function AccessRightsManagement({ user }) {
           </div>
         </div>
 
-        {/* Permissions Grid */}
-        <div className="col-span-9 bg-white rounded-xl shadow-md p-6">
+        {/* Permissions Panel */}
+        <div className="col-span-9 bg-white rounded-xl border border-gray-200 shadow-sm p-5">
           {selectedRole ? (
             <>
-              <div className="flex justify-between items-center mb-6">
+              {/* Panel Header */}
+              <div className="flex justify-between items-center mb-5 pb-4 border-b border-gray-100">
                 <div>
-                  <h3 className="text-2xl font-bold text-gray-800">{selectedRole.display_name}</h3>
-                  <p className="text-gray-600 mt-1">
-                    {selectedPermissions.length} permission{selectedPermissions.length !== 1 ? 's' : ''} selected
+                  <h3 className="text-sm font-bold text-gray-900">{selectedRole.display_name}</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    <span className="font-semibold text-primary">{selectedPermissions.length}</span> permission{selectedPermissions.length !== 1 ? 's' : ''} selected
                   </p>
                 </div>
                 <button
                   onClick={savePermissions}
                   disabled={saving}
-                  className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-semibold disabled:bg-gray-400"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-bold transition-all shadow-sm hover:shadow-md hover:-translate-y-px disabled:translate-y-0 disabled:cursor-not-allowed"
+                  style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
                 >
-                  {saving ? '⏳ Saving...' : '💾 Save Changes'}
+                  {saving ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V6h5a2 2 0 012 2v7a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2h5v5.586l-1.293-1.293z" />
+                      </svg>
+                      Save Changes
+                    </>
+                  )}
                 </button>
               </div>
 
-              <div className="space-y-6">
+              {/* Permission Modules */}
+              <div className="space-y-4">
                 {Object.entries(groupedPermissions).map(([module, permissions]) => {
                   const modulePermissionIds = permissions.map(p => p.id)
                   const allSelected = modulePermissionIds.every(id => selectedPermissions.includes(id))
                   const someSelected = modulePermissionIds.some(id => selectedPermissions.includes(id))
+                  const selectedCount = modulePermissionIds.filter(id => selectedPermissions.includes(id)).length
 
                   return (
-                    <div key={module} className="border-2 border-gray-200 rounded-lg overflow-hidden">
-                      <div className="bg-gray-50 px-6 py-4 flex justify-between items-center">
-                        <h4 className="text-lg font-bold text-gray-800 capitalize">{module}</h4>
+                    <div key={module} className="border border-gray-200 rounded-xl overflow-hidden">
+                      {/* Module Header */}
+                      <div className="flex justify-between items-center px-4 py-3 bg-gradient-to-r from-gray-50 to-gray-50/60 border-b border-gray-100">
+                        <div className="flex items-center gap-2.5">
+                          <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider capitalize">{module}</h4>
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+                            allSelected
+                              ? 'bg-green-50 text-green-700 border border-green-200'
+                              : someSelected
+                              ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                              : 'bg-gray-100 text-gray-500'
+                          }`}>
+                            {selectedCount}/{permissions.length}
+                          </span>
+                        </div>
                         <button
                           onClick={() => toggleAllInModule(module)}
-                          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                          className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border ${
                             allSelected
-                              ? 'bg-red-500 hover:bg-red-600 text-white'
-                              : 'bg-primary hover:bg-primary-dark text-white'
+                              ? 'bg-red-50 hover:bg-red-100 text-red-600 border-red-200'
+                              : 'bg-primary/10 hover:bg-primary/20 text-primary border-primary/20'
                           }`}
                         >
-                          {allSelected ? '✖️ Unselect All' : '✓ Select All'}
+                          {allSelected ? (
+                            <>
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                              </svg>
+                              Unselect All
+                            </>
+                          ) : (
+                            <>
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                              Select All
+                            </>
+                          )}
                         </button>
                       </div>
-                      
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 p-6">
+
+                      {/* Permission Items */}
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 p-4">
                         {permissions.map(permission => {
                           const isSelected = selectedPermissions.includes(permission.id)
-                          
                           return (
                             <label
                               key={permission.id}
-                              className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                              className={`flex items-start gap-2.5 p-3 border rounded-lg cursor-pointer transition-all ${
                                 isSelected
-                                  ? 'border-primary bg-primary bg-opacity-10'
-                                  : 'border-gray-200 hover:border-gray-300'
+                                  ? 'border-primary/30 bg-primary/5 ring-1 ring-primary/10'
+                                  : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                               }`}
                             >
                               <input
                                 type="checkbox"
                                 checked={isSelected}
                                 onChange={() => togglePermission(permission.id)}
-                                className="w-5 h-5"
+                                className="w-4 h-4 mt-0.5 accent-primary flex-shrink-0"
                               />
-                              <div className="flex-1">
-                                <div className="font-semibold text-gray-800 text-sm">
-                                  {permission.display_name}
-                                </div>
-                                <div className="text-xs text-gray-500">{permission.name}</div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-semibold text-gray-800 leading-snug">{permission.display_name}</p>
+                                <p className="text-xs text-gray-400 mt-0.5 truncate">{permission.name}</p>
                               </div>
                             </label>
                           )
@@ -194,26 +240,30 @@ function AccessRightsManagement({ user }) {
               </div>
             </>
           ) : (
-            <div className="text-center py-12 text-gray-500">
-              Select a role to manage permissions
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 text-gray-200 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+              </svg>
+              <p className="text-sm text-gray-400">Select a role to manage permissions</p>
             </div>
           )}
         </div>
       </div>
 
-      {/* Warning */}
-      <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4">
-        <div className="flex items-start gap-3">
-          <span className="text-2xl">⚠️</span>
-          <div>
-            <div className="font-bold text-gray-800">Important</div>
-            <div className="text-sm text-gray-700">
-              Changes to permissions will affect all users with this role immediately. 
-              Be careful when removing critical permissions like "view_dashboard" or "view_job_cards".
-            </div>
-          </div>
+      {/* Warning Banner */}
+      <div className="flex items-start gap-3 bg-yellow-50 border border-yellow-200 rounded-xl px-5 py-4">
+        <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+        <div>
+          <p className="text-sm font-bold text-gray-800">Important</p>
+          <p className="text-xs text-gray-600 mt-0.5">
+            Changes to permissions will affect all users with this role immediately.
+            Be careful when removing critical permissions like "view_dashboard" or "view_job_cards".
+          </p>
         </div>
       </div>
+
     </div>
   )
 }

@@ -13,7 +13,7 @@ function MiniCalendar({ jobCards = [] }) {
 
   const getJobsForDate = (date) => {
     return jobCards.filter(jc => {
-      const expectedDate = jc.expected_completion_date ? new Date(jc.expected_completion_date) : null
+      const expectedDate = jc.estimated_completion_date ? new Date(jc.estimated_completion_date) : null
       return expectedDate && expectedDate.toDateString() === date.toDateString()
     })
   }
@@ -22,7 +22,7 @@ function MiniCalendar({ jobCards = [] }) {
     const jobs = getJobsForDate(date)
     if (!jobs.length) return 'text-gray-400'
     
-    const expectedDate = new Date(jobs[0].expected_completion_date)
+    const expectedDate = new Date(jobs[0].estimated_completion_date)
     const today = new Date()
     
     if (expectedDate < today) return 'text-red-600 font-bold' // Overdue
