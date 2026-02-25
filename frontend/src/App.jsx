@@ -7,6 +7,9 @@ import CustomerManagement from './pages/CustomerManagement'
 import JobCardManagement from './pages/JobCardManagement'
 import JobCardDetail from './pages/JobCardDetail'
 import QuotationManagement from './pages/QuotationManagement'
+import InvoiceManagement from './pages/InvoiceManagement'
+import InvoiceDetail from './pages/InvoiceDetail'
+import InvoicePrint from './pages/InvoicePrint'
 import FinancialReports from './pages/FinancialReports'
 import PettyCashManagement from './pages/PettyCashManagement'
 import AccessRightsManagement from './pages/AccessRightsManagement'
@@ -91,6 +94,21 @@ function App() {
         <Route 
           path="/quotations" 
           element={user ? <Layout user={user} onLogout={handleLogout}><QuotationManagement user={user} /></Layout> : <Navigate to="/login" />} 
+        />
+        
+        <Route 
+          path="/invoices" 
+          element={user ? <Layout user={user} onLogout={handleLogout}><InvoiceManagement user={user} /></Layout> : <Navigate to="/login" />} 
+        />
+
+        <Route 
+          path="/invoice/:jobCardId" 
+          element={user ? <Layout user={user} onLogout={handleLogout}><InvoiceDetail user={user} /></Layout> : <Navigate to="/login" />} 
+        />
+
+        <Route 
+          path="/invoice-print/:jobCardId" 
+          element={user ? <Layout user={user} onLogout={handleLogout}><InvoicePrint user={user} /></Layout> : <Navigate to="/login" />} 
         />
         
         <Route 

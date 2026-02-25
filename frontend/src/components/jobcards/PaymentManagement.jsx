@@ -52,6 +52,19 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef }) {
   const canEditLaborCost = user?.role?.name === 'super_admin' || user?.permissions?.includes('edit_labor_cost') || user?.permissions?.includes('edit_pricing')
   const canEditApprovedParts = user?.role?.name === 'super_admin' || user?.permissions?.includes('edit_approved_parts') || user?.permissions?.includes('edit_spare_parts')
 
+  // Calculate pricing totals
+  const calculateTasksTotal = () => {
+    return (jobCard.tasks || []).reduce((sum, task) => sum + (parseFloat(task.amount) || 0), 0)
+  }
+
+  const calculatePartsTotal = () => {
+    return (jobCard.spare_parts_requests || []).reduce((sum, part) => sum + (parseFloat(part.selling_price) || 0), 0)
+  }
+
+  const calculateOtherChargesTotal = () => {
+    return (jobCard.otherCharges || []).reduce((sum, charge) => sum + (parseFloat(charge.amount) || 0), 0)
+  }
+
   // Debug logging for jobCard changes
   useEffect(() => {
     console.log('[DEBUG] JobCard Updated:')
@@ -59,6 +72,13 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef }) {
     console.log('  - other_charges (total):', jobCard?.other_charges)
     console.log('  - otherCharges (array):', jobCard?.otherCharges)
     console.log('  - otherCharges length:', jobCard?.otherCharges?.length || 0)
+    console.log('  - spare_parts_requests length:', jobCard?.spare_parts_requests?.length || 0)
+    if (jobCard?.spare_parts_requests && jobCard.spare_parts_requests.length > 0) {
+      const patt2 = jobCard.spare_parts_requests.find(sp => sp.part_name === 'patt2')
+      console.log('  - patt2 spare part:', patt2)
+      console.log('  - patt2 task:', patt2?.task)
+      console.log('  - patt2 assigned_employees:', patt2?.task?.assigned_employees)
+    }
     console.log('  - Full jobCard:', jobCard)
   }, [jobCard])
 
@@ -400,8 +420,8 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef }) {
                       <p className="text-xs text-gray-400 mt-0.5 font-mono">{task.id}</p>
                     </td>
                     <td className="px-5 py-4">
-                      <p className="text-sm text-gray-700">{task.assigned_to?.name || <span className="text-gray-300">Unassigned</span>}</p>
-                      <p className="text-xs text-gray-400">{task.assigned_to?.employee_id}</p>
+                      <p className="text-sm text-gray-700">{task.assigned_employees?.[0]?.name || <span className="text-gray-300">Unassigned</span>}</p>
+                      <p className="text-xs text-gray-400">{task.assigned_employees?.[0]?.employee_code || ''}</p>
                     </td>
                     <td className="px-5 py-4">
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
@@ -487,8 +507,10 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef }) {
                       <p className="text-xs text-gray-400 mt-0.5">Qty: {part.quantity}</p>
                     </td>
                     <td className="px-5 py-4">
-                      <p className="text-sm text-gray-600">{part.task?.description || <span className="text-gray-300">N/A</span>}</p>
-                      <p className="text-xs text-gray-400">{part.task?.assigned_to?.name || 'N/A'}</p>
+                      <p className="text-sm text-gray-600">{part.task?.task_name || <span className="text-gray-300">N/A</span>}</p>
+                      <p className="text-xs text-gray-400">
+                        {part.task?.assigned_employees?.[0]?.name || 'Unassigned'}
+                      </p>
                     </td>
                     <td className="px-5 py-4">
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
@@ -634,6 +656,143 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef }) {
         )}
       </div>
 
+      {/* Cost Analysis & Profit Breakdown */}
+      <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl border border-slate-300 shadow-sm p-5">
+        <SectionHeader
+          title="Cost Analysis & Profit Breakdown"
+          icon={<svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>}
+        />
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+          {/* Tasks & Services */}
+          <div className="bg-white rounded-lg border border-slate-200 p-4">
+            <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+              Tasks & Services
+            </h4>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Total Cost Price</span>
+                <span className="font-semibold text-gray-800">{formatCurrency((jobCard.tasks || []).reduce((sum, task) => sum + (parseFloat(task.cost_price) || 0), 0))}</span>
+              </div>
+              <div className="flex justify-between items-center border-t pt-2">
+                <span className="text-gray-600">Total Amount</span>
+                <span className="font-semibold text-green-600">{formatCurrency(calculateTasksTotal())}</span>
+              </div>
+              <div className="flex justify-between items-center bg-blue-50 -mx-4 px-4 py-2 rounded">
+                <span className="text-gray-700 font-medium">Profit</span>
+                <span className={`font-bold ${calculateTasksTotal() - (jobCard.tasks || []).reduce((sum, task) => sum + (parseFloat(task.cost_price) || 0), 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {formatCurrency(calculateTasksTotal() - (jobCard.tasks || []).reduce((sum, task) => sum + (parseFloat(task.cost_price) || 0), 0))}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-gray-600">Profit Margin</span>
+                <span className={`font-semibold ${(calculateTasksTotal() - (jobCard.tasks || []).reduce((sum, task) => sum + (parseFloat(task.cost_price) || 0), 0)) / (calculateTasksTotal() || 1) * 100 >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {((calculateTasksTotal() - (jobCard.tasks || []).reduce((sum, task) => sum + (parseFloat(task.cost_price) || 0), 0)) / (calculateTasksTotal() || 1) * 100).toFixed(1)}%
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Spare Parts */}
+          <div className="bg-white rounded-lg border border-slate-200 p-4">
+            <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
+              Spare Parts
+            </h4>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Total Cost Price</span>
+                <span className="font-semibold text-gray-800">{formatCurrency((jobCard.spare_parts_requests || []).reduce((sum, part) => sum + (parseFloat(part.cost_price) || 0), 0))}</span>
+              </div>
+              <div className="flex justify-between items-center border-t pt-2">
+                <span className="text-gray-600">Total Selling Price</span>
+                <span className="font-semibold text-green-600">{formatCurrency(calculatePartsTotal())}</span>
+              </div>
+              <div className="flex justify-between items-center bg-orange-50 -mx-4 px-4 py-2 rounded">
+                <span className="text-gray-700 font-medium">Profit</span>
+                <span className={`font-bold ${calculatePartsTotal() - (jobCard.spare_parts_requests || []).reduce((sum, part) => sum + (parseFloat(part.cost_price) || 0), 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {formatCurrency(calculatePartsTotal() - (jobCard.spare_parts_requests || []).reduce((sum, part) => sum + (parseFloat(part.cost_price) || 0), 0))}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-gray-600">Profit Margin</span>
+                <span className={`font-semibold ${(calculatePartsTotal() - (jobCard.spare_parts_requests || []).reduce((sum, part) => sum + (parseFloat(part.cost_price) || 0), 0)) / (calculatePartsTotal() || 1) * 100 >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {((calculatePartsTotal() - (jobCard.spare_parts_requests || []).reduce((sum, part) => sum + (parseFloat(part.cost_price) || 0), 0)) / (calculatePartsTotal() || 1) * 100).toFixed(1)}%
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Other Charges */}
+          <div className="bg-white rounded-lg border border-slate-200 p-4">
+            <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <span className="w-2 h-2 bg-teal-500 rounded-full"></span>
+              Other Charges
+            </h4>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Total Cost Price</span>
+                <span className="font-semibold text-gray-800">{formatCurrency((jobCard.otherCharges || []).reduce((sum, charge) => sum + (parseFloat(charge.cost_price) || 0), 0))}</span>
+              </div>
+              <div className="flex justify-between items-center border-t pt-2">
+                <span className="text-gray-600">Total Amount</span>
+                <span className="font-semibold text-green-600">{formatCurrency(calculateOtherChargesTotal())}</span>
+              </div>
+              <div className="flex justify-between items-center bg-teal-50 -mx-4 px-4 py-2 rounded">
+                <span className="text-gray-700 font-medium">Profit</span>
+                <span className={`font-bold ${calculateOtherChargesTotal() - (jobCard.otherCharges || []).reduce((sum, charge) => sum + (parseFloat(charge.cost_price) || 0), 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {formatCurrency(calculateOtherChargesTotal() - (jobCard.otherCharges || []).reduce((sum, charge) => sum + (parseFloat(charge.cost_price) || 0), 0))}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-gray-600">Profit Margin</span>
+                <span className={`font-semibold ${(calculateOtherChargesTotal() - (jobCard.otherCharges || []).reduce((sum, charge) => sum + (parseFloat(charge.cost_price) || 0), 0)) / (calculateOtherChargesTotal() || 1) * 100 >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {((calculateOtherChargesTotal() - (jobCard.otherCharges || []).reduce((sum, charge) => sum + (parseFloat(charge.cost_price) || 0), 0)) / (calculateOtherChargesTotal() || 1) * 100).toFixed(1)}%
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Overall Summary */}
+        <div className="mt-4 pt-4 border-t border-slate-300 grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="bg-white rounded-lg p-3">
+            <div className="text-xs text-gray-600 mb-1">Total Cost</div>
+            <div className="text-lg font-bold text-gray-900">
+              {formatCurrency(
+                ((jobCard.tasks || []).reduce((sum, task) => sum + (parseFloat(task.cost_price) || 0), 0)) +
+                ((jobCard.spare_parts_requests || []).reduce((sum, part) => sum + (parseFloat(part.cost_price) || 0), 0)) +
+                ((jobCard.otherCharges || []).reduce((sum, charge) => sum + (parseFloat(charge.cost_price) || 0), 0))
+              )}
+            </div>
+          </div>
+          <div className="bg-white rounded-lg p-3">
+            <div className="text-xs text-gray-600 mb-1">Total Revenue</div>
+            <div className="text-lg font-bold text-green-600">
+              {formatCurrency(calculateTasksTotal() + calculatePartsTotal() + calculateOtherChargesTotal())}
+            </div>
+          </div>
+          <div className="bg-white rounded-lg p-3">
+            <div className="text-xs text-gray-600 mb-1">Total Profit</div>
+            <div className={`text-lg font-bold ${(calculateTasksTotal() + calculatePartsTotal() + calculateOtherChargesTotal()) - (((jobCard.tasks || []).reduce((sum, task) => sum + (parseFloat(task.cost_price) || 0), 0)) + ((jobCard.spare_parts_requests || []).reduce((sum, part) => sum + (parseFloat(part.cost_price) || 0), 0)) + ((jobCard.otherCharges || []).reduce((sum, charge) => sum + (parseFloat(charge.cost_price) || 0), 0))) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              {formatCurrency(
+                (calculateTasksTotal() + calculatePartsTotal() + calculateOtherChargesTotal()) -
+                (((jobCard.tasks || []).reduce((sum, task) => sum + (parseFloat(task.cost_price) || 0), 0)) +
+                ((jobCard.spare_parts_requests || []).reduce((sum, part) => sum + (parseFloat(part.cost_price) || 0), 0)) +
+                ((jobCard.otherCharges || []).reduce((sum, charge) => sum + (parseFloat(charge.cost_price) || 0), 0)))
+              )}
+            </div>
+          </div>
+          <div className="bg-white rounded-lg p-3">
+            <div className="text-xs text-gray-600 mb-1">Profit Margin</div>
+            <div className={`text-lg font-bold ${((calculateTasksTotal() + calculatePartsTotal() + calculateOtherChargesTotal()) - (((jobCard.tasks || []).reduce((sum, task) => sum + (parseFloat(task.cost_price) || 0), 0)) + ((jobCard.spare_parts_requests || []).reduce((sum, part) => sum + (parseFloat(part.cost_price) || 0), 0)) + ((jobCard.otherCharges || []).reduce((sum, charge) => sum + (parseFloat(charge.cost_price) || 0), 0)))) / (calculateTasksTotal() + calculatePartsTotal() + calculateOtherChargesTotal() || 1) * 100 >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              {(((calculateTasksTotal() + calculatePartsTotal() + calculateOtherChargesTotal()) - (((jobCard.tasks || []).reduce((sum, task) => sum + (parseFloat(task.cost_price) || 0), 0)) + ((jobCard.spare_parts_requests || []).reduce((sum, part) => sum + (parseFloat(part.cost_price) || 0), 0)) + ((jobCard.otherCharges || []).reduce((sum, charge) => sum + (parseFloat(charge.cost_price) || 0), 0)))) / (calculateTasksTotal() + calculatePartsTotal() + calculateOtherChargesTotal() || 1) * 100).toFixed(1)}%
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Pricing Summary */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
         <SectionHeader
@@ -643,9 +802,9 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef }) {
 
         <div className="space-y-2.5">
           {[
-            { label: 'Tasks & Services Pricing', value: jobCard.labor_cost || 0 },
-            { label: 'Parts Charges', value: jobCard.parts_cost || 0 },
-            { label: 'Other Charges', value: jobCard.other_charges || 0 },
+            { label: 'Tasks & Services Pricing', value: calculateTasksTotal() },
+            { label: 'Parts Charges', value: calculatePartsTotal() },
+            { label: 'Other Charges', value: calculateOtherChargesTotal() },
           ].map(row => (
             <div key={row.label} className="flex justify-between items-center pb-2.5 border-b border-gray-100">
               <span className="text-sm text-gray-600">{row.label}</span>
@@ -662,7 +821,7 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef }) {
 
           <div className="flex justify-between items-center py-3 border-y-2 border-gray-200">
             <span className="font-bold text-gray-800">Total Amount</span>
-            <span className="text-2xl font-bold text-primary">{formatCurrency(jobCard.total_amount || 0)}</span>
+            <span className="text-2xl font-bold text-primary">{formatCurrency((calculateTasksTotal() + calculatePartsTotal() + calculateOtherChargesTotal() - (jobCard.discount || 0)))}</span>
           </div>
 
           {jobCard.advance_payment > 0 && (
@@ -674,8 +833,8 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef }) {
 
           <div className="flex justify-between items-center pt-1">
             <span className="font-bold text-gray-800">Balance Due</span>
-            <span className={`text-2xl font-bold ${jobCard.balance_amount > 0 ? 'text-red-600' : 'text-green-600'}`}>
-              {formatCurrency(jobCard.balance_amount || 0)}
+            <span className={`text-2xl font-bold ${(calculateTasksTotal() + calculatePartsTotal() + calculateOtherChargesTotal() - (jobCard.discount || 0) - (jobCard.advance_payment || 0)) > 0 ? 'text-red-600' : 'text-green-600'}`}>
+              {formatCurrency((calculateTasksTotal() + calculatePartsTotal() + calculateOtherChargesTotal() - (jobCard.discount || 0) - (jobCard.advance_payment || 0)))}
             </span>
           </div>
         </div>
@@ -704,14 +863,6 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef }) {
               style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>
               <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
               Record Payment
-            </button>
-          )}
-          {canAddPayments && (
-            <button onClick={() => setShowAdvancePaymentModal(true)}
-              className="flex-1 inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm hover:shadow-md"
-              style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-              Add Advance Payment
             </button>
           )}
         </div>
@@ -993,8 +1144,11 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef }) {
                     placeholder="Enter labor cost" className={inputCls} />
                 </div>
               )}
+              <div className="flex justify-end gap-3 px-7 py-4 border-t">
+                <button type="button" onClick={() => setShowEditLaborModal(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all">Cancel</button>
+                <button type="submit" className="px-4 py-2 text-sm font-bold text-white bg-amber-500 hover:bg-amber-600 rounded-lg transition-all">Update Cost</button>
+              </div>
             </form>
-            <ModalFooter onCancel={() => setShowEditLaborModal(false)} submitLabel="Update Cost" submitClass="bg-amber-500 hover:bg-amber-600" />
           </div>
         </div>
       )}

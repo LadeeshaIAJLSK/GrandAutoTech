@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react'
 import axiosClient from '../../api/axios'
+import MiniCalendar from './MiniCalendar'
 
 function AnalyticsDashboard({ user }) {
   const [stats, setStats] = useState(null)
+  const [employeeCount, setEmployeeCount] = useState(0)
   const [recentJobCards, setRecentJobCards] = useState([])
   const [pendingApprovals, setPendingApprovals] = useState([])
+  const [calendarJobCards, setCalendarJobCards] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -21,11 +24,23 @@ function AnalyticsDashboard({ user }) {
       })
       setStats(statsResponse.data)
 
+      // Fetch employee count
+      try {
+        const employeeResponse = await axiosClient.get('/users/count?role=employee', {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+        setEmployeeCount(employeeResponse.data.count || 0)
+      } catch (error) {
+        // Fallback: count employees manually
+        console.warn('Could not fetch employee count:', error)
+      }
+
       // Fetch recent job cards
       const jobCardsResponse = await axiosClient.get('/job-cards', {
         headers: { Authorization: `Bearer ${token}` }
       })
       setRecentJobCards(jobCardsResponse.data.data.slice(0, 5))
+      setCalendarJobCards(jobCardsResponse.data.data)
 
       // Fetch pending approvals if employee/admin
       if (['employee', 'super_admin', 'branch_admin'].includes(user.role.name)) {
@@ -86,82 +101,87 @@ function AnalyticsDashboard({ user }) {
       {/* Statistics Cards */}
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {/* Total Job Cards */}
-          <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-blue-500 transform hover:scale-105 transition-transform">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm font-semibold mb-1">Total Job Cards</p>
-                <p className="text-4xl font-bold text-gray-800">{stats.total}</p>
-              </div>
-              <div className="text-5xl">📋</div>
-            </div>
-          </div>
-
-          {/* Pending */}
+          {/* Pending Job Cards */}
           <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-yellow-500 transform hover:scale-105 transition-transform">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm font-semibold mb-1">Pending</p>
+                <p className="text-gray-600 text-sm font-semibold mb-1">Pending Job Cards</p>
                 <p className="text-4xl font-bold text-yellow-600">{stats.pending}</p>
               </div>
               <div className="text-5xl">⏳</div>
             </div>
           </div>
 
-          {/* In Progress */}
-          <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-purple-500 transform hover:scale-105 transition-transform">
+          {/* Active Job Cards */}
+          <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-blue-500 transform hover:scale-105 transition-transform">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm font-semibold mb-1">In Progress</p>
-                <p className="text-4xl font-bold text-purple-600">{stats.in_progress}</p>
+                <p className="text-gray-600 text-sm font-semibold mb-1">Active Job Cards</p>
+                <p className="text-4xl font-bold text-blue-600">{stats.in_progress}</p>
               </div>
               <div className="text-5xl">🔧</div>
             </div>
           </div>
 
-          {/* Total Revenue */}
+          {/* Completed Job Cards */}
           <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-green-500 transform hover:scale-105 transition-transform">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm font-semibold mb-1">Total Revenue</p>
-                <p className="text-3xl font-bold text-green-600">{formatCurrency(stats.total_revenue)}</p>
+                <p className="text-gray-600 text-sm font-semibold mb-1">Completed Job Cards</p>
+                <p className="text-4xl font-bold text-green-600">{stats.completed}</p>
               </div>
-              <div className="text-5xl">💰</div>
+              <div className="text-5xl">✅</div>
+            </div>
+          </div>
+
+          {/* Employee Count */}
+          <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-cyan-500 transform hover:scale-105 transition-transform">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-600 text-sm font-semibold mb-1">Employee Count</p>
+                <p className="text-4xl font-bold text-cyan-600">{employeeCount}</p>
+              </div>
+              <div className="text-5xl">👥</div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Status Breakdown */}
-      {stats && (
-        <div className="bg-white rounded-xl shadow-md p-6">
+      {/* Calendar with Job Card Deadlines */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 bg-white rounded-xl shadow-md p-6">
           <h3 className="text-xl font-bold text-gray-800 mb-4">📊 Job Card Status Breakdown</h3>
           <div className="space-y-3">
             {[
-              { label: 'Waiting Parts', count: stats.waiting_parts, color: 'purple' },
-              { label: 'Quality Check', count: stats.quality_check, color: 'indigo' },
-              { label: 'Completed', count: stats.completed, color: 'green' },
-              { label: 'Invoiced', count: stats.invoiced, color: 'teal' },
-              { label: 'Paid', count: stats.paid, color: 'emerald' },
+              { label: 'Waiting Parts', count: stats?.waiting_parts || 0, color: 'purple' },
+              { label: 'Quality Check', count: stats?.quality_check || 0, color: 'indigo' },
+              { label: 'Completed', count: stats?.completed || 0, color: 'green' },
+              { label: 'Invoiced', count: stats?.invoiced || 0, color: 'teal' },
+              { label: 'Paid', count: stats?.paid || 0, color: 'emerald' },
             ].map((item) => (
               <div key={item.label} className="flex items-center gap-4">
                 <div className="w-32 text-gray-700 font-semibold">{item.label}</div>
                 <div className="flex-1 bg-gray-200 rounded-full h-6 overflow-hidden">
                   <div
                     className={`bg-${item.color}-500 h-full flex items-center justify-end px-3 text-white text-sm font-bold transition-all duration-500`}
-                    style={{ width: `${stats.total > 0 ? (item.count / stats.total) * 100 : 0}%` }}
+                    style={{ width: `${stats?.total > 0 ? (item.count / stats.total) * 100 : 0}%` }}
                   >
                     {item.count > 0 && item.count}
                   </div>
                 </div>
                 <div className="w-16 text-right text-gray-600 font-semibold">
-                  {stats.total > 0 ? Math.round((item.count / stats.total) * 100) : 0}%
+                  {stats?.total > 0 ? Math.round((item.count / stats.total) * 100) : 0}%
                 </div>
               </div>
             ))}
           </div>
         </div>
-      )}
+
+        {/* Mini Calendar Sidebar */}
+        <div>
+          <MiniCalendar jobCards={calendarJobCards} />
+        </div>
+      </div>
 
       {/* Two Column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

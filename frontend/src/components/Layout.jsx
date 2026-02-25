@@ -108,7 +108,7 @@ function Layout({ user, onLogout, children }) {
     jobCards: <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>,
     approval: <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
     quotations: <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>,
-    reports: <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>,
+    invoices: <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>,
     cash: <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>,
     access: <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>,
     branch: <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>,
@@ -172,11 +172,11 @@ function Layout({ user, onLogout, children }) {
 
       <div className="flex flex-1">
 
-        {/* Sidebar */}
-        <aside className="w-60 bg-sidebar flex-shrink-0 flex flex-col">
+        {/* Sidebar - Fixed */}
+        <aside className="fixed left-0 top-16 w-60 h-[calc(100vh-64px)] bg-sidebar flex flex-col z-40 border-r border-white/10">
 
-          {/* Nav */}
-          <nav className="flex-1 py-4 space-y-0.5 overflow-y-auto">
+          {/* Nav - Scrollable */}
+          <nav className="flex-1 py-4 space-y-0.5 overflow-y-auto sidebar-scroll">
 
             {/* Dashboard */}
             <NavItem
@@ -252,6 +252,11 @@ function Layout({ user, onLogout, children }) {
               </div>
             )}
 
+            {/* Invoices */}
+            {['super_admin', 'branch_admin', 'accountant'].includes(user.role.name) && (
+              <NavItem path="/invoices" icon={icons.invoices} label="Invoice Management" />
+            )}
+
             {/* Financial Reports */}
             {['super_admin', 'branch_admin', 'accountant'].includes(user.role.name) && (
               <NavItem path="/reports" icon={icons.reports} label="Financial Reports" />
@@ -302,7 +307,7 @@ function Layout({ user, onLogout, children }) {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 p-7 overflow-y-auto bg-gray-50">
+        <main className="ml-60 flex-1 p-7 overflow-y-auto bg-gray-50">
           {React.cloneElement(children, { selectedBranchId })}
         </main>
       </div>

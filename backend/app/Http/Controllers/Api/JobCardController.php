@@ -122,6 +122,7 @@ class JobCardController extends Controller
             'sparePartsRequests.requestedBy',
             'sparePartsRequests.employeeApprovedBy',
             'sparePartsRequests.adminApprovedBy',
+            'sparePartsRequests.task.assignedEmployees',
             'inspections.inspector',
             'invoices',
             'payments.receivedBy'
@@ -136,9 +137,41 @@ class JobCardController extends Controller
         // Manually fetch and attach otherCharges
         $jobCard->otherCharges = OtherCharge::where('job_card_id', $jobCard->id)->get()->toArray();
 
+        // Ensure all tasks have their assigned employees loaded
+        foreach ($jobCard->tasks as $task) {
+            $task->load('assignedEmployees');
+        }
+
+        // Ensure all spare parts have their tasks with assigned employees loaded
+        foreach ($jobCard->sparePartsRequests as $sparePart) {
+            if ($sparePart->task_id) {
+                // Reload the task with its assignedEmployees
+                $sparePart->task = Task::with('assignedEmployees')->find($sparePart->task_id);
+            }
+        }
+
+        // Convert to array to ensure all relationships are serialized
+        $jobCardArray = $jobCard->toArray();
+        
+        // Manually add relationships that might not have been serialized
+        $jobCardArray['tasks'] = $jobCard->tasks->map(function ($task) {
+            $taskArray = $task->toArray();
+            $taskArray['assigned_employees'] = $task->assignedEmployees->toArray();
+            return $taskArray;
+        })->toArray();
+
+        $jobCardArray['sparePartsRequests'] = $jobCard->sparePartsRequests->map(function ($sparePart) {
+            $sparePartArray = $sparePart->toArray();
+            if ($sparePart->task_id && $sparePart->task) {
+                $sparePartArray['task'] = $sparePart->task->toArray();
+                $sparePartArray['task']['assigned_employees'] = $sparePart->task->assignedEmployees->toArray();
+            }
+            return $sparePartArray;
+        })->toArray();
+
         return response()->json([
             'success' => true,
-            'data' => $jobCard
+            'data' => $jobCardArray
         ]);
     }
 

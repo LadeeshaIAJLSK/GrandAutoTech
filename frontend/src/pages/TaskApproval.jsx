@@ -1,12 +1,18 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import axiosClient from '../api/axios'
 
 function TaskApproval({ user }) {
+  const navigate = useNavigate()
   const [tasks, setTasks] = useState([])
+  const [jobCards, setJobCards] = useState([])
+  const [jobCardTasks, setJobCardTasks] = useState({})
   const [loading, setLoading] = useState(true)
+  const [inspectionLoading, setInspectionLoading] = useState({})
 
   useEffect(() => {
     fetchPendingTasks()
+    fetchCompleteJobCards()
   }, [])
 
   const fetchPendingTasks = async () => {
@@ -15,7 +21,6 @@ function TaskApproval({ user }) {
       const response = await axiosClient.get('/all-tasks', {
         headers: { Authorization: `Bearer ${token}` }
       })
-      // Filter only awaiting_approval tasks
       const pendingTasks = response.data.filter(t => t.status === 'awaiting_approval')
       setTasks(pendingTasks)
     } catch (error) {
@@ -25,33 +30,93 @@ function TaskApproval({ user }) {
     }
   }
 
-  const handleApproveTask = async (taskId) => {
-    if (!confirm('✅ Approve this task?')) return
+  const fetchCompleteJobCards = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await axiosClient.get('/job-cards', {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      const allJobCards = response.data.data || response.data
 
+      const completeCards = []
+      const tasksMap = {}
+      
+      for (const jobCard of allJobCards) {
+        if (['quality_check', 'completed', 'invoiced', 'paid', 'cancelled'].includes(jobCard.status)) {
+          continue
+        }
+
+        try {
+          const tasksResponse = await axiosClient.get(`/job-cards/${jobCard.id}/tasks`, {
+            headers: { Authorization: `Bearer ${token}` }
+          })
+          const jobCardTasksList = tasksResponse.data || []
+          
+          tasksMap[jobCard.id] = jobCardTasksList
+
+          const allTasksApproved = jobCardTasksList.length > 0 && jobCardTasksList.every(task => 
+            task.status === 'approved' || task.status === 'completed' || task.status === 'cancelled'
+          )
+
+          const noAwaitingApproval = !jobCardTasksList.some(task => task.status === 'awaiting_approval')
+
+          if (allTasksApproved && noAwaitingApproval && jobCardTasksList.length > 0) {
+            completeCards.push(jobCard)
+          }
+        } catch (error) {
+          console.error(`Error fetching tasks for job card ${jobCard.id}:`, error)
+        }
+      }
+
+      setJobCardTasks(tasksMap)
+      setJobCards(completeCards)
+    } catch (error) {
+      console.error('Error fetching job cards:', error)
+    }
+  }
+
+  const handleApproveTask = async (taskId) => {
+    if (!confirm('Approve this task?')) return
     try {
       const token = localStorage.getItem('token')
       await axiosClient.post(`/tasks/${taskId}/approve`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      alert('✅ Task approved successfully!')
+      alert('Task approved successfully!')
       fetchPendingTasks()
+      fetchCompleteJobCards()
     } catch (error) {
       alert(error.response?.data?.message || 'Error approving task')
     }
   }
 
   const handleRejectTask = async (taskId) => {
-    if (!confirm('❌ Reject this task?')) return
-
+    if (!confirm('Reject this task?')) return
     try {
       const token = localStorage.getItem('token')
       await axiosClient.post(`/tasks/${taskId}/reject`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      alert('❌ Task rejected!')
+      alert('Task rejected!')
       fetchPendingTasks()
     } catch (error) {
       alert(error.response?.data?.message || 'Error rejecting task')
+    }
+  }
+
+  const handleMarkInspectionCompleted = async (jobCardId) => {
+    if (!confirm('Mark this inspection as completed?')) return
+    try {
+      setInspectionLoading(prev => ({ ...prev, [jobCardId]: true }))
+      const token = localStorage.getItem('token')
+      await axiosClient.post(`/job-cards/${jobCardId}/approve`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      alert('Inspection marked as completed! Moving to Invoices...')
+      setTimeout(() => { navigate('/invoices') }, 1000)
+    } catch (error) {
+      alert(error.response?.data?.message || 'Error marking inspection completed')
+      setInspectionLoading(prev => ({ ...prev, [jobCardId]: false }))
     }
   }
 
@@ -62,94 +127,239 @@ function TaskApproval({ user }) {
   }
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64">Loading tasks...</div>
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-3">
+        <div className="w-7 h-7 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+        <p className="text-sm text-gray-400 font-medium">Loading tasks...</p>
+      </div>
+    )
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-3xl font-bold text-gray-800">✔️ Task Approval</h2>
-          <p className="text-gray-600 mt-1">Review and approve completed tasks</p>
+    <div className="space-y-8">
+
+      {/* Task Approval Section */}
+      <div className="space-y-4">
+        {/* Header */}
+        <div className="flex justify-between items-start">
+          <div>
+            <h2 className="text-base font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Task Approval
+            </h2>
+            <p className="text-sm text-gray-400 mt-0.5">Review and approve completed tasks</p>
+          </div>
+          <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3.5 py-2 shadow-sm">
+            <span className="w-2 h-2 rounded-full bg-primary opacity-80" />
+            <span className="text-sm font-bold text-gray-700">{tasks.length}</span>
+            <span className="text-xs text-gray-400">awaiting</span>
+          </div>
         </div>
-        <div className="text-right">
-          <div className="text-sm text-gray-600">Tasks Awaiting</div>
-          <div className="text-4xl font-bold text-primary">{tasks.length}</div>
-        </div>
+
+        {tasks.length === 0 ? (
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 text-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 text-green-300 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <h3 className="font-bold text-gray-800 mb-1">No Pending Tasks</h3>
+            <p className="text-sm text-gray-400">No tasks awaiting approval</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {tasks.map(task => {
+              const totalTime = task.time_tracking?.reduce((sum, t) => sum + (t.duration_minutes || 0), 0) || 0
+
+              return (
+                <div key={task.id} className="bg-white rounded-xl border border-blue-200 shadow-sm p-5">
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2.5 flex-wrap mb-1.5">
+                        <h4 className="font-bold text-gray-900">{task.task_name}</h4>
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                          <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                          Pending Approval
+                        </span>
+                      </div>
+                      {task.description && <p className="text-sm text-gray-500 mb-2">{task.description}</p>}
+                      <div className="flex flex-wrap gap-3 text-xs text-gray-500">
+                        <span className="inline-flex items-center gap-1 font-semibold text-primary">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                          {task.job_card.job_card_number}
+                        </span>
+                        <span className="inline-flex items-center gap-1">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                          {task.job_card.customer.name}
+                        </span>
+                        <span className="inline-flex items-center gap-1 font-mono tracking-wide">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                          {task.job_card.vehicle.license_plate}
+                        </span>
+                        {task.assigned_to_user && (
+                          <span className="inline-flex items-center gap-1 font-semibold text-blue-600">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                            {task.assigned_to_user.name}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right flex-shrink-0 ml-4">
+                      <p className="text-xs text-gray-400 uppercase tracking-wide">Time Spent</p>
+                      <p className="text-2xl font-bold text-blue-600">{formatTime(totalTime)}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 p-4 bg-blue-50 border border-blue-100 rounded-lg">
+                    <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-3">Review & Approve Task</p>
+                    <div className="flex gap-2.5">
+                      <button
+                        onClick={() => handleApproveTask(task.id)}
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 bg-green-500 hover:bg-green-600 text-white py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm hover:shadow"
+                        style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                        Approve
+                      </button>
+                      <button
+                        onClick={() => handleRejectTask(task.id)}
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 bg-red-500 hover:bg-red-600 text-white py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm hover:shadow"
+                        style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                        Reject
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
 
-      {tasks.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-md p-12 text-center">
-          <div className="text-7xl mb-4">✅</div>
-          <h3 className="text-2xl font-bold text-gray-800 mb-2">All Caught Up!</h3>
-          <p className="text-gray-600">No tasks awaiting approval</p>
+      {/* Inspection Section */}
+      <div className="space-y-4 border-t border-gray-200 pt-8">
+        {/* Header */}
+        <div className="flex justify-between items-start">
+          <div>
+            <h2 className="text-base font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              Inspection
+            </h2>
+            <p className="text-sm text-gray-400 mt-0.5">Job cards with all tasks approved, ready for inspection</p>
+          </div>
+          <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3.5 py-2 shadow-sm">
+            <span className="w-2 h-2 rounded-full bg-amber-500 opacity-80" />
+            <span className="text-sm font-bold text-gray-700">{jobCards.length}</span>
+            <span className="text-xs text-gray-400">ready</span>
+          </div>
         </div>
-      ) : (
-        <div className="space-y-4">
-          {tasks.map(task => {
-            const totalTime = task.time_tracking?.reduce((sum, t) => sum + (t.duration_minutes || 0), 0) || 0
 
-            return (
-              <div key={task.id} className="bg-white border-2 border-blue-300 rounded-xl shadow-md p-6">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h4 className="text-xl font-bold text-gray-800">{task.task_name}</h4>
-                      <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-bold border-2 border-blue-300">
-                        ⏳ PENDING APPROVAL
+        {jobCards.length === 0 ? (
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 text-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 text-amber-200 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <h3 className="font-bold text-gray-800 mb-1">All Done!</h3>
+            <p className="text-sm text-gray-400">No job cards pending inspection</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {jobCards.map(jobCard => (
+              <div key={jobCard.id} className="bg-white rounded-xl border border-amber-200 shadow-sm p-5">
+                <div className="flex justify-between items-start mb-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2.5 flex-wrap mb-1.5">
+                      <h4 className="font-bold text-gray-900">{jobCard.job_card_number}</h4>
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                        Pending Inspection
                       </span>
                     </div>
-                    <div className="text-gray-600 mb-2">{task.description}</div>
-                    <div className="flex items-center gap-4 text-sm flex-wrap">
-                      <span className="font-semibold text-primary">
-                        📋 {task.job_card.job_card_number}
+                    <div className="flex flex-wrap gap-3 text-xs text-gray-500 mt-1">
+                      <span className="inline-flex items-center gap-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                        <span className="font-semibold text-gray-700">{jobCard.customer?.name}</span>
                       </span>
-                      <span className="text-gray-600">
-                        👤 {task.job_card.customer.name}
+                      <span className="inline-flex items-center gap-1 font-mono font-semibold tracking-wide text-gray-700">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                        {jobCard.vehicle?.license_plate}
                       </span>
-                      <span className="text-gray-600">
-                        🚗 {task.job_card.vehicle.license_plate}
-                      </span>
-                      {task.assigned_to_user && (
-                        <span className="text-blue-600 font-semibold">
-                          👨‍🔧 {task.assigned_to_user.name}
-                        </span>
-                      )}
+                      <span className="text-gray-400">{jobCard.vehicle?.make} {jobCard.vehicle?.model} · {jobCard.vehicle?.year}</span>
                     </div>
+                    {jobCard.description && <p className="text-sm text-gray-500 mt-1.5">{jobCard.description}</p>}
                   </div>
-
-                  <div className="text-right">
-                    <div className="text-sm text-gray-600">Time Spent</div>
-                    <div className="text-3xl font-bold text-blue-600">
-                      {formatTime(totalTime)}
-                    </div>
+                  <div className="text-right flex-shrink-0 ml-4">
+                    <p className="text-xs text-gray-400 uppercase tracking-wide">Total Amount</p>
+                    <p className="text-xl font-bold text-amber-600">
+                      {new Intl.NumberFormat('en-LK', { style: 'currency', currency: 'LKR', minimumFractionDigits: 2 }).format(jobCard.total_amount || 0)}
+                    </p>
                   </div>
                 </div>
 
-                <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <div className="text-blue-800 font-semibold mb-4">
-                    Review & Approve Task
+                {/* Related Tasks */}
+                {jobCardTasks[jobCard.id] && jobCardTasks[jobCard.id].length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-amber-100">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2.5">
+                      Related Tasks ({jobCardTasks[jobCard.id].length})
+                    </p>
+                    <div className="space-y-1.5">
+                      {jobCardTasks[jobCard.id].map(task => (
+                        <div key={task.id} className="flex items-center justify-between bg-green-50 border border-green-100 rounded-lg px-3.5 py-2.5">
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-gray-800">{task.task_name}</p>
+                            {task.description && <p className="text-xs text-gray-400 mt-0.5 truncate">{task.description}</p>}
+                          </div>
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700 border border-green-200 flex-shrink-0 ml-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                            Completed
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => handleApproveTask(task.id)}
-                      className="flex-1 bg-green-500 hover:bg-green-600 text-white px-4 py-3 rounded-lg font-semibold transition-colors"
-                    >
-                      ✅ Approve
-                    </button>
-                    <button
-                      onClick={() => handleRejectTask(task.id)}
-                      className="flex-1 bg-red-500 hover:bg-red-600 text-white px-4 py-3 rounded-lg font-semibold transition-colors"
-                    >
-                      ❌ Reject
-                    </button>
-                  </div>
+                )}
+
+                <div className="mt-4 p-4 bg-amber-50 border border-amber-100 rounded-lg">
+                  <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-3">
+                    All tasks approved and ready for inspection
+                  </p>
+                  <button
+                    onClick={() => handleMarkInspectionCompleted(jobCard.id)}
+                    disabled={inspectionLoading[jobCard.id]}
+                    className="w-full inline-flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 disabled:bg-gray-400 text-white py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm hover:shadow-md disabled:cursor-not-allowed"
+                    style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
+                  >
+                    {inspectionLoading[jobCard.id] ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        Mark as Inspection Completed
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
-            )
-          })}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </div>
+
     </div>
   )
 }
