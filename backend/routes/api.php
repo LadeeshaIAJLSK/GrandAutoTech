@@ -46,7 +46,7 @@ Route::middleware('auth:sanctum')->group(function () {
     
     // Helper routes
     Route::get('/roles', [UserController::class, 'getRoles']);
-    Route::get('/branches/simple', [UserController::class, 'getBranches']);
+    Route::get('/branches/simple', [UserController::class, 'getBranches']);//in use
     
     // Customers Management
     Route::get('/customers', [CustomerController::class, 'index']);
@@ -167,13 +167,13 @@ Route::get('/access-rights/stats', [AccessRightsController::class, 'getPermissio
 Route::get('/branches/statistics', [JobCardController::class, 'getBranchStatistics']);
 
 // Branch Management (Super Admin Only)
-Route::get('/branches', [BranchController::class, 'index']);
-Route::get('/branches/{id}', [BranchController::class, 'show']);
-Route::post('/branches', [BranchController::class, 'store']);
-Route::put('/branches/{id}', [BranchController::class, 'update']);
+Route::get('/branches', [BranchController::class, 'index']);//in use
+Route::get('/branches/{id}', [BranchController::class, 'show']);//in use
+Route::post('/branches', [BranchController::class, 'store']);//in use
+Route::put('/branches/{id}', [BranchController::class, 'update']);//in use
 Route::delete('/branches/{id}', [BranchController::class, 'destroy']);
-Route::patch('/branches/{id}/toggle-status', [BranchController::class, 'toggleStatus']);
-Route::get('/branches/{id}/statistics', [BranchController::class, 'getStatistics']);
+Route::patch('/branches/{id}/toggle-status', [BranchController::class, 'toggleStatus']);//in use
+Route::get('/branches/{id}/statistics', [BranchController::class, 'getStatistics']);//in use
 
 
 // Task Approval System

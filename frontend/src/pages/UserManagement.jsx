@@ -12,8 +12,10 @@ function UserManagement({ user, roleFilter }) {
   const [filterBranch, setFilterBranch] = useState('')
   const [openMenuId, setOpenMenuId] = useState(null)
   const [menuDropup, setMenuDropup] = useState(false)
+  const [branchDropdownOpen, setBranchDropdownOpen] = useState(false)
   const menuRef = useRef(null)
   const buttonRefs = useRef({})
+  const branchDropdownRef = useRef(null)
 
   const [formData, setFormData] = useState({
     name: '',
@@ -34,6 +36,9 @@ function UserManagement({ user, roleFilter }) {
   const currentRole = roleFilter ? roles.find(r => r.name === roleFilter.name) : null
 
   useEffect(() => {
+    // Load saved branch filter from localStorage
+    const savedBranch = localStorage.getItem('selectedBranchId') || ''
+    setFilterBranch(savedBranch)
     fetchRoles()
     fetchBranches()
   }, [])
@@ -48,6 +53,9 @@ function UserManagement({ user, roleFilter }) {
     const handleClick = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) {
         setOpenMenuId(null)
+      }
+      if (branchDropdownRef.current && !branchDropdownRef.current.contains(e.target)) {
+        setBranchDropdownOpen(false)
       }
     }
     document.addEventListener('mousedown', handleClick)
@@ -214,6 +222,80 @@ function UserManagement({ user, roleFilter }) {
   return (
     <div className="space-y-5">
 
+      {/* Branch Filter */}
+      <div ref={branchDropdownRef} className="relative w-fit">
+        <button
+          onClick={() => setBranchDropdownOpen(!branchDropdownOpen)}
+          className="flex items-center gap-3 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 shadow-sm hover:shadow-md hover:border-orange-300 rounded-xl px-4 py-3 transition-all duration-200 min-w-[280px]"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-orange-600 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+          </svg>
+          <div className="w-px h-5 bg-orange-300" />
+          <span className="text-sm font-bold text-orange-900 flex-1 text-left">
+            {filterBranch ? branches.find(b => b.id === parseInt(filterBranch))?.name : 'All Branches'}
+          </span>
+          <svg xmlns="http://www.w3.org/2000/svg" className={`w-4 h-4 text-orange-600 transition-transform duration-200 flex-shrink-0 ${branchDropdownOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="currentColor">
+            <path d="M7 10l5 5 5-5z" />
+          </svg>
+        </button>
+
+        {branchDropdownOpen && (
+          <div className="absolute top-full left-0 mt-2 w-[320px] bg-white border border-orange-200 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+            {/* Search in dropdown */}
+            <div className="p-3 border-b border-orange-100 bg-gradient-to-r from-orange-50/50 to-amber-50/50">
+              <input
+                type="text"
+                placeholder="Search branches..."
+                className="w-full px-3.5 py-2.5 text-sm border border-orange-200 rounded-lg focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 transition-all"
+              />
+            </div>
+
+            {/* Dropdown options */}
+            <div className="max-h-72 overflow-y-auto">
+              <button
+                onClick={() => {
+                  setFilterBranch('')
+                  localStorage.setItem('selectedBranchId', '')
+                  setBranchDropdownOpen(false)
+                }}
+                className={`w-full text-left px-4 py-3.5 text-sm font-semibold transition-all ${
+                  filterBranch === ''
+                    ? 'bg-gradient-to-r from-orange-600 to-amber-600 text-white'
+                    : 'text-gray-700 hover:bg-orange-50'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-2.5 h-2.5 rounded-full ${filterBranch === '' ? 'bg-white' : 'bg-orange-300'}`} />
+                  All Branches
+                </div>
+              </button>
+
+              {branches.map(branch => (
+                <button
+                  key={branch.id}
+                  onClick={() => {
+                    setFilterBranch(String(branch.id))
+                    localStorage.setItem('selectedBranchId', String(branch.id))
+                    setBranchDropdownOpen(false)
+                  }}
+                  className={`w-full text-left px-4 py-3.5 text-sm font-semibold transition-all ${
+                    filterBranch === String(branch.id)
+                      ? 'bg-gradient-to-r from-orange-600 to-amber-600 text-white'
+                      : 'text-gray-700 hover:bg-orange-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-2.5 h-2.5 rounded-full ${filterBranch === String(branch.id) ? 'bg-white' : 'bg-orange-300'}`} />
+                    {branch.name}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Header */}
       <div className="flex justify-between items-center bg-white border border-gray-200 rounded-xl px-6 py-4 shadow-sm">
         <div>
@@ -240,7 +322,7 @@ function UserManagement({ user, roleFilter }) {
         )}
       </div>
 
-      {/* Filters */}
+      {/* Filters - Search & Count */}
       <div className="flex gap-3 items-center">
         <div className="relative max-w-sm w-full">
           <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -254,19 +336,6 @@ function UserManagement({ user, roleFilter }) {
             className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-lg bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all shadow-sm"
           />
         </div>
-
-        {user.role.name === 'super_admin' && (
-          <select
-            value={filterBranch}
-            onChange={(e) => setFilterBranch(e.target.value)}
-            className="px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all min-w-[180px] shadow-sm"
-          >
-            <option value="">All Branches</option>
-            {branches.map(branch => (
-              <option key={branch.id} value={branch.id}>{branch.name}</option>
-            ))}
-          </select>
-        )}
 
         <div className="ml-auto flex items-center gap-1.5 bg-white border border-gray-200 rounded-lg px-3.5 py-2 shadow-sm">
           <span className="w-2 h-2 rounded-full bg-primary opacity-80" />
@@ -472,11 +541,12 @@ function UserManagement({ user, roleFilter }) {
 
                 {/* Phone */}
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Phone</label>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Phone <span className="text-red-400">*</span></label>
                   <input
                     type="text"
                     value={formData.phone}
                     onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                    required
                     placeholder="+94771234567"
                     className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all"
                   />
@@ -484,11 +554,12 @@ function UserManagement({ user, roleFilter }) {
 
                 {/* Employee Code */}
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Employee Code</label>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Employee Code <span className="text-red-400">*</span></label>
                   <input
                     type="text"
                     value={formData.employee_code}
                     onChange={(e) => setFormData({...formData, employee_code: e.target.value})}
+                    required
                     placeholder="GAT001"
                     className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all"
                   />
@@ -568,10 +639,11 @@ function UserManagement({ user, roleFilter }) {
                 {/* Branch */}
                 {user.role.name === 'super_admin' && (
                   <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Branch</label>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Branch <span className="text-red-400">*</span></label>
                     <select
                       value={formData.branch_id}
                       onChange={(e) => setFormData({...formData, branch_id: e.target.value})}
+                      required
                       className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all"
                     >
                       <option value="">No Branch</option>
