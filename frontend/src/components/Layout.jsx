@@ -4,7 +4,6 @@ import axiosClient from '../api/axios'
 import AccessRightsManagement from '../pages/AccessRightsManagement'
 import BranchManagement from '../pages/BranchManagement'
 import BranchOverview from '../pages/BranchOverview'
-import BranchSelector from './common/BranchSelector'
 import TaskApproval from '../pages/TaskApproval'
 
 function Layout({ user, onLogout, children }) {
@@ -139,13 +138,6 @@ function Layout({ user, onLogout, children }) {
 
           {/* Right side */}
           <div className="flex items-center gap-4">
-            {user.role.name === 'super_admin' && (
-              <BranchSelector
-                user={user}
-                onBranchChange={(branchId) => setSelectedBranchId(branchId)}
-              />
-            )}
-
             {/* User info */}
             <div className="flex items-center gap-2.5 pl-4 border-l border-gray-200">
               <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">

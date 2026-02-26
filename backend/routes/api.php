@@ -46,7 +46,7 @@ Route::middleware('auth:sanctum')->group(function () {
     
     // Helper routes
     Route::get('/roles', [UserController::class, 'getRoles']);
-    Route::get('/branches', [UserController::class, 'getBranches']);
+    Route::get('/branches/simple', [UserController::class, 'getBranches']);
     
     // Customers Management
     Route::get('/customers', [CustomerController::class, 'index']);

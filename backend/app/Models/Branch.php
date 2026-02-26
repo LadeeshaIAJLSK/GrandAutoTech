@@ -13,6 +13,7 @@ class Branch extends Model
         'name',
         'code',
         'address',
+        'city',
         'phone',
         'email',
         'is_active',

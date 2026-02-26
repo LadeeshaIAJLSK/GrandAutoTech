@@ -151,6 +151,7 @@ class JobCardController extends Controller
         $validated = $request->validate([
             'customer_id' => 'required|exists:customers,id',
             'vehicle_id' => 'required|exists:vehicles,id',
+            'branch_id' => 'nullable|exists:branches,id',
             'expected_completion_date' => 'nullable|date',
             'test_run_required' => 'required|boolean',
             'details' => 'nullable|string',
@@ -163,12 +164,15 @@ class JobCardController extends Controller
         // Generate job card number
         $jobCardNumber = $this->generateJobCardNumber();
 
+        // Determine branch_id: use provided branch_id if given, otherwise use user's branch_id
+        $branchId = $validated['branch_id'] ?? $user->branch_id;
+
         // Create job card
         $jobCard = JobCard::create([
             'job_card_number' => $jobCardNumber,
             'customer_id' => $validated['customer_id'],
             'vehicle_id' => $validated['vehicle_id'],
-            'branch_id' => $user->branch_id,
+            'branch_id' => $branchId,
             'created_by' => $user->id,
             'expected_completion_date' => $validated['expected_completion_date'] ?? null,
             'customer_complaint' => $validated['details'] ?? '',

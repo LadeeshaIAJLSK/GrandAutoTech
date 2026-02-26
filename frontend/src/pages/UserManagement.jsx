@@ -89,7 +89,7 @@ function UserManagement({ user, roleFilter }) {
   const fetchBranches = async () => {
     try {
       const token = localStorage.getItem('token')
-      const response = await axiosClient.get('/branches', {
+      const response = await axiosClient.get('/branches/simple', {
         headers: { Authorization: `Bearer ${token}` }
       })
       setBranches(response.data)

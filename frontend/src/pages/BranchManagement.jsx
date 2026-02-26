@@ -112,7 +112,7 @@ function BranchManagement({ user }) {
         </h2>
         <button
           onClick={openCreateModal}
-          className="inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm hover:shadow-md hover:-translate-y-px"
+          className="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm hover:shadow-md hover:-translate-y-px border-2 border-orange-600"
           style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
         >
           <span className="flex items-center justify-center w-4 h-4 bg-white/25 rounded">
