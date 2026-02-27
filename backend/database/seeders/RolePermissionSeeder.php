@@ -9,6 +9,9 @@ class RolePermissionSeeder extends Seeder
 {
     public function run(): void
     {
+        // Clear existing role_permissions
+        DB::table('role_permissions')->truncate();
+        
         // Get role IDs
         $superAdmin = DB::table('roles')->where('name', 'super_admin')->first()->id;
         $branchAdmin = DB::table('roles')->where('name', 'branch_admin')->first()->id;
@@ -23,6 +26,7 @@ class RolePermissionSeeder extends Seeder
             DB::table('role_permissions')->insert([
                 'role_id' => $superAdmin,
                 'permission_id' => $permissionId,
+                'branch_id' => null,
                 'granted' => true,
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -37,6 +41,7 @@ class RolePermissionSeeder extends Seeder
             DB::table('role_permissions')->insert([
                 'role_id' => $branchAdmin,
                 'permission_id' => $permissionId,
+                'branch_id' => null,
                 'granted' => true,
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -51,6 +56,7 @@ class RolePermissionSeeder extends Seeder
             DB::table('role_permissions')->insert([
                 'role_id' => $accountant,
                 'permission_id' => $permissionId,
+                'branch_id' => null,
                 'granted' => true,
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -71,6 +77,7 @@ class RolePermissionSeeder extends Seeder
             DB::table('role_permissions')->insert([
                 'role_id' => $employee,
                 'permission_id' => $permissionId,
+                'branch_id' => null,
                 'granted' => true,
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -95,6 +102,7 @@ class RolePermissionSeeder extends Seeder
             DB::table('role_permissions')->insert([
                 'role_id' => $supportStaff,
                 'permission_id' => $permissionId,
+                'branch_id' => null,
                 'granted' => true,
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -113,6 +121,7 @@ class RolePermissionSeeder extends Seeder
             DB::table('role_permissions')->insert([
                 'role_id' => $customer,
                 'permission_id' => $permissionId,
+                'branch_id' => null,
                 'granted' => true,
                 'created_at' => now(),
                 'updated_at' => now(),

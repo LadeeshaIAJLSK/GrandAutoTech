@@ -5,12 +5,20 @@ function CustomerTable({
   customers,
   onEdit,
   onDelete,
+  onAddVehicle,
+  onEditVehicle,
+  onDeleteVehicle,
   canUpdate,
-  canDelete
+  canDelete,
+  canAddVehicles,
+  canUpdateVehicles,
+  canDeleteVehicles
 }) {
   const [openMenuId, setOpenMenuId] = useState(null)
+  const [openVehiclesId, setOpenVehiclesId] = useState(null)
   const [menuPos, setMenuPos] = useState({ top: 0, right: 0 })
   const buttonRefs = useRef({})
+  const vehiclesRefs = useRef({})
 
   useEffect(() => {
     const handleClick = () => setOpenMenuId(null)
@@ -89,6 +97,8 @@ function CustomerTable({
               <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Email</th>
               <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</th>
               <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">City</th>
+              <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Branch</th>
+              
               <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Vehicles</th>
               <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
               <th className="px-5 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Action</th>
@@ -97,7 +107,7 @@ function CustomerTable({
           <tbody className="divide-y divide-gray-100">
             {customers.length === 0 ? (
               <tr>
-                <td colSpan="8" className="px-5 py-16 text-center">
+                <td colSpan="9" className="px-5 py-16 text-center">
                   <div className="flex flex-col items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -131,12 +141,73 @@ function CustomerTable({
                   </td>
                   <td className="px-5 py-4 text-gray-600">{customer.city || <span className="text-gray-300">—</span>}</td>
                   <td className="px-5 py-4">
-                    <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-full text-xs font-semibold border border-gray-200">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                      </svg>
-                      {customer.vehicles?.length || 0} {customer.vehicles?.length !== 1 ? 'vehicles' : 'vehicle'}
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-orange-50 text-orange-700 border border-orange-100">
+                      {customer.branch?.name || <span className="text-gray-300">—</span>}
                     </span>
+                  </td>
+                  <td className="px-5 py-4">
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-full text-xs font-semibold border border-gray-200">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                          </svg>
+                          {customer.vehicles?.length || 0}
+                        </span>
+                        {canAddVehicles && (
+                          <button
+                            onClick={() => onAddVehicle(customer.id)}
+                            className="p-1 rounded-md bg-orange-50 hover:bg-orange-100 text-orange-600 transition-colors border border-orange-100"
+                            title="Add Vehicle"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                      {customer.vehicles && customer.vehicles.length > 0 && (
+                        <div className="space-y-1.5 bg-gray-50 p-2 rounded-lg border border-gray-100">
+                          {customer.vehicles.map((vehicle) => (
+                            <div key={vehicle.id} className="flex items-start justify-between gap-2 p-2 bg-white rounded border border-gray-100 text-xs">
+                              <div className="flex-1 min-w-0">
+                                <div className="font-semibold text-gray-900">{vehicle.license_plate}</div>
+                                <div className="text-gray-600">{vehicle.make} {vehicle.model} ({vehicle.year})</div>
+                                <div className="text-gray-500">{vehicle.color || '—'} • {vehicle.fuel_type || '—'}</div>
+                              </div>
+                              <div className="flex gap-1 flex-shrink-0">
+                                {canUpdateVehicles && (
+                                  <button
+                                    onClick={() => onEditVehicle(vehicle)}
+                                    className="p-1 rounded text-blue-600 hover:bg-blue-50"
+                                    title="Edit"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                    </svg>
+                                  </button>
+                                )}
+                                {canDeleteVehicles && (
+                                  <button
+                                    onClick={() => {
+                                      if (confirm(`Delete ${vehicle.license_plate}?`)) {
+                                        onDeleteVehicle(vehicle.id)
+                                      }
+                                    }}
+                                    className="p-1 rounded text-red-600 hover:bg-red-50"
+                                    title="Delete"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </td>
                   <td className="px-5 py-4">
                     <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${

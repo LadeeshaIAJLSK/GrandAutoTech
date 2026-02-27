@@ -11,6 +11,7 @@ class Vehicle extends Model
 
     protected $fillable = [
         'customer_id',
+        'branch_id',
         'license_plate',
         'make',
         'model',
@@ -35,6 +36,11 @@ class Vehicle extends Model
     public function customer()
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
     }
 
 

@@ -27,7 +27,7 @@ class CustomerController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
         //Fetch customers AND their vehicles together
-        $query = Customer::with('vehicles');
+        $query = Customer::with(['vehicles', 'branch']);
 
         // Search filter
         if ($request->has('search')) {
@@ -72,7 +72,7 @@ class CustomerController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $customer = Customer::with('vehicles')->findOrFail($id);
+        $customer = Customer::with(['vehicles', 'branch'])->findOrFail($id);
 
         return response()->json($customer);
     }
@@ -99,14 +99,21 @@ class CustomerController extends Controller
             'email' => 'nullable|email|unique:customers,email',
             'phone' => 'required|string|max:20',
             'secondary_phone' => 'nullable|string|max:20',
-            'address' => 'nullable|string',
-            'city' => 'nullable|string|max:100',
+            'address' => 'required|string',
+            'city' => 'required|string|max:100',
             'id_number' => 'nullable|string|max:50',
-            'company_name' => 'nullable|string|max:255',
+            'company_name' => 'nullable|required_if:customer_type,business|string|max:255',
             'customer_type' => 'required|in:individual,business',
+            'branch_id' => 'required|exists:branches,id',
             'is_active' => 'boolean',
             'notes' => 'nullable|string',
         ]);
+
+        // Check branch ownership - non-admin users can only create customers for their own branch
+        $userRole = DB::table('roles')->where('id', $user->role_id)->first();
+        if ($userRole->name !== 'super_admin' && $validated['branch_id'] != $user->branch_id) {
+            return response()->json(['message' => 'You can only create customers for your own branch'], 403);
+        }
 
         $customer = Customer::create($validated);
 
@@ -135,21 +142,36 @@ class CustomerController extends Controller
 
         $customer = Customer::findOrFail($id);
 
+        // Check branch ownership - non-admin users can only edit customers from their own branch
+        $userRole = DB::table('roles')->where('id', $user->role_id)->first();
+        if ($userRole->name !== 'super_admin' && $customer->branch_id != $user->branch_id) {
+            return response()->json(['message' => 'You can only edit customers from your own branch'], 403);
+        }
+
         $validated = $request->validate([
             'name' => 'sometimes|string|max:255',
             'email' => 'nullable|email|unique:customers,email,' . $id,
             'phone' => 'sometimes|string|max:20',
             'secondary_phone' => 'nullable|string|max:20',
-            'address' => 'nullable|string',
-            'city' => 'nullable|string|max:100',
+            'address' => 'required|string',
+            'city' => 'required|string|max:100',
             'id_number' => 'nullable|string|max:50',
-            'company_name' => 'nullable|string|max:255',
+            'company_name' => 'nullable|required_if:customer_type,business|string|max:255',
             'customer_type' => 'sometimes|in:individual,business',
+            'branch_id' => 'sometimes|exists:branches,id',
             'is_active' => 'boolean',
             'notes' => 'nullable|string',
         ]);
 
         $customer->update($validated);
+
+        // If branch_id was changed, verify ownership
+        if ($request->has('branch_id')) {
+            $userRole = DB::table('roles')->where('id', $user->role_id)->first();
+            if ($userRole->name !== 'super_admin' && $validated['branch_id'] != $user->branch_id) {
+                return response()->json(['message' => 'You can only assign customers to your own branch'], 403);
+            }
+        }
 
         return response()->json([
             'message' => 'Customer updated successfully',
@@ -175,6 +197,12 @@ class CustomerController extends Controller
         }
 
         $customer = Customer::findOrFail($id);
+
+        // Check branch ownership - non-admin users can only delete customers from their own branch
+        $userRole = DB::table('roles')->where('id', $user->role_id)->first();
+        if ($userRole->name !== 'super_admin' && $customer->branch_id != $user->branch_id) {
+            return response()->json(['message' => 'You can only delete customers from your own branch'], 403);
+        }
 
         // Check if customer has vehicles
         if ($customer->vehicles()->count() > 0) {

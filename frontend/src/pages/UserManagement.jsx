@@ -36,9 +36,15 @@ function UserManagement({ user, roleFilter }) {
   const currentRole = roleFilter ? roles.find(r => r.name === roleFilter.name) : null
 
   useEffect(() => {
-    // Load saved branch filter from localStorage
-    const savedBranch = localStorage.getItem('selectedBranchId') || ''
-    setFilterBranch(savedBranch)
+    // Load saved branch filter from localStorage (for super admin only)
+    // For non-super-admins, automatically set to their own branch
+    if (user.role.name === 'super_admin') {
+      const savedBranch = localStorage.getItem('selectedBranchId') || ''
+      setFilterBranch(savedBranch)
+    } else {
+      // Non-super-admins always see their own branch
+      setFilterBranch(String(user.branch_id || ''))
+    }
     fetchRoles()
     fetchBranches()
   }, [])
@@ -108,6 +114,11 @@ function UserManagement({ user, roleFilter }) {
 
   const openAddModal = () => {
     setEditingUser(null)
+    // For super admin, use filtered branch if available, otherwise use their own branch
+    const initialBranchId = user.role.name === 'super_admin' 
+      ? (filterBranch || user.branch?.id || '')
+      : (user.branch?.id || '')
+    
     setFormData({
       name: '',
       email: '',
@@ -116,7 +127,7 @@ function UserManagement({ user, roleFilter }) {
       password: '',
       passwordConfirm: '',
       role_id: currentRole ? currentRole.id : '',
-      branch_id: user.branch?.id || '',
+      branch_id: initialBranchId,
       is_active: true
     })
     setShowModal(true)
@@ -222,79 +233,81 @@ function UserManagement({ user, roleFilter }) {
   return (
     <div className="space-y-5">
 
-      {/* Branch Filter */}
-      <div ref={branchDropdownRef} className="relative w-fit">
-        <button
-          onClick={() => setBranchDropdownOpen(!branchDropdownOpen)}
-          className="flex items-center gap-3 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 shadow-sm hover:shadow-md hover:border-orange-300 rounded-xl px-4 py-3 transition-all duration-200 min-w-[280px]"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-orange-600 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-          </svg>
-          <div className="w-px h-5 bg-orange-300" />
-          <span className="text-sm font-bold text-orange-900 flex-1 text-left">
-            {filterBranch ? branches.find(b => b.id === parseInt(filterBranch))?.name : 'All Branches'}
-          </span>
-          <svg xmlns="http://www.w3.org/2000/svg" className={`w-4 h-4 text-orange-600 transition-transform duration-200 flex-shrink-0 ${branchDropdownOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="currentColor">
-            <path d="M7 10l5 5 5-5z" />
-          </svg>
-        </button>
+      {/* Branch Filter - Only for Super Admin */}
+      {user.role.name === 'super_admin' && (
+        <div ref={branchDropdownRef} className="relative w-fit">
+          <button
+            onClick={() => setBranchDropdownOpen(!branchDropdownOpen)}
+            className="flex items-center gap-3 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 shadow-sm hover:shadow-md hover:border-orange-300 rounded-xl px-4 py-3 transition-all duration-200 min-w-[280px]"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-orange-600 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            </svg>
+            <div className="w-px h-5 bg-orange-300" />
+            <span className="text-sm font-bold text-orange-900 flex-1 text-left">
+              {filterBranch ? branches.find(b => b.id === parseInt(filterBranch))?.name : 'All Branches'}
+            </span>
+            <svg xmlns="http://www.w3.org/2000/svg" className={`w-4 h-4 text-orange-600 transition-transform duration-200 flex-shrink-0 ${branchDropdownOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="currentColor">
+              <path d="M7 10l5 5 5-5z" />
+            </svg>
+          </button>
 
-        {branchDropdownOpen && (
-          <div className="absolute top-full left-0 mt-2 w-[320px] bg-white border border-orange-200 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
-            {/* Search in dropdown */}
-            <div className="p-3 border-b border-orange-100 bg-gradient-to-r from-orange-50/50 to-amber-50/50">
-              <input
-                type="text"
-                placeholder="Search branches..."
-                className="w-full px-3.5 py-2.5 text-sm border border-orange-200 rounded-lg focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 transition-all"
-              />
-            </div>
+          {branchDropdownOpen && (
+            <div className="absolute top-full left-0 mt-2 w-[320px] bg-white border border-orange-200 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+              {/* Search in dropdown */}
+              <div className="p-3 border-b border-orange-100 bg-gradient-to-r from-orange-50/50 to-amber-50/50">
+                <input
+                  type="text"
+                  placeholder="Search branches..."
+                  className="w-full px-3.5 py-2.5 text-sm border border-orange-200 rounded-lg focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 transition-all"
+                />
+              </div>
 
-            {/* Dropdown options */}
-            <div className="max-h-72 overflow-y-auto">
-              <button
-                onClick={() => {
-                  setFilterBranch('')
-                  localStorage.setItem('selectedBranchId', '')
-                  setBranchDropdownOpen(false)
-                }}
-                className={`w-full text-left px-4 py-3.5 text-sm font-semibold transition-all ${
-                  filterBranch === ''
-                    ? 'bg-gradient-to-r from-orange-600 to-amber-600 text-white'
-                    : 'text-gray-700 hover:bg-orange-50'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`w-2.5 h-2.5 rounded-full ${filterBranch === '' ? 'bg-white' : 'bg-orange-300'}`} />
-                  All Branches
-                </div>
-              </button>
-
-              {branches.map(branch => (
+              {/* Dropdown options */}
+              <div className="max-h-72 overflow-y-auto">
                 <button
-                  key={branch.id}
                   onClick={() => {
-                    setFilterBranch(String(branch.id))
-                    localStorage.setItem('selectedBranchId', String(branch.id))
+                    setFilterBranch('')
+                    localStorage.setItem('selectedBranchId', '')
                     setBranchDropdownOpen(false)
                   }}
                   className={`w-full text-left px-4 py-3.5 text-sm font-semibold transition-all ${
-                    filterBranch === String(branch.id)
+                    filterBranch === ''
                       ? 'bg-gradient-to-r from-orange-600 to-amber-600 text-white'
                       : 'text-gray-700 hover:bg-orange-50'
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`w-2.5 h-2.5 rounded-full ${filterBranch === String(branch.id) ? 'bg-white' : 'bg-orange-300'}`} />
-                    {branch.name}
+                    <div className={`w-2.5 h-2.5 rounded-full ${filterBranch === '' ? 'bg-white' : 'bg-orange-300'}`} />
+                    All Branches
                   </div>
                 </button>
-              ))}
+
+                {branches.map(branch => (
+                  <button
+                    key={branch.id}
+                    onClick={() => {
+                      setFilterBranch(String(branch.id))
+                      localStorage.setItem('selectedBranchId', String(branch.id))
+                      setBranchDropdownOpen(false)
+                    }}
+                    className={`w-full text-left px-4 py-3.5 text-sm font-semibold transition-all ${
+                      filterBranch === String(branch.id)
+                        ? 'bg-gradient-to-r from-orange-600 to-amber-600 text-white'
+                        : 'text-gray-700 hover:bg-orange-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-2.5 h-2.5 rounded-full ${filterBranch === String(branch.id) ? 'bg-white' : 'bg-orange-300'}`} />
+                      {branch.name}
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
       {/* Header */}
       <div className="flex justify-between items-center bg-white border border-gray-200 rounded-xl px-6 py-4 shadow-sm">
@@ -309,7 +322,13 @@ function UserManagement({ user, roleFilter }) {
         {canAdd && (
           <button
             onClick={openAddModal}
-            className="inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-px active:translate-y-0"
+            disabled={!roleFilter || (user.role.name === 'super_admin' && !filterBranch)}
+            title={!roleFilter ? 'Select a role to create a user' : user.role.name === 'super_admin' && !filterBranch ? 'Select a specific branch to create a user' : ''}
+            className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-md text-white ${
+              !roleFilter || (user.role.name === 'super_admin' && !filterBranch)
+                ? 'bg-gray-300 cursor-not-allowed opacity-60'
+                : 'bg-orange-500 hover:bg-orange-600 hover:shadow-lg hover:-translate-y-px active:translate-y-0'
+            }`}
             style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
           >
             <span className="flex items-center justify-center w-5 h-5 bg-white/25 rounded-md">
@@ -644,13 +663,17 @@ function UserManagement({ user, roleFilter }) {
                       value={formData.branch_id}
                       onChange={(e) => setFormData({...formData, branch_id: e.target.value})}
                       required
-                      className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all"
+                      disabled={!!filterBranch && !editingUser}
+                      className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       <option value="">No Branch</option>
                       {branches.map(branch => (
                         <option key={branch.id} value={branch.id}>{branch.name}</option>
                       ))}
                     </select>
+                    {filterBranch && !editingUser && (
+                      <p className="text-xs text-gray-400">Branch pre-selected based on filter</p>
+                    )}
                   </div>
                 )}
 

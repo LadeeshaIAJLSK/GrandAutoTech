@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Vehicle;
+use App\Models\Customer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -28,7 +29,7 @@ class VehicleController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $query = Vehicle::with('customer');
+        $query = Vehicle::with(['customer', 'branch']);
 
         // Search filter
         if ($request->has('search')) {
@@ -78,7 +79,7 @@ class VehicleController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $vehicle = Vehicle::with('customer')->findOrFail($id);
+        $vehicle = Vehicle::with(['customer', 'branch'])->findOrFail($id);
 
         return response()->json($vehicle);
     }
@@ -117,11 +118,21 @@ class VehicleController extends Controller
             'is_active' => 'boolean',
         ]);
 
+        // Get customer and validate ownership for non-admin users
+        $customer = Customer::findOrFail($validated['customer_id']);
+        
+        if ($user->role_id !== 1 && $customer->branch_id !== $user->branch_id) {
+            return response()->json(['message' => 'You can only create vehicles for customers in your branch'], 403);
+        }
+
+        // Auto-link vehicle to customer's branch
+        $validated['branch_id'] = $customer->branch_id;
+
         $vehicle = Vehicle::create($validated);
 
         return response()->json([
             'message' => 'Vehicle registered successfully',
-            'vehicle' => $vehicle->load('customer')
+            'vehicle' => $vehicle->load(['customer', 'branch'])
         ], 201);
     }
 
@@ -142,7 +153,12 @@ class VehicleController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $vehicle = Vehicle::findOrFail($id);
+        $vehicle = Vehicle::with('customer')->findOrFail($id);
+        
+        // Check branch ownership for non-admin users
+        if ($user->role_id !== 1 && $vehicle->branch_id !== $user->branch_id) {
+            return response()->json(['message' => 'You can only update vehicles in your branch'], 403);
+        }
 
         $validated = $request->validate([
             'customer_id' => 'sometimes|exists:customers,id',
@@ -161,11 +177,20 @@ class VehicleController extends Controller
             'is_active' => 'boolean',
         ]);
 
+        // Prevent reassigning vehicle to different branch (for non-admin)
+        if (isset($validated['customer_id']) && $vehicle->customer_id !== $validated['customer_id']) {
+            $newCustomer = Customer::findOrFail($validated['customer_id']);
+            if ($user->role_id !== 1 && $newCustomer->branch_id !== $user->branch_id) {
+                return response()->json(['message' => 'You can only reassign vehicles within your branch'], 403);
+            }
+            $validated['branch_id'] = $newCustomer->branch_id;
+        }
+
         $vehicle->update($validated);
 
         return response()->json([
             'message' => 'Vehicle updated successfully',
-            'vehicle' => $vehicle->load('customer')
+            'vehicle' => $vehicle->load(['customer', 'branch'])
         ]);
     }
 
@@ -187,6 +212,11 @@ class VehicleController extends Controller
         }
 
         $vehicle = Vehicle::findOrFail($id);
+        
+        // Check branch ownership for non-admin users
+        if ($user->role_id !== 1 && $vehicle->branch_id !== $user->branch_id) {
+            return response()->json(['message' => 'You can only delete vehicles in your branch'], 403);
+        }
 
         // TODO: Check if vehicle has active job cards
         // if ($vehicle->jobCards()->where('status', '!=', 'completed')->count() > 0) {

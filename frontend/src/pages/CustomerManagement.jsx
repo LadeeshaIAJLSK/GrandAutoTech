@@ -1,14 +1,12 @@
 import { useState, useEffect } from 'react'
 import axiosClient from '../api/axios'
 import CustomerTable from '../components/customers/CustomerTable'
-import VehicleTable from '../components/customers/VehicleTable'
 import CustomerModal from '../components/customers/CustomerModal'
 import VehicleModal from '../components/customers/VehicleModal'
 
 function CustomerManagement({ user }) {
-  const [activeTab, setActiveTab] = useState('customers')
   const [customers, setCustomers] = useState([])
-  const [vehicles, setVehicles] = useState([])
+  const [branches, setBranches] = useState([])
   const [loading, setLoading] = useState(true)
   const [showCustomerModal, setShowCustomerModal] = useState(false)
   const [showVehicleModal, setShowVehicleModal] = useState(false)
@@ -27,7 +25,8 @@ function CustomerManagement({ user }) {
     company_name: '',
     customer_type: 'individual',
     is_active: true,
-    notes: ''
+    notes: '',
+    branch_id: ''
   })
 
   const [vehicleForm, setVehicleForm] = useState({
@@ -56,13 +55,26 @@ function CustomerManagement({ user }) {
   const canDeleteVehicles = user.permissions.includes('delete_vehicles')
 
   useEffect(() => {
+    fetchBranches()
+    fetchCustomers()
+  }, [])
+
+  useEffect(() => {
     setLoading(true)
-    if (activeTab === 'customers') {
-      fetchCustomers()
-    } else {
-      fetchVehicles()
+    fetchCustomers()
+  }, [search])
+
+  const fetchBranches = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await axiosClient.get('/branches', {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      setBranches(response.data)
+    } catch (error) {
+      console.error('Error fetching branches:', error)
     }
-  }, [search, activeTab])
+  }
 
   const fetchCustomers = async () => {
     try {
@@ -82,24 +94,6 @@ function CustomerManagement({ user }) {
     }
   }
 
-  const fetchVehicles = async () => {
-    try {
-      const token = localStorage.getItem('token')
-      const params = {}
-      if (search) params.search = search
-
-      const response = await axiosClient.get('/vehicles', {
-        params,
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      setVehicles(response.data.data)
-    } catch (error) {
-      console.error('Error fetching vehicles:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
   // Customer Actions
   const openAddCustomerModal = () => {
     setEditingCustomer(null)
@@ -114,7 +108,8 @@ function CustomerManagement({ user }) {
       company_name: '',
       customer_type: 'individual',
       is_active: true,
-      notes: ''
+      notes: '',
+      branch_id: ''
     })
     setShowCustomerModal(true)
   }
@@ -132,7 +127,8 @@ function CustomerManagement({ user }) {
       company_name: customer.company_name || '',
       customer_type: customer.customer_type,
       is_active: customer.is_active,
-      notes: customer.notes || ''
+      notes: customer.notes || '',
+      branch_id: customer.branch_id || ''
     })
     setShowCustomerModal(true)
   }
@@ -176,6 +172,28 @@ function CustomerManagement({ user }) {
   }
 
   // Vehicle Actions
+  const openAddVehicleModalForCustomer = (customerId) => {
+    setEditingVehicle(null)
+    setVehicleForm({
+      customer_id: customerId,
+      license_plate: '',
+      make: '',
+      model: '',
+      year: new Date().getFullYear().toString(),
+      color: '',
+      vin: '',
+      engine_number: '',
+      chassis_number: '',
+      mileage: '',
+      fuel_type: '',
+      transmission: '',
+      notes: '',
+      is_active: true,
+      branch_id: ''
+    })
+    setShowVehicleModal(true)
+  }
+
   const openAddVehicleModal = () => {
     setEditingVehicle(null)
     setVehicleForm({
@@ -235,7 +253,7 @@ function CustomerManagement({ user }) {
       }
 
       setShowVehicleModal(false)
-      fetchVehicles()
+      fetchCustomers()
     } catch (error) {
       alert(error.response?.data?.message || 'Error saving vehicle')
     }
@@ -250,7 +268,7 @@ function CustomerManagement({ user }) {
         headers: { Authorization: `Bearer ${token}` }
       })
       alert('Vehicle deleted successfully!')
-      fetchVehicles()
+      fetchCustomers()
     } catch (error) {
       alert(error.response?.data?.message || 'Error deleting vehicle')
     }
@@ -270,148 +288,59 @@ function CustomerManagement({ user }) {
   return (
     <div className="space-y-5">
 
-      {/* Tab Bar */}
-      <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-1.5 flex gap-1.5 w-fit">
-        <button
-          onClick={() => setActiveTab('customers')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-            activeTab === 'customers'
-              ? 'bg-primary text-white shadow-md'
-              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-          }`}
-          style={activeTab === 'customers' ? { textShadow: '0 1px 2px rgba(0,0,0,0.2)' } : {}}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
-          Customers
-          <span className={`text-xs px-1.5 py-0.5 rounded-md font-bold ${
-            activeTab === 'customers' ? 'bg-white/25 text-white' : 'bg-gray-200 text-gray-600'
-          }`}>
-            {customers.length}
-          </span>
-        </button>
+      {/* Customers Section */}
+      <div>
+        {/* Toolbar */}
+        <div className="mb-5 flex gap-3 items-center">
+          <div className="relative flex-1 max-w-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Search customers by name, phone, email..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-lg bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all shadow-sm"
+            />
+          </div>
 
-        <button
-          onClick={() => setActiveTab('vehicles')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-            activeTab === 'vehicles'
-              ? 'bg-primary text-white shadow-md'
-              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-          }`}
-          style={activeTab === 'vehicles' ? { textShadow: '0 1px 2px rgba(0,0,0,0.2)' } : {}}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-          </svg>
-          Vehicles
-          <span className={`text-xs px-1.5 py-0.5 rounded-md font-bold ${
-            activeTab === 'vehicles' ? 'bg-white/25 text-white' : 'bg-gray-200 text-gray-600'
-          }`}>
-            {vehicles.length}
-          </span>
-        </button>
+          <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-lg px-3.5 py-2 shadow-sm">
+            <span className="w-2 h-2 rounded-full bg-primary opacity-80" />
+            <span className="text-sm font-semibold text-gray-700">{customers.length}</span>
+            <span className="text-sm text-gray-400">{customers.length !== 1 ? 'customers' : 'customer'}</span>
+          </div>
+
+          {canAddCustomers && (
+            <button
+              onClick={openAddCustomerModal}
+              className="ml-auto inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-px active:translate-y-0"
+              style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
+            >
+              <span className="flex items-center justify-center w-5 h-5 bg-white/25 rounded-md">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                </svg>
+              </span>
+              Add Customer
+            </button>
+          )}
+        </div>
+
+        <CustomerTable
+          customers={customers}
+          onEdit={openEditCustomerModal}
+          onDelete={handleDeleteCustomer}
+          onAddVehicle={openAddVehicleModalForCustomer}
+          onEditVehicle={openEditVehicleModal}
+          onDeleteVehicle={handleDeleteVehicle}
+          canUpdate={canUpdateCustomers}
+          canDelete={canDeleteCustomers}
+          canAddVehicles={canAddVehicles}
+          canUpdateVehicles={canUpdateVehicles}
+          canDeleteVehicles={canDeleteVehicles}
+        />
       </div>
-
-      {/* Customers Tab Content */}
-      {activeTab === 'customers' && (
-        <>
-          {/* Toolbar */}
-          <div className="flex gap-3 items-center">
-            <div className="relative flex-1 max-w-sm">
-              <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <input
-                type="text"
-                placeholder="Search customers by name, phone, email..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-lg bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all shadow-sm"
-              />
-            </div>
-
-            <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-lg px-3.5 py-2 shadow-sm">
-              <span className="w-2 h-2 rounded-full bg-primary opacity-80" />
-              <span className="text-sm font-semibold text-gray-700">{customers.length}</span>
-              <span className="text-sm text-gray-400">{customers.length !== 1 ? 'customers' : 'customer'}</span>
-            </div>
-
-            {canAddCustomers && (
-              <button
-                onClick={openAddCustomerModal}
-                className="ml-auto inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-px active:translate-y-0"
-                style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
-              >
-                <span className="flex items-center justify-center w-5 h-5 bg-white/25 rounded-md">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                  </svg>
-                </span>
-                Add Customer
-              </button>
-            )}
-          </div>
-
-          <CustomerTable
-            customers={customers}
-            onEdit={openEditCustomerModal}
-            onDelete={handleDeleteCustomer}
-            canUpdate={canUpdateCustomers}
-            canDelete={canDeleteCustomers}
-          />
-        </>
-      )}
-
-      {/* Vehicles Tab Content */}
-      {activeTab === 'vehicles' && (
-        <>
-          {/* Toolbar */}
-          <div className="flex gap-3 items-center">
-            <div className="relative flex-1 max-w-sm">
-              <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <input
-                type="text"
-                placeholder="Search vehicles by license plate, make, model..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-lg bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all shadow-sm"
-              />
-            </div>
-
-            <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-lg px-3.5 py-2 shadow-sm">
-              <span className="w-2 h-2 rounded-full bg-primary opacity-80" />
-              <span className="text-sm font-semibold text-gray-700">{vehicles.length}</span>
-              <span className="text-sm text-gray-400">{vehicles.length !== 1 ? 'vehicles' : 'vehicle'}</span>
-            </div>
-
-            {canAddVehicles && (
-              <button
-                onClick={openAddVehicleModal}
-                className="ml-auto inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-px active:translate-y-0"
-                style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
-              >
-                <span className="flex items-center justify-center w-5 h-5 bg-white/25 rounded-md">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                  </svg>
-                </span>
-                Add Vehicle
-              </button>
-            )}
-          </div>
-
-          <VehicleTable
-            vehicles={vehicles}
-            onEdit={openEditVehicleModal}
-            onDelete={handleDeleteVehicle}
-            canUpdate={canUpdateVehicles}
-            canDelete={canDeleteVehicles}
-          />
-        </>
-      )}
 
       {/* Modals */}
       <CustomerModal
@@ -421,6 +350,7 @@ function CustomerManagement({ user }) {
         formData={customerForm}
         setFormData={setCustomerForm}
         isEditing={!!editingCustomer}
+        branches={branches}
       />
 
       <VehicleModal

@@ -12,6 +12,7 @@ class RolePermission extends Model
     protected $fillable = [
         'role_id',
         'permission_id',
+        'branch_id',
         'granted',
     ];
 
@@ -27,5 +28,10 @@ class RolePermission extends Model
     public function permission()
     {
         return $this->belongsTo(Permission::class);
+    }
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
     }
 }

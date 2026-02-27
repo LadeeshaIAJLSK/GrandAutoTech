@@ -4,7 +4,8 @@ function CustomerModal({
   onSubmit,
   formData,
   setFormData,
-  isEditing
+  isEditing,
+  branches
 }) {
   if (!show) return null
 
@@ -105,11 +106,12 @@ function CustomerModal({
             {/* Company Name (if business) */}
             {formData.customer_type === 'business' && (
               <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Company Name</label>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Company Name <span className="text-red-400">*</span></label>
                 <input
                   type="text"
                   value={formData.company_name}
                   onChange={(e) => setFormData({...formData, company_name: e.target.value})}
+                  required
                   placeholder="ABC Company Ltd"
                   className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all"
                 />
@@ -169,11 +171,12 @@ function CustomerModal({
 
             {/* City */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">City</label>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">City <span className="text-red-400">*</span></label>
               <input
                 type="text"
                 value={formData.city}
                 onChange={(e) => setFormData({...formData, city: e.target.value})}
+                required
                 placeholder="Colombo"
                 className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all"
               />
@@ -191,14 +194,31 @@ function CustomerModal({
                 <option value="false">Inactive</option>
               </select>
             </div>
+
+            {/* Branch */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Branch <span className="text-red-400">*</span></label>
+              <select
+                value={formData.branch_id}
+                onChange={(e) => setFormData({...formData, branch_id: e.target.value})}
+                required
+                className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all"
+              >
+                <option value="">Select Branch</option>
+                {branches && branches.map(branch => (
+                  <option key={branch.id} value={branch.id}>{branch.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* Address */}
           <div className="space-y-1.5">
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Address</label>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Address <span className="text-red-400">*</span></label>
             <textarea
               value={formData.address}
               onChange={(e) => setFormData({...formData, address: e.target.value})}
+              required
               placeholder="No. 123, Main Street, Colombo 03"
               rows="2"
               className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all resize-none"

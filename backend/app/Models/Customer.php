@@ -19,6 +19,7 @@ class Customer extends Model
         'id_number',
         'company_name',
         'customer_type',
+        'branch_id',
         'is_active',
         'notes',
     ];
@@ -28,6 +29,11 @@ class Customer extends Model
     ];
 
     // Relationships
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
+    }
+
     public function vehicles()
     {
         return $this->hasMany(Vehicle::class);

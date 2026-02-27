@@ -38,6 +38,10 @@ class UserController extends Controller
         $permissions = DB::table('permissions')
             ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
             ->where('role_permissions.role_id', $user->role_id)
+            ->where(function($query) use ($user) {
+                $query->whereNull('role_permissions.branch_id')
+                      ->orWhere('role_permissions.branch_id', $user->branch_id);
+            })
             ->pluck('permissions.name')
             ->toArray();
         
@@ -74,7 +78,10 @@ class UserController extends Controller
         $permissions = DB::table('permissions')
             ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
             ->where('role_permissions.role_id', $user->role_id)
-            ->where('role_permissions.branch_id', $user->branch_id)
+            ->where(function($query) use ($user) {
+                $query->whereNull('role_permissions.branch_id')
+                      ->orWhere('role_permissions.branch_id', $user->branch_id);
+            })
             ->pluck('permissions.name')
             ->toArray();
         
@@ -105,23 +112,18 @@ class UserController extends Controller
             }
             
             $query = User::with(['role', 'branch']);
-
-            // Optional branch filter (useful for filtering results)
-            if ($request->has('branch_id') && $request->branch_id) {
-                $branchId = $request->branch_id;
-                $userRole = DB::table('roles')->where('id', $user->role_id)->first();
-                
-                // Super admin can filter by any branch
-                // Other roles can only filter their own branch
-                if ($userRole->name === 'super_admin') {
-                    $query->where('branch_id', $branchId);
-                } else {
-                    // For non-super-admins, only filter if it's their own branch
-                    if ($branchId == $user->branch_id) {
-                        $query->where('branch_id', $branchId);
-                    }
-                    // If they try to filter another branch, we just ignore the filter (show their branch users)
+            
+            $userRole = DB::table('roles')->where('id', $user->role_id)->first();
+            
+            // Branch filtering - SUPER ADMIN can filter by any branch, others see only their branch
+            if ($userRole->name === 'super_admin') {
+                // Super admin: optional branch filter
+                if ($request->has('branch_id') && $request->branch_id) {
+                    $query->where('branch_id', $request->branch_id);
                 }
+            } else {
+                // Non-super-admins: ALWAYS filter by their own branch only
+                $query->where('branch_id', $user->branch_id);
             }
 
             // Optional role filter
@@ -290,18 +292,41 @@ class UserController extends Controller
     /**
      * Get all roles (for dropdown)
      */
-    public function getRoles()
+    public function getRoles(Request $request)
     {
-        $roles = DB::table('roles')->get();
+        $user = $request->user();
+        $userRole = DB::table('roles')->where('id', $user->role_id)->first();
+        
+        $query = DB::table('roles')
+            ->where('name', '!=', 'customer'); // Exclude customer role - customers are not employees
+        
+        // Branch admins cannot see super_admin role
+        if ($userRole->name === 'branch_admin') {
+            $query->where('name', '!=', 'super_admin');
+        }
+        
+        $roles = $query->get();
         return response()->json($roles);
     }
 
     /**
      * Get all branches (for dropdown)
      */
-    public function getBranches()
+    public function getBranches(Request $request)
     {
-        $branches = DB::table('branches')->where('is_active', true)->get();
+        $user = $request->user();
+        $userRole = DB::table('roles')->where('id', $user->role_id)->first();
+        
+        // Super admin can see all branches, others see only their own
+        if ($userRole->name === 'super_admin') {
+            $branches = DB::table('branches')->where('is_active', true)->get();
+        } else {
+            $branches = DB::table('branches')
+                ->where('id', $user->branch_id)
+                ->where('is_active', true)
+                ->get();
+        }
+        
         return response()->json($branches);
     }
 }
