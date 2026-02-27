@@ -40,11 +40,14 @@ class AuthController extends Controller
         // Get user's role
         $role = DB::table('roles')->where('id', $user->role_id)->first();
 
-        // Get user's permissions
+        // Get user's permissions (global and branch-specific)
         $permissions = DB::table('permissions')
             ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
             ->where('role_permissions.role_id', $user->role_id)
-            ->where('role_permissions.granted', true)
+            ->where(function($query) use ($user) {
+                $query->whereNull('role_permissions.branch_id')
+                      ->orWhere('role_permissions.branch_id', $user->branch_id);
+            })
             ->pluck('permissions.name')
             ->toArray();
 
@@ -107,11 +110,14 @@ class AuthController extends Controller
         $permissions = DB::table('permissions')
             ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
             ->where('role_permissions.role_id', $user->role_id)
-            ->where('role_permissions.granted', true)
+            ->where(function($query) use ($user) {
+                $query->whereNull('role_permissions.branch_id')
+                      ->orWhere('role_permissions.branch_id', $user->branch_id);
+            })
             ->pluck('permissions.name')
             ->toArray();
 
-               //Does this user have branch assigned?fetch that branch 
+        // Does this user have branch assigned? Fetch that branch 
 
         $branch = null;
         if ($user->branch_id) {

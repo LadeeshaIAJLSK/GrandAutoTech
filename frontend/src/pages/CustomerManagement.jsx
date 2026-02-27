@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import axiosClient from '../api/axios'
 import CustomerTable from '../components/customers/CustomerTable'
 import CustomerModal from '../components/customers/CustomerModal'
@@ -13,6 +13,9 @@ function CustomerManagement({ user }) {
   const [editingCustomer, setEditingCustomer] = useState(null)
   const [editingVehicle, setEditingVehicle] = useState(null)
   const [search, setSearch] = useState('')
+  const [filterBranch, setFilterBranch] = useState('')
+  const [branchDropdownOpen, setBranchDropdownOpen] = useState(false)
+  const branchDropdownRef = useRef(null)
 
   const [customerForm, setCustomerForm] = useState({
     name: '',
@@ -54,15 +57,36 @@ function CustomerManagement({ user }) {
   const canUpdateVehicles = user.permissions.includes('update_vehicles')
   const canDeleteVehicles = user.permissions.includes('delete_vehicles')
 
+  console.log('User Permissions:', {
+    role: user.role.name,
+    permissions: user.permissions,
+    canAddCustomers,
+    canUpdateCustomers,
+    canDeleteCustomers
+  })
+
   useEffect(() => {
+    if (user.role.name === 'super_admin') {
+      const savedBranch = localStorage.getItem('selectedBranchId') || ''
+      setFilterBranch(savedBranch)
+    }
     fetchBranches()
-    fetchCustomers()
   }, [])
 
   useEffect(() => {
     setLoading(true)
     fetchCustomers()
-  }, [search])
+  }, [search, filterBranch])
+
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (branchDropdownRef.current && !branchDropdownRef.current.contains(e.target)) {
+        setBranchDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
 
   const fetchBranches = async () => {
     try {
@@ -80,15 +104,22 @@ function CustomerManagement({ user }) {
     try {
       const token = localStorage.getItem('token')
       const params = {}
-      if (search) params.search = search
+      if (search) {
+        params.search = search
+      }
+      if (filterBranch) {
+        params.branch_id = filterBranch
+      }
 
       const response = await axiosClient.get('/customers', {
         params,
         headers: { Authorization: `Bearer ${token}` }
       })
-      setCustomers(response.data.data)
+      console.log('Customers Response:', response.data)
+      setCustomers(response.data.data || response.data)
     } catch (error) {
-      console.error('Error fetching customers:', error)
+      console.error('Error fetching customers:', error.response?.data || error.message)
+      setCustomers([])
     } finally {
       setLoading(false)
     }
@@ -97,6 +128,18 @@ function CustomerManagement({ user }) {
   // Customer Actions
   const openAddCustomerModal = () => {
     setEditingCustomer(null)
+    // For super admin, use filtered branch if available, otherwise use their own branch
+    const initialBranchId = user.role.name === 'super_admin' 
+      ? (filterBranch || user.branch?.id || '')
+      : (user.branch?.id || '')
+    
+    console.log('Opening Add Customer Modal:', {
+      userRole: user.role.name,
+      userBranch: user.branch,
+      initialBranchId: initialBranchId,
+      branches: branches
+    })
+    
     setCustomerForm({
       name: '',
       email: '',
@@ -109,7 +152,7 @@ function CustomerManagement({ user }) {
       customer_type: 'individual',
       is_active: true,
       notes: '',
-      branch_id: ''
+      branch_id: initialBranchId
     })
     setShowCustomerModal(true)
   }
@@ -137,21 +180,30 @@ function CustomerManagement({ user }) {
     try {
       const token = localStorage.getItem('token')
 
+      console.log('User info:', {
+        role: user.role.name,
+        branch_id: user.branch?.id,
+        branch: user.branch
+      })
+      console.log('Submitting customer form:', customerForm)
+
       if (editingCustomer) {
         await axiosClient.put(`/customers/${editingCustomer.id}`, customerForm, {
           headers: { Authorization: `Bearer ${token}` }
         })
         alert('Customer updated successfully!')
       } else {
-        await axiosClient.post('/customers', customerForm, {
+        const response = await axiosClient.post('/customers', customerForm, {
           headers: { Authorization: `Bearer ${token}` }
         })
+        console.log('Customer created response:', response.data)
         alert('Customer created successfully!')
       }
 
       setShowCustomerModal(false)
       fetchCustomers()
     } catch (error) {
+      console.error('Error saving customer:', error.response?.data)
       alert(error.response?.data?.message || 'Error saving customer')
     }
   }
@@ -170,10 +222,13 @@ function CustomerManagement({ user }) {
       alert(error.response?.data?.message || 'Error deleting customer')
     }
   }
-
   // Vehicle Actions
   const openAddVehicleModalForCustomer = (customerId) => {
     setEditingVehicle(null)
+    const initialBranchId = user.role.name === 'super_admin' 
+      ? (filterBranch || user.branch?.id || '')
+      : (user.branch?.id || '')
+    
     setVehicleForm({
       customer_id: customerId,
       license_plate: '',
@@ -189,7 +244,7 @@ function CustomerManagement({ user }) {
       transmission: '',
       notes: '',
       is_active: true,
-      branch_id: ''
+      branch_id: initialBranchId
     })
     setShowVehicleModal(true)
   }
@@ -288,7 +343,72 @@ function CustomerManagement({ user }) {
   return (
     <div className="space-y-5">
 
-      {/* Customers Section */}
+      {/* Branch Filter - Only for Super Admin */}
+      {user.role.name === 'super_admin' && (
+        <div ref={branchDropdownRef} className="relative w-fit">
+          <button
+            onClick={() => setBranchDropdownOpen(!branchDropdownOpen)}
+            className="flex items-center gap-3 bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 shadow-sm hover:shadow-md hover:border-blue-300 rounded-xl px-4 py-3 transition-all duration-200 min-w-[280px]"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-blue-600 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            </svg>
+            <div className="w-px h-5 bg-blue-300" />
+            <span className="text-sm font-bold text-blue-900 flex-1 text-left">
+              {filterBranch ? branches.find(b => b.id === parseInt(filterBranch))?.name : 'All Branches'}
+            </span>
+            <svg xmlns="http://www.w3.org/2000/svg" className={`w-4 h-4 text-blue-600 transition-transform duration-200 flex-shrink-0 ${branchDropdownOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="currentColor">
+              <path d="M7 10l5 5 5-5z" />
+            </svg>
+          </button>
+
+          {branchDropdownOpen && (
+            <div className="absolute top-full left-0 mt-2 w-[320px] bg-white border border-blue-200 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+              {/* Dropdown options */}
+              <div className="max-h-72 overflow-y-auto">
+                <button
+                  onClick={() => {
+                    setFilterBranch('')
+                    localStorage.setItem('selectedBranchId', '')
+                    setBranchDropdownOpen(false)
+                  }}
+                  className={`w-full text-left px-4 py-3.5 text-sm font-semibold transition-all ${
+                    filterBranch === ''
+                      ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white'
+                      : 'text-gray-700 hover:bg-blue-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-2.5 h-2.5 rounded-full ${filterBranch === '' ? 'bg-white' : 'bg-blue-300'}`} />
+                    All Branches
+                  </div>
+                </button>
+
+                {branches.map(branch => (
+                  <button
+                    key={branch.id}
+                    onClick={() => {
+                      setFilterBranch(String(branch.id))
+                      localStorage.setItem('selectedBranchId', String(branch.id))
+                      setBranchDropdownOpen(false)
+                    }}
+                    className={`w-full text-left px-4 py-3.5 text-sm font-semibold transition-all ${
+                      filterBranch === String(branch.id)
+                        ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white'
+                        : 'text-gray-700 hover:bg-blue-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-2.5 h-2.5 rounded-full ${filterBranch === String(branch.id) ? 'bg-white' : 'bg-blue-300'}`} />
+                      {branch.name}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
       <div>
         {/* Toolbar */}
         <div className="mb-5 flex gap-3 items-center">
@@ -328,6 +448,7 @@ function CustomerManagement({ user }) {
         </div>
 
         <CustomerTable
+          user={user}
           customers={customers}
           onEdit={openEditCustomerModal}
           onDelete={handleDeleteCustomer}

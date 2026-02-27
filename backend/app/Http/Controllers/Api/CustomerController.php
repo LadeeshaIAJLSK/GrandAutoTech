@@ -10,24 +10,103 @@ use Illuminate\Support\Facades\DB;
 class CustomerController extends Controller
 {
     /**
+     * Check READ permission (no branch restriction)
+     * Used for: VIEW operations
+     */
+    private function checkReadPermission($user, $permission)
+    {
+        $role = DB::table('roles')->where('id', $user->role_id)->first();
+        
+        // Super admin can read everything from all branches - no permission check needed
+        if ($role->name === 'super_admin') {
+            return ['allowed' => true];
+        }
+        
+        // Other roles: check if they have permission (any branch)
+        $permissions = DB::table('permissions')
+            ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
+            ->where('role_permissions.role_id', $user->role_id)
+            ->where(function($query) use ($user) {
+                $query->whereNull('role_permissions.branch_id')
+                      ->orWhere('role_permissions.branch_id', $user->branch_id);
+            })
+            ->pluck('permissions.name')
+            ->toArray();
+        
+        if (!in_array($permission, $permissions)) {
+            return ['allowed' => false, 'message' => 'Unauthorized - Permission denied'];
+        }
+        
+        return ['allowed' => true];
+    }
+
+    /**
+     * Check WRITE permission (with branch restriction)
+     * Used for: CREATE, UPDATE, DELETE operations
+     */
+    private function checkWritePermission($user, $permission, $targetBranchId)
+    {
+        $role = DB::table('roles')->where('id', $user->role_id)->first();
+        
+        // Super admin can do everything - no permission or branch check needed
+        if ($role->name === 'super_admin') {
+            return ['allowed' => true];
+        }
+        
+        // Other roles: check permission in their branch + must match target branch
+        $permissions = DB::table('permissions')
+            ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
+            ->where('role_permissions.role_id', $user->role_id)
+            ->where(function($query) use ($user) {
+                $query->whereNull('role_permissions.branch_id')
+                      ->orWhere('role_permissions.branch_id', $user->branch_id);
+            })
+            ->pluck('permissions.name')
+            ->toArray();
+        
+        if (!in_array($permission, $permissions)) {
+            return ['allowed' => false, 'message' => 'Unauthorized - Permission denied in your branch'];
+        }
+        
+        // Check branch match - branch admin can only create/edit customers for their own branch
+        if ($targetBranchId !== $user->branch_id) {
+            return ['allowed' => false, 'message' => 'Unauthorized - You can only manage customers in your assigned branch'];
+        }
+        
+        return ['allowed' => true];
+    }
+
+    /**
      * Get all customers with filters and pagination
      */
     public function index(Request $request)
     {
         $user = $request->user();
         
-        // Check permission
-        $permissions = DB::table('permissions')
-            ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
-            ->where('role_permissions.role_id', $user->role_id)
-            ->pluck('permissions.name')
-            ->toArray();
-        //Does this user have permission to view customers
-        if (!in_array('view_customers', $permissions)) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        // Check READ permission (no branch restriction)
+        $check = $this->checkReadPermission($user, 'view_customers');
+        if (!$check['allowed']) {
+            return response()->json(['message' => $check['message']], 403);
         }
-        //Fetch customers AND their vehicles together
+        
+        // Fetch customers AND their vehicles together
         $query = Customer::with(['vehicles', 'branch']);
+        
+        $userRole = DB::table('roles')->where('id', $user->role_id)->first();
+        
+        // Branch filtering - SUPER ADMIN can view all or filter by branch, BRANCH ADMIN can view all, others see only their branch
+        if ($userRole->name === 'super_admin') {
+            // Super admin: can view ALL customers from ALL branches, or filter by branch if provided
+            if ($request->has('branch_id') && $request->branch_id) {
+                $query->where('branch_id', $request->branch_id);
+            }
+        } elseif ($userRole->name === 'branch_admin') {
+            // Branch admin: can view all customers from all branches (no restriction)
+            // No filtering applied - they see everything
+        } else {
+            // Other roles (employees): filter by their own branch only
+            $query->where('branch_id', $user->branch_id);
+        }
 
         // Search filter
         if ($request->has('search')) {
@@ -62,17 +141,19 @@ class CustomerController extends Controller
     {
         $user = $request->user();
         
-        $permissions = DB::table('permissions')
-            ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
-            ->where('role_permissions.role_id', $user->role_id)
-            ->pluck('permissions.name')
-            ->toArray();
-        
-        if (!in_array('view_customers', $permissions)) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        // Check READ permission (no branch restriction)
+        $check = $this->checkReadPermission($user, 'view_customers');
+        if (!$check['allowed']) {
+            return response()->json(['message' => $check['message']], 403);
         }
 
         $customer = Customer::with(['vehicles', 'branch'])->findOrFail($id);
+        
+        // Only super-admin and branch-admin can view customers from any branch
+        $userRole = DB::table('roles')->where('id', $user->role_id)->first();
+        if ($userRole->name !== 'super_admin' && $userRole->name !== 'branch_admin' && $customer->branch_id !== $user->branch_id) {
+            return response()->json(['message' => 'You can only view customers from your own branch'], 403);
+        }
 
         return response()->json($customer);
     }
@@ -84,16 +165,7 @@ class CustomerController extends Controller
     {
         $user = $request->user();
         
-        $permissions = DB::table('permissions')
-            ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
-            ->where('role_permissions.role_id', $user->role_id)
-            ->pluck('permissions.name')
-            ->toArray();
-        
-        if (!in_array('add_customers', $permissions)) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
-
+        // Validate input first (branch_id is required from frontend)
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'nullable|email|unique:customers,email',
@@ -109,10 +181,12 @@ class CustomerController extends Controller
             'notes' => 'nullable|string',
         ]);
 
-        // Check branch ownership - non-admin users can only create customers for their own branch
-        $userRole = DB::table('roles')->where('id', $user->role_id)->first();
-        if ($userRole->name !== 'super_admin' && $validated['branch_id'] != $user->branch_id) {
-            return response()->json(['message' => 'You can only create customers for your own branch'], 403);
+        // Check WRITE permission (with branch restriction)
+        // Branch admin can only create customers for their own branch
+        // Super admin can create for any branch
+        $check = $this->checkWritePermission($user, 'add_customers', $validated['branch_id']);
+        if (!$check['allowed']) {
+            return response()->json(['message' => $check['message']], 403);
         }
 
         $customer = Customer::create($validated);
@@ -130,22 +204,12 @@ class CustomerController extends Controller
     {
         $user = $request->user();
         
-        $permissions = DB::table('permissions')
-            ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
-            ->where('role_permissions.role_id', $user->role_id)
-            ->pluck('permissions.name')
-            ->toArray();
-        
-        if (!in_array('update_customers', $permissions)) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
-
         $customer = Customer::findOrFail($id);
-
-        // Check branch ownership - non-admin users can only edit customers from their own branch
-        $userRole = DB::table('roles')->where('id', $user->role_id)->first();
-        if ($userRole->name !== 'super_admin' && $customer->branch_id != $user->branch_id) {
-            return response()->json(['message' => 'You can only edit customers from your own branch'], 403);
+        
+        // Check WRITE permission (with branch restriction)
+        $check = $this->checkWritePermission($user, 'update_customers', $customer->branch_id);
+        if (!$check['allowed']) {
+            return response()->json(['message' => $check['message']], 403);
         }
 
         $validated = $request->validate([
@@ -163,15 +227,15 @@ class CustomerController extends Controller
             'notes' => 'nullable|string',
         ]);
 
-        $customer->update($validated);
-
-        // If branch_id was changed, verify ownership
-        if ($request->has('branch_id')) {
-            $userRole = DB::table('roles')->where('id', $user->role_id)->first();
-            if ($userRole->name !== 'super_admin' && $validated['branch_id'] != $user->branch_id) {
-                return response()->json(['message' => 'You can only assign customers to your own branch'], 403);
+        // If branch_id is being changed, verify it's allowed for the user
+        if ($request->has('branch_id') && $validated['branch_id'] !== $customer->branch_id) {
+            $check = $this->checkWritePermission($user, 'update_customers', $validated['branch_id']);
+            if (!$check['allowed']) {
+                return response()->json(['message' => 'You cannot reassign customer to a different branch'], 403);
             }
         }
+
+        $customer->update($validated);
 
         return response()->json([
             'message' => 'Customer updated successfully',
@@ -186,22 +250,12 @@ class CustomerController extends Controller
     {
         $user = $request->user();
         
-        $permissions = DB::table('permissions')
-            ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
-            ->where('role_permissions.role_id', $user->role_id)
-            ->pluck('permissions.name')
-            ->toArray();
-        
-        if (!in_array('delete_customers', $permissions)) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
-
         $customer = Customer::findOrFail($id);
 
-        // Check branch ownership - non-admin users can only delete customers from their own branch
-        $userRole = DB::table('roles')->where('id', $user->role_id)->first();
-        if ($userRole->name !== 'super_admin' && $customer->branch_id != $user->branch_id) {
-            return response()->json(['message' => 'You can only delete customers from your own branch'], 403);
+        // Check WRITE permission (with branch restriction)
+        $check = $this->checkWritePermission($user, 'delete_customers', $customer->branch_id);
+        if (!$check['allowed']) {
+            return response()->json(['message' => $check['message']], 403);
         }
 
         // Check if customer has vehicles
@@ -223,14 +277,24 @@ class CustomerController extends Controller
      */
     public function quickSearch(Request $request)
     {
+        $user = $request->user();
         $search = $request->get('query', '');
         
-        $customers = Customer::where('name', 'like', "%{$search}%")
-            ->orWhere('phone', 'like', "%{$search}%")
-            ->orWhere('email', 'like', "%{$search}%")
-            ->where('is_active', true)
-            ->limit(10)
-            ->get(['id', 'name', 'phone', 'email']);
+        $query = Customer::where('is_active', true)
+            ->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('phone', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%");
+            });
+        
+        // Branch admin and super admin can search all customers
+        $userRole = DB::table('roles')->where('id', $user->role_id)->first();
+        if ($userRole->name !== 'super_admin' && $userRole->name !== 'branch_admin') {
+            // Other roles: search only their branch
+            $query->where('branch_id', $user->branch_id);
+        }
+        
+        $customers = $query->limit(10)->get(['id', 'name', 'phone', 'email']);
 
         return response()->json($customers);
     }

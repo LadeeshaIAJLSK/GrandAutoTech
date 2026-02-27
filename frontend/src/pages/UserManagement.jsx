@@ -322,10 +322,10 @@ function UserManagement({ user, roleFilter }) {
         {canAdd && (
           <button
             onClick={openAddModal}
-            disabled={!roleFilter || (user.role.name === 'super_admin' && !filterBranch)}
-            title={!roleFilter ? 'Select a role to create a user' : user.role.name === 'super_admin' && !filterBranch ? 'Select a specific branch to create a user' : ''}
+            disabled={!roleFilter || (roleFilter?.name === 'branch_admin' && user.role.name !== 'super_admin') || (user.role.name === 'super_admin' && !filterBranch)}
+            title={!roleFilter ? 'Select a role to create a user' : roleFilter?.name === 'branch_admin' && user.role.name !== 'super_admin' ? 'Only Super Admin can create Branch Admins' : user.role.name === 'super_admin' && !filterBranch ? 'Select a specific branch to create a user' : ''}
             className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-md text-white ${
-              !roleFilter || (user.role.name === 'super_admin' && !filterBranch)
+              !roleFilter || (roleFilter?.name === 'branch_admin' && user.role.name !== 'super_admin') || (user.role.name === 'super_admin' && !filterBranch)
                 ? 'bg-gray-300 cursor-not-allowed opacity-60'
                 : 'bg-orange-500 hover:bg-orange-600 hover:shadow-lg hover:-translate-y-px active:translate-y-0'
             }`}

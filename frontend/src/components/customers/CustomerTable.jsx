@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 
 function CustomerTable({
+  user,
   customers,
   onEdit,
   onDelete,
@@ -19,6 +20,15 @@ function CustomerTable({
   const [menuPos, setMenuPos] = useState({ top: 0, right: 0 })
   const buttonRefs = useRef({})
   const vehiclesRefs = useRef({})
+
+  console.log('CustomerTable Debug:', {
+    userRole: user.role.name,
+    userBranchId: user.branch_id,
+    canUpdate,
+    canDelete,
+    customersCount: customers.length,
+    firstCustomerBranchId: customers[0]?.branch_id
+  })
 
   useEffect(() => {
     const handleClick = () => setOpenMenuId(null)
@@ -45,46 +55,49 @@ function CustomerTable({
     setOpenMenuId(id)
   }
 
-  const DropdownMenu = ({ customer }) => (
-    createPortal(
-      <div
-        onMouseDown={(e) => e.stopPropagation()}
-        style={{
-          position: 'fixed',
-          top: menuPos.top ?? 'auto',
-          bottom: menuPos.bottom ?? 'auto',
-          right: menuPos.right,
-          zIndex: 9999,
-          width: '160px',
-        }}
-        className="bg-white rounded-lg shadow-lg border border-gray-100 py-1"
-      >
-        {canUpdate && (
-          <button
-            onClick={() => { onEdit(customer); setOpenMenuId(null) }}
-            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
-            Edit Customer
-          </button>
-        )}
-        {canDelete && (
-          <button
-            onClick={() => { onDelete(customer.id); setOpenMenuId(null) }}
-            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-            Delete
-          </button>
-        )}
-      </div>,
-      document.body
+  const DropdownMenu = ({ customer }) => {
+    // Show buttons based on permissions - backend will enforce branch restrictions
+    return (
+      createPortal(
+        <div
+          onMouseDown={(e) => e.stopPropagation()}
+          style={{
+            position: 'fixed',
+            top: menuPos.top ?? 'auto',
+            bottom: menuPos.bottom ?? 'auto',
+            right: menuPos.right,
+            zIndex: 9999,
+            width: '160px',
+          }}
+          className="bg-white rounded-lg shadow-lg border border-gray-100 py-1"
+        >
+          {canUpdate && (
+            <button
+              onClick={() => { onEdit(customer); setOpenMenuId(null) }}
+              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              Edit Customer
+            </button>
+          )}
+          {canDelete && (
+            <button
+              onClick={() => { onDelete(customer.id); setOpenMenuId(null) }}
+              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              Delete
+            </button>
+          )}
+        </div>,
+        document.body
+      )
     )
-  )
+  }
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm">

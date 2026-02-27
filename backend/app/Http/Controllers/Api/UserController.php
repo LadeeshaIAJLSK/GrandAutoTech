@@ -19,17 +19,8 @@ class UserController extends Controller
     {
         $role = DB::table('roles')->where('id', $user->role_id)->first();
         
-        // Super admin can read everything
+        // Super admin can read everything - no permission check needed
         if ($role->name === 'super_admin') {
-            $permissions = DB::table('permissions')
-                ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
-                ->where('role_permissions.role_id', $user->role_id)
-                ->pluck('permissions.name')
-                ->toArray();
-            
-            if (!in_array($permission, $permissions)) {
-                return ['allowed' => false, 'message' => 'Unauthorized - Permission denied'];
-            }
             return ['allowed' => true];
         }
         
@@ -60,17 +51,8 @@ class UserController extends Controller
     {
         $role = DB::table('roles')->where('id', $user->role_id)->first();
         
-        // Super admin can do everything
+        // Super admin can do everything - no permission or branch check needed
         if ($role->name === 'super_admin') {
-            $permissions = DB::table('permissions')
-                ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
-                ->where('role_permissions.role_id', $user->role_id)
-                ->pluck('permissions.name')
-                ->toArray();
-            
-            if (!in_array($permission, $permissions)) {
-                return ['allowed' => false, 'message' => 'Unauthorized - Permission denied'];
-            }
             return ['allowed' => true];
         }
         
