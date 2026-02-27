@@ -31,6 +31,16 @@ class VehicleController extends Controller
 
         $query = Vehicle::with(['customer', 'branch']);
 
+        // Branch filtering - non-super admins see only their branch vehicles
+        if ($user->role->name !== 'super_admin') {
+            $query->where('branch_id', $user->branch_id);
+        }
+
+        // Manual branch filter if specified
+        if ($request->has('branch_id')) {
+            $query->where('branch_id', $request->branch_id);
+        }
+
         // Search filter
         if ($request->has('search')) {
             $search = $request->search;
@@ -121,7 +131,7 @@ class VehicleController extends Controller
         // Get customer and validate ownership for non-admin users
         $customer = Customer::findOrFail($validated['customer_id']);
         
-        if ($user->role_id !== 1 && $customer->branch_id !== $user->branch_id) {
+        if ($user->role->name !== 'super_admin' && $customer->branch_id !== $user->branch_id) {
             return response()->json(['message' => 'You can only create vehicles for customers in your branch'], 403);
         }
 
@@ -156,7 +166,7 @@ class VehicleController extends Controller
         $vehicle = Vehicle::with('customer')->findOrFail($id);
         
         // Check branch ownership for non-admin users
-        if ($user->role_id !== 1 && $vehicle->branch_id !== $user->branch_id) {
+        if ($user->role->name !== 'super_admin' && $vehicle->branch_id !== $user->branch_id) {
             return response()->json(['message' => 'You can only update vehicles in your branch'], 403);
         }
 
@@ -180,7 +190,7 @@ class VehicleController extends Controller
         // Prevent reassigning vehicle to different branch (for non-admin)
         if (isset($validated['customer_id']) && $vehicle->customer_id !== $validated['customer_id']) {
             $newCustomer = Customer::findOrFail($validated['customer_id']);
-            if ($user->role_id !== 1 && $newCustomer->branch_id !== $user->branch_id) {
+            if ($user->role->name !== 'super_admin' && $newCustomer->branch_id !== $user->branch_id) {
                 return response()->json(['message' => 'You can only reassign vehicles within your branch'], 403);
             }
             $validated['branch_id'] = $newCustomer->branch_id;
@@ -214,7 +224,7 @@ class VehicleController extends Controller
         $vehicle = Vehicle::findOrFail($id);
         
         // Check branch ownership for non-admin users
-        if ($user->role_id !== 1 && $vehicle->branch_id !== $user->branch_id) {
+        if ($user->role->name !== 'super_admin' && $vehicle->branch_id !== $user->branch_id) {
             return response()->json(['message' => 'You can only delete vehicles in your branch'], 403);
         }
 

@@ -11,6 +11,7 @@ return new class extends Migration
         Schema::create('vehicles', function (Blueprint $table) {
             $table->id();
             $table->foreignId('customer_id')->constrained()->onDelete('cascade');
+            $table->foreignId('branch_id')->constrained()->onDelete('cascade');
             $table->string('license_plate')->unique();
             $table->string('make'); // Brand (Toyota, Honda, etc.)
             $table->string('model'); // Corolla, Civic, etc.
@@ -29,6 +30,7 @@ return new class extends Migration
             // Indexes for fast search
             $table->index('license_plate');
             $table->index('customer_id');
+            $table->index('branch_id');
             $table->index('make');
             $table->index('is_active');
         });
