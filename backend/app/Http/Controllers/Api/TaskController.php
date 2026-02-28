@@ -482,6 +482,26 @@ class TaskController extends Controller
         ]);
 
         $task = Task::findOrFail($id);
+        
+        // Get the task's job card to check branch
+        $jobCard = $task->jobCard;
+        
+        if (!$jobCard) {
+            return response()->json(['message' => 'Task has no associated job card'], 400);
+        }
+        
+        // Validate that all employees belong to the same branch as the job card
+        $invalidEmployees = User::whereIn('id', $validated['employee_ids'])
+            ->where('branch_id', '!=', $jobCard->branch_id)
+            ->get();
+        
+        if ($invalidEmployees->count() > 0) {
+            $employeeNames = $invalidEmployees->pluck('name')->join(', ');
+            return response()->json([
+                'message' => "The following employees are not from the {$jobCard->branch->name} branch: {$employeeNames}",
+                'invalid_employees' => $invalidEmployees->pluck('name', 'id')
+            ], 422);
+        }
 
         // Remove existing assignments
         TaskAssignment::where('task_id', $task->id)->delete();
@@ -657,12 +677,24 @@ class TaskController extends Controller
      */
     public function getAvailableEmployees(Request $request)
     {
-        $employees = User::whereHas('role', function($query) {
+        // If task_id is provided, filter employees by the task's job card branch
+        $taskId = $request->query('task_id');
+        
+        $query = User::whereHas('role', function($query) {
             $query->where('name', 'employee');
         })
-        ->where('is_active', true)
-        ->select('id', 'name', 'email', 'employee_code')
-        ->get();
+        ->where('is_active', true);
+        
+        if ($taskId) {
+            $task = Task::find($taskId);
+            if ($task && $task->jobCard) {
+                // Only return employees from the same branch as the task
+                $query->where('branch_id', $task->jobCard->branch_id);
+            }
+        }
+        
+        $employees = $query->select('id', 'name', 'email', 'employee_code', 'branch_id')
+            ->get();
 
         return response()->json($employees);
     }

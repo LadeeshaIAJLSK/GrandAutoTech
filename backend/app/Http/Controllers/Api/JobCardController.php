@@ -9,6 +9,7 @@ use App\Models\OtherCharge;
 use App\Models\Task;
 use App\Models\Customer;
 use App\Models\Vehicle;
+use App\Models\Branch;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -142,7 +143,7 @@ class JobCardController extends Controller
     }
 
     /**
-     * Create new job card (updated version)
+     * Create new job card
      */
     public function store(Request $request)
     {
@@ -161,7 +162,7 @@ class JobCardController extends Controller
         $validated = $request->validate([
             'customer_id' => 'required|exists:customers,id',
             'vehicle_id' => 'required|exists:vehicles,id',
-            'branch_id' => 'nullable|exists:branches,id',
+            'branch_id' => 'required|exists:branches,id',
             'expected_completion_date' => 'nullable|date',
             'test_run_required' => 'required|boolean',
             'details' => 'nullable|string',
@@ -171,11 +172,20 @@ class JobCardController extends Controller
             'tasks.*.category' => 'required|string',
         ]);
 
+        // Check branch permission
+        $role = DB::table('roles')->where('id', $user->role_id)->first();
+        
+        // Super admin can create in any branch
+        if ($role->name !== 'super_admin') {
+            // Non-super-admins can only create in their own branch
+            if ($validated['branch_id'] !== $user->branch_id) {
+                return response()->json(['message' => 'You can only create job cards in your assigned branch'], 403);
+            }
+        }
+
         // Generate job card number
         $jobCardNumber = $this->generateJobCardNumber();
-
-        // Determine branch_id: use provided branch_id if given, otherwise use user's branch_id
-        $branchId = $validated['branch_id'] ?? $user->branch_id;
+        $branchId = $validated['branch_id'];
 
         // Create job card
         $jobCard = JobCard::create([

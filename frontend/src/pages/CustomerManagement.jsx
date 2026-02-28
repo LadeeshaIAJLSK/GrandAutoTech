@@ -46,7 +46,8 @@ function CustomerManagement({ user }) {
     fuel_type: '',
     transmission: '',
     notes: '',
-    is_active: true
+    is_active: true,
+    branch_id: ''
   })
 
   // Permissions
@@ -251,6 +252,10 @@ function CustomerManagement({ user }) {
 
   const openAddVehicleModal = () => {
     setEditingVehicle(null)
+    const initialBranchId = user.role.name === 'super_admin' 
+      ? (filterBranch || user.branch?.id || '')
+      : (user.branch?.id || '')
+    
     setVehicleForm({
       customer_id: '',
       license_plate: '',
@@ -265,7 +270,8 @@ function CustomerManagement({ user }) {
       fuel_type: '',
       transmission: '',
       notes: '',
-      is_active: true
+      is_active: true,
+      branch_id: initialBranchId
     })
     setShowVehicleModal(true)
   }
@@ -286,7 +292,8 @@ function CustomerManagement({ user }) {
       fuel_type: vehicle.fuel_type || '',
       transmission: vehicle.transmission || '',
       notes: vehicle.notes || '',
-      is_active: vehicle.is_active
+      is_active: vehicle.is_active,
+      branch_id: vehicle.branch_id || ''
     })
     setShowVehicleModal(true)
   }
@@ -472,6 +479,7 @@ function CustomerManagement({ user }) {
         setFormData={setCustomerForm}
         isEditing={!!editingCustomer}
         branches={branches}
+        filterBranch={filterBranch}
       />
 
       <VehicleModal
@@ -481,6 +489,8 @@ function CustomerManagement({ user }) {
         formData={vehicleForm}
         setFormData={setVehicleForm}
         isEditing={!!editingVehicle}
+        branches={branches}
+        filterBranch={filterBranch}
       />
     </div>
   )

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import axiosClient from '../../api/axios'
 
-function JobCardCreateWizard({ show, onClose, onSuccess }) {
+function JobCardCreateWizard({ show, onClose, onSuccess, user, branches = [], initialBranchId = '' }) {
   const [currentStep, setCurrentStep] = useState(1)
   const [customers, setCustomers] = useState([])
   const [vehicles, setVehicles] = useState([])
@@ -12,6 +12,7 @@ function JobCardCreateWizard({ show, onClose, onSuccess }) {
   const [formData, setFormData] = useState({
     customer_id: '',
     vehicle_id: '',
+    branch_id: initialBranchId || '',
     expected_completion_date: '',
     test_run_required: false,
     details: '',
@@ -78,6 +79,7 @@ function JobCardCreateWizard({ show, onClose, onSuccess }) {
       const tasksWithDescription = tasks.filter(t => t.description && t.description.trim())
       if (tasksWithDescription.length === 0) { alert('Please add at least one task with a description'); return }
       if (!formData.details || !formData.details.trim()) { alert('Please fill in the Customer Complaint field'); return }
+      if (!formData.branch_id) { alert('Please select a branch'); return }
       const token = localStorage.getItem('token')
       const response = await axiosClient.post('/job-cards', { ...formData, tasks: tasksWithDescription }, { headers: { Authorization: `Bearer ${token}` } })
       const jobCardId = response.data.job_card.id
@@ -100,7 +102,7 @@ function JobCardCreateWizard({ show, onClose, onSuccess }) {
 
   const resetForm = () => {
     setCurrentStep(1)
-    setFormData({ customer_id: '', vehicle_id: '', expected_completion_date: '', test_run_required: false, details: '', current_mileage: '', additional_details: '' })
+    setFormData({ customer_id: '', vehicle_id: '', branch_id: initialBranchId || '', expected_completion_date: '', test_run_required: false, details: '', current_mileage: '', additional_details: '' })
     setImages({ front: null, back: null, right: null, left: null, interior1: null, interior2: null, dashboard: null, top: null, other1: null, other2: null })
     setTasks([{ description: '', category: '' }])
     generateJobCardNumber()
@@ -194,10 +196,31 @@ function JobCardCreateWizard({ show, onClose, onSuccess }) {
                 </div>
               </div>
 
-              <div>
-                <label className={labelCls}>Expected Completion Date <span className="text-red-400">*</span></label>
-                <input type="date" value={formData.expected_completion_date} onChange={e => setFormData({...formData, expected_completion_date: e.target.value})} min={getTodayDateString()} required className={inputCls} />
-                <p className="text-xs text-gray-400 mt-1">Select when you expect this job to be completed</p>
+              <div className="grid grid-cols-2 gap-5">
+                <div>
+                  <label className={labelCls}>Expected Completion Date <span className="text-red-400">*</span></label>
+                  <input type="date" value={formData.expected_completion_date} onChange={e => setFormData({...formData, expected_completion_date: e.target.value})} min={getTodayDateString()} required className={inputCls} />
+                  <p className="text-xs text-gray-400 mt-1">Select when you expect this job to be completed</p>
+                </div>
+                <div>
+                  <label className={labelCls}>Branch <span className="text-red-400">*</span></label>
+                  {initialBranchId ? (
+                    <>
+                      <input 
+                        type="text" 
+                        value={branches.find(b => b.id === parseInt(initialBranchId))?.name || ''} 
+                        readOnly 
+                        className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-100 text-gray-600 font-semibold" 
+                      />
+                      <p className="text-xs text-gray-400 mt-1">Branch is locked based on filter</p>
+                    </>
+                  ) : (
+                    <select value={formData.branch_id} onChange={e => setFormData({...formData, branch_id: e.target.value})} required className={inputCls}>
+                      <option value="">Select branch...</option>
+                      {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                    </select>
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-5">

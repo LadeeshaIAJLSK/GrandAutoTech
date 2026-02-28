@@ -12,22 +12,44 @@ function JobCardManagement({ user, selectedBranchId }) {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [showCreateWizard, setShowCreateWizard] = useState(false)
+  const [branches, setBranches] = useState([])
+  const [filterBranch, setFilterBranch] = useState('')
+  const [branchDropdownOpen, setBranchDropdownOpen] = useState(false)
   const [pendingPartsCounts, setPendingPartsCounts] = useState({})
   const [openMenuId, setOpenMenuId] = useState(null)
   const [menuPos, setMenuPos] = useState({ top: 0, right: 0 })
   const buttonRefs = useRef({})
+  const branchDropdownRef = useRef(null)
 
   const canAdd = user.permissions.includes('add_job_cards')
   const canUpdate = user.permissions.includes('update_job_cards')
   const canDelete = user.permissions.includes('delete_job_cards')
 
   useEffect(() => {
-    fetchJobCards()
-    fetchStatistics()
-  }, [search, statusFilter, selectedBranchId])
+    // Load saved branch filter from localStorage (for super admin only)
+    // For non-super-admins, automatically set to their own branch
+    if (user.role.name === 'super_admin') {
+      const savedBranch = localStorage.getItem('selectedBranchId') || ''
+      setFilterBranch(savedBranch)
+    } else {
+      // Non-super-admins always see their own branch
+      setFilterBranch(String(user.branch_id || ''))
+    }
+    fetchBranches()
+  }, [])
 
   useEffect(() => {
-    const handleClick = () => setOpenMenuId(null)
+    fetchJobCards()
+    fetchStatistics()
+  }, [search, statusFilter, filterBranch])
+
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (branchDropdownRef.current && !branchDropdownRef.current.contains(e.target)) {
+        setBranchDropdownOpen(false)
+      }
+      setOpenMenuId(null)
+    }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
@@ -62,7 +84,7 @@ function JobCardManagement({ user, selectedBranchId }) {
       const params = {}
       if (search) params.search = search
       if (statusFilter) params.status = statusFilter
-      if (selectedBranchId) params.branch_id = selectedBranchId
+      if (filterBranch) params.branch_id = filterBranch
       const response = await axiosClient.get('/job-cards', {
         params,
         headers: { Authorization: `Bearer ${token}` }
@@ -91,6 +113,18 @@ function JobCardManagement({ user, selectedBranchId }) {
       setStatistics(response.data)
     } catch (error) {
       console.error('Error fetching statistics:', error)
+    }
+  }
+
+  const fetchBranches = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await axiosClient.get('/branches/simple', {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      setBranches(response.data)
+    } catch (error) {
+      console.error('Error fetching branches:', error)
     }
   }
 
@@ -239,6 +273,63 @@ function JobCardManagement({ user, selectedBranchId }) {
   return (
     <div className="space-y-5">
 
+      {/* Branch Filter - Only for Super Admin */}
+      {user.role.name === 'super_admin' && (
+        <div ref={branchDropdownRef} className="relative w-fit">
+          <button
+            onClick={() => setBranchDropdownOpen(!branchDropdownOpen)}
+            className="flex items-center gap-3 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 shadow-sm hover:shadow-md hover:border-orange-300 rounded-xl px-4 py-3 transition-all duration-200 min-w-[280px]"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-orange-600 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            </svg>
+            <div className="w-px h-5 bg-orange-300" />
+            <span className="text-sm font-bold text-orange-900 flex-1 text-left">
+              {filterBranch ? branches.find(b => b.id === parseInt(filterBranch))?.name : 'All Branches'}
+            </span>
+            <svg xmlns="http://www.w3.org/2000/svg" className={`w-4 h-4 text-orange-600 transition-transform duration-200 flex-shrink-0 ${branchDropdownOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="currentColor">
+              <path d="M7 10l5 5 5-5z" />
+            </svg>
+          </button>
+
+          {branchDropdownOpen && (
+            <div className="absolute top-full left-0 mt-2 w-[320px] bg-white border border-orange-200 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+              <div className="max-h-72 overflow-y-auto">
+                <button
+                  onClick={() => {
+                    setFilterBranch('')
+                    localStorage.setItem('selectedBranchId', '')
+                    setBranchDropdownOpen(false)
+                  }}
+                  className={`w-full text-left px-4 py-3.5 text-sm font-semibold transition-all ${filterBranch === '' ? 'bg-gradient-to-r from-orange-600 to-amber-600 text-white' : 'text-gray-700 hover:bg-orange-50'}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-2.5 h-2.5 rounded-full ${filterBranch === '' ? 'bg-white' : 'bg-orange-300'}`} />
+                    All Branches
+                  </div>
+                </button>
+                {branches.map(branch => (
+                  <button
+                    key={branch.id}
+                    onClick={() => {
+                      setFilterBranch(String(branch.id))
+                      localStorage.setItem('selectedBranchId', String(branch.id))
+                      setBranchDropdownOpen(false)
+                    }}
+                    className={`w-full text-left px-4 py-3.5 text-sm font-semibold transition-all ${filterBranch === String(branch.id) ? 'bg-gradient-to-r from-orange-600 to-amber-600 text-white' : 'text-gray-700 hover:bg-orange-50'}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-2.5 h-2.5 rounded-full ${filterBranch === String(branch.id) ? 'bg-white' : 'bg-orange-300'}`} />
+                      {branch.name}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Statistics Cards */}
       {statistics && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -300,7 +391,12 @@ function JobCardManagement({ user, selectedBranchId }) {
         </div>
         {canAdd && (
           <button
-            onClick={() => setShowCreateWizard(true)}
+            onClick={() => {
+              const initialBranchId = user.role.name === 'super_admin' 
+                ? (filterBranch || user.branch?.id || '')
+                : (user.branch?.id || '')
+              setShowCreateWizard({ initialBranchId })
+            }}
             className="inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-px active:translate-y-0"
             style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
           >
@@ -480,15 +576,21 @@ function JobCardManagement({ user, selectedBranchId }) {
         </div>
       </div>
 
-      <JobCardCreateWizard
-        show={showCreateWizard}
-        onClose={() => setShowCreateWizard(false)}
-        onSuccess={(jobCard) => {
-          setShowCreateWizard(false)
-          fetchJobCards()
-          fetchStatistics()
-        }}
-      />
+      {showCreateWizard && createPortal(
+        <JobCardCreateWizard
+          show={typeof showCreateWizard === 'object' ? true : showCreateWizard}
+          onClose={() => setShowCreateWizard(false)}
+          onSuccess={(jobCard) => {
+            setShowCreateWizard(false)
+            fetchJobCards()
+            fetchStatistics()
+          }}
+          user={user}
+          branches={branches}
+          initialBranchId={typeof showCreateWizard === 'object' ? showCreateWizard.initialBranchId : ''}
+        />,
+        document.body
+      )}
     </div>
   )
 }

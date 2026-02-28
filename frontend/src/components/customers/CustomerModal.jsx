@@ -5,7 +5,8 @@ function CustomerModal({
   formData,
   setFormData,
   isEditing,
-  branches
+  branches,
+  filterBranch
 }) {
   if (!show) return null
 
@@ -198,17 +199,29 @@ function CustomerModal({
             {/* Branch */}
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Branch <span className="text-red-400">*</span></label>
-              <select
-                value={formData.branch_id}
-                onChange={(e) => setFormData({...formData, branch_id: e.target.value})}
-                required
-                className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all"
-              >
-                <option value="">Select Branch</option>
-                {branches && branches.map(branch => (
-                  <option key={branch.id} value={branch.id}>{branch.name}</option>
-                ))}
-              </select>
+              {filterBranch ? (
+                <>
+                  <input 
+                    type="text" 
+                    value={branches.find(b => b.id === parseInt(filterBranch))?.name || ''} 
+                    readOnly 
+                    className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-100 text-gray-600 font-semibold" 
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Branch is locked based on filter</p>
+                </>
+              ) : (
+                <select
+                  value={formData.branch_id}
+                  onChange={(e) => setFormData({...formData, branch_id: e.target.value})}
+                  required
+                  className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all"
+                >
+                  <option value="">Select Branch</option>
+                  {branches && branches.map(branch => (
+                    <option key={branch.id} value={branch.id}>{branch.name}</option>
+                  ))}
+                </select>
+              )}
             </div>
           </div>
 

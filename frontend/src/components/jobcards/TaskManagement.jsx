@@ -23,20 +23,21 @@ function TaskManagement({ jobCard, onUpdate, user }) {
   const canAssign = user.permissions.includes('assign_tasks') || ['super_admin', 'branch_admin'].includes(user.role.name)
 
   useEffect(() => {
-    if (showAssignModal) {
-      fetchAvailableEmployees()
+    if (showAssignModal && selectedTask) {
+      fetchAvailableEmployees(selectedTask.id)
     }
-  }, [showAssignModal])
+  }, [showAssignModal, selectedTask])
 
-  const fetchAvailableEmployees = async () => {
+  const fetchAvailableEmployees = async (taskId) => {
     try {
       const token = localStorage.getItem('token')
-      const response = await axiosClient.get('/employees/available', {
+      const response = await axiosClient.get(`/employees/available?task_id=${taskId}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       setAvailableEmployees(response.data)
     } catch (error) {
       console.error('Error:', error)
+      alert(error.response?.data?.message || 'Error fetching available employees')
     }
   }
 

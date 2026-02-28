@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import axiosClient from '../../api/axios'
 
-function VehicleModal({ show, onClose, onSubmit, formData, setFormData, isEditing }) {
+function VehicleModal({ show, onClose, onSubmit, formData, setFormData, isEditing, branches = [], filterBranch = '' }) {
   const [customers, setCustomers] = useState([])
   const [loadingCustomers, setLoadingCustomers] = useState(true)
   const [customerError, setCustomerError] = useState(null)
@@ -28,6 +28,15 @@ function VehicleModal({ show, onClose, onSubmit, formData, setFormData, isEditin
   if (!show) return null
 
   const handleSubmit = (e) => { e.preventDefault(); onSubmit() }
+
+  const handleCustomerChange = (customerId) => {
+    const selectedCustomer = customers.find(c => c.id === parseInt(customerId))
+    setFormData({
+      ...formData,
+      customer_id: customerId,
+      branch_id: selectedCustomer?.branch_id || ''
+    })
+  }
 
   const currentYear = new Date().getFullYear()
   const years = Array.from({ length: 30 }, (_, i) => currentYear - i)
@@ -81,7 +90,7 @@ function VehicleModal({ show, onClose, onSubmit, formData, setFormData, isEditin
                   No active customers found. Please create a customer first.
                 </div>
               ) : (
-                <select value={formData.customer_id || ''} onChange={e => setFormData({...formData, customer_id: e.target.value})} required className={inputCls}>
+                <select value={formData.customer_id || ''} onChange={e => handleCustomerChange(e.target.value)} required className={inputCls}>
                   <option value="">Select Customer</option>
                   {customers.map(c => <option key={c.id} value={c.id}>{c.name} — {c.phone}</option>)}
                 </select>
