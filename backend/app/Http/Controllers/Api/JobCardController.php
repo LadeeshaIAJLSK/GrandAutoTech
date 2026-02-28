@@ -24,6 +24,16 @@ class JobCardController extends Controller
         $user = $request->user();
         $query = JobCard::with(['customer', 'vehicle', 'creator', 'branch']);
 
+        // Branch filtering - non-super admins see only their branch job cards
+        if ($user->role->name !== 'super_admin') {
+            $query->where('branch_id', $user->branch_id);
+        }
+
+        // Manual branch filter if specified
+        if ($request->has('branch_id')) {
+            $query->where('branch_id', $request->branch_id);
+        }
+
         // Search filter
         if ($request->has('search')) {
             $search = $request->search;
@@ -217,6 +227,11 @@ class JobCardController extends Controller
 
         $jobCard = JobCard::findOrFail($id);
 
+        // Check branch ownership for non-admin users
+        if ($user->role->name !== 'super_admin' && $jobCard->branch_id !== $user->branch_id) {
+            return response()->json(['message' => 'You can only update job cards in your branch'], 403);
+        }
+
         if (!$jobCard->canBeEdited()) {
             return response()->json([
                 'message' => 'Cannot edit job card in current status'
@@ -271,6 +286,12 @@ class JobCardController extends Controller
         ]);
 
         $jobCard = JobCard::findOrFail($id);
+        
+        // Check branch ownership for non-admin users
+        if ($user->role->name !== 'super_admin' && $jobCard->branch_id !== $user->branch_id) {
+            return response()->json(['message' => 'You can only update job cards in your branch'], 403);
+        }
+        
         $oldStatus = $jobCard->status;
         $jobCard->status = $validated['status'];
 
@@ -527,6 +548,11 @@ class JobCardController extends Controller
         }
 
         $jobCard = JobCard::findOrFail($id);
+
+        // Check branch ownership for non-admin users
+        if ($user->role->name !== 'super_admin' && $jobCard->branch_id !== $user->branch_id) {
+            return response()->json(['message' => 'You can only delete job cards in your branch'], 403);
+        }
 
         // Only allow deletion of pending or cancelled job cards
         if (!in_array($jobCard->status, ['pending', 'cancelled'])) {

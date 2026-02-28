@@ -57,8 +57,8 @@ function MiniCalendar({ jobCards = [] }) {
 
       {/* Day Headers */}
       <div className="grid grid-cols-7 gap-1 mb-2">
-        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(day => (
-          <div key={day} className="text-center text-xs font-bold text-gray-500 py-1">
+        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
+          <div key={i} className="text-center text-xs font-bold text-gray-500 py-1">
             {day}
           </div>
         ))}

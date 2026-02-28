@@ -226,7 +226,7 @@ const JobCardPrint = forwardRef(({ jobCard }, ref) => {
                   <thead>
                     <tr>
                       {['#', 'Task Description', 'Category', 'Hours', 'Cost'].map((h, i) => (
-                        <th key={h} className="table-th" style={{ textAlign: i >= 3 ? 'right' : 'left' }}>{h}</th>
+                        <th key={i} className="table-th" style={{ textAlign: i >= 3 ? 'right' : 'left' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -263,7 +263,7 @@ const JobCardPrint = forwardRef(({ jobCard }, ref) => {
                   <thead>
                     <tr>
                       {['#', 'Part Name', 'Part Number', 'Qty', 'Unit Price', 'Total'].map((h, i) => (
-                        <th key={h} className="table-th" style={{ textAlign: i >= 3 ? (i === 3 ? 'center' : 'right') : 'left' }}>{h}</th>
+                        <th key={i} className="table-th" style={{ textAlign: i >= 3 ? (i === 3 ? 'center' : 'right') : 'left' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>

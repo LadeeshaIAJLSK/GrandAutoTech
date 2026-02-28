@@ -884,7 +884,7 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef }) {
               <thead>
                 <tr className="border-b-2 border-gray-100 bg-gradient-to-r from-gray-50 to-gray-50/60">
                   {['Payment #', 'Date', 'Amount', 'Method', 'Type', 'Received By', 'Action'].map(h => (
-                    <th key={h} className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
+                    <th key={i} className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
               </thead>

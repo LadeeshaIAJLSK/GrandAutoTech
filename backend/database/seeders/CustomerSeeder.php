@@ -65,7 +65,7 @@ class CustomerSeeder extends Seeder
                 'city' => 'Galle',
                 'id_number' => '654321987V',
                 'customer_type' => 'individual',
-                'branch_id' => 3,
+                'branch_id' => 2,
                 'is_active' => true,
                 'notes' => 'New customer',
                 'created_at' => now(),

@@ -99,7 +99,7 @@ class VehicleSeeder extends Seeder
                 'mileage' => 35000,
                 'fuel_type' => 'Petrol',
                 'transmission' => 'Automatic',
-                'branch_id' => 3,
+                'branch_id' => 2,
                 'is_active' => true,
                 'notes' => 'SUV model',
                 'created_at' => now(),

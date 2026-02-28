@@ -7,79 +7,79 @@ use App\Models\JobCard;
 use App\Models\Customer;
 use App\Models\Vehicle;
 use App\Models\User;
+use App\Models\Branch;
+use App\Models\Task;
 
 class JobCardSeeder extends Seeder
 {
     public function run(): void
     {
-        // Make sure we have customers and vehicles
-        $customers = Customer::all();
-        $vehicles = Vehicle::all();
-        $creator = User::where('email', 'admin@grandautotech.lk')->first();
+        $branches = Branch::all();
 
-        if ($customers->isEmpty() || $vehicles->isEmpty()) {
-            $this->command->info('Please create customers and vehicles first!');
-            return;
+        foreach ($branches as $branch) {
+            // Get customers and vehicles from this branch
+            $customers = Customer::where('branch_id', $branch->id)->get();
+            $vehicles = Vehicle::where('branch_id', $branch->id)->get();
+            
+            // Get branch creator user
+            $creator = User::where('branch_id', $branch->id)->first();
+
+            if ($customers->isEmpty() || $vehicles->isEmpty() || !$creator) {
+                continue;
+            }
+
+            // Create 2 job cards per branch
+            foreach (range(1, 2) as $i) {
+                $customer = $customers->random();
+                $vehicle = $vehicles->random();
+
+                $jobCard = JobCard::create([
+                    'job_card_number' => $this->generateJobCardNumber(),
+                    'customer_id' => $customer->id,
+                    'vehicle_id' => $vehicle->id,
+                    'branch_id' => $branch->id,
+                    'created_by' => $creator->id,
+                    'current_mileage' => rand(40000, 150000),
+                    'status' => collect(['pending', 'in_progress', 'completed'])->random(),
+                    'customer_complaint' => 'Engine making noise during startup',
+                    'initial_inspection_notes' => 'Inspection done. Starter motor issue detected.',
+                    'recommendations' => 'Replace starter motor and battery terminals',
+                    'labor_cost' => rand(2000, 8000),
+                    'parts_cost' => rand(5000, 20000),
+                    'discount' => rand(0, 2000),
+                    'advance_payment' => rand(5000, 15000),
+                ]);
+
+                // Calculate totals
+                $jobCard->total_amount = $jobCard->labor_cost + $jobCard->parts_cost - $jobCard->discount;
+                $jobCard->balance_amount = $jobCard->total_amount - $jobCard->advance_payment;
+                $jobCard->save();
+
+                // Create 2-3 tasks
+                foreach (range(1, rand(2, 3)) as $j) {
+                    Task::create([
+                        'job_card_id' => $jobCard->id,
+                        'task_name' => collect([
+                            'Replace starter motor',
+                            'Check battery terminals',
+                            'Engine diagnostics',
+                            'Fluid level check',
+                            'Test run vehicle'
+                        ])->random(),
+                        'category' => collect(['mechanical', 'electrical', 'diagnostic'])->random(),
+                        'status' => 'pending',
+                    ]);
+                }
+            }
         }
 
-        $jobCards = [
-            [
-                'job_card_number' => 'JC-2026-0001',
-                'customer_id' => $customers->first()->id,
-                'vehicle_id' => $vehicles->first()->id,
-                'created_by' => $creator->id,
-                'branch_id' => 1,
-                'current_mileage' => 45000,
-                'status' => 'in_progress',
-                'customer_complaint' => 'Engine making unusual noise and slight vibration at high speeds',
-                'initial_inspection_notes' => 'Checked engine bay, found loose timing belt. Recommend full timing belt replacement.',
-                'labor_cost' => 15000,
-                'parts_cost' => 25000,
-                'other_charges' => 2000,
-                'total_amount' => 42000,
-                'advance_payment' => 10000,
-                'balance_amount' => 32000,
-                'estimated_completion_date' => now()->addDays(2),
-            ],
-            [
-                'job_card_number' => 'JC-2026-0002',
-                'customer_id' => $customers->count() > 1 ? $customers[1]->id : $customers->first()->id,
-                'vehicle_id' => $vehicles->count() > 1 ? $vehicles[1]->id : $vehicles->first()->id,
-                'created_by' => $creator->id,
-                'branch_id' => 1,
-                'current_mileage' => 78000,
-                'status' => 'waiting_parts',
-                'customer_complaint' => 'Brake pads worn out, squeaking noise when braking',
-                'initial_inspection_notes' => 'Front brake pads at 10%, rear at 25%. Recommend full brake pad replacement.',
-                'labor_cost' => 8000,
-                'parts_cost' => 12000,
-                'total_amount' => 20000,
-                'estimated_completion_date' => now()->addDays(1),
-            ],
-            [
-                'job_card_number' => 'JC-2026-0003',
-                'customer_id' => $customers->first()->id,
-                'vehicle_id' => $vehicles->first()->id,
-                'created_by' => $creator->id,
-                'branch_id' => 1,
-                'current_mileage' => 52000,
-                'status' => 'completed',
-                'customer_complaint' => 'Regular service - oil change and filter replacement',
-                'initial_inspection_notes' => 'Standard service. All fluids checked.',
-                'labor_cost' => 3000,
-                'parts_cost' => 5000,
-                'total_amount' => 8000,
-                'advance_payment' => 8000,
-                'balance_amount' => 0,
-                'estimated_completion_date' => now()->subDays(1),
-                'actual_completion_date' => now()->subHours(3),
-            ],
-        ];
+        $this->command->info('✅ Job cards seeded successfully!');
+    }
 
-        foreach ($jobCards as $jobCardData) {
-            JobCard::create($jobCardData);
-        }
-
-        $this->command->info('Job cards seeded successfully!');
+    private function generateJobCardNumber(): string
+    {
+        $year = date('Y');
+        $count = JobCard::count() + 1;
+        return "JC-{$year}-" . str_pad($count, 4, '0', STR_PAD_LEFT);
     }
 }

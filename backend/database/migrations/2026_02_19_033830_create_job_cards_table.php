@@ -13,7 +13,7 @@ return new class extends Migration
             $table->string('job_card_number')->unique(); // JC-2026-0001
             $table->foreignId('customer_id')->constrained()->onDelete('cascade');
             $table->foreignId('vehicle_id')->constrained()->onDelete('cascade');
-            $table->foreignId('branch_id')->nullable()->constrained()->onDelete('set null');
+            $table->foreignId('branch_id')->constrained()->onDelete('cascade');
             $table->foreignId('created_by')->constrained('users')->onDelete('cascade');
             
             // Job card details
@@ -54,6 +54,7 @@ return new class extends Migration
             $table->index('job_card_number');
             $table->index('customer_id');
             $table->index('vehicle_id');
+            $table->index('branch_id');
             $table->index('status');
             $table->index('created_at');
         });

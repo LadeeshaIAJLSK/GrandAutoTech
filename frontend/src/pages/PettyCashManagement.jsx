@@ -279,8 +279,8 @@ function PettyCashManagement({ user }) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b-2 border-gray-100 bg-gradient-to-r from-gray-50 to-gray-50/60">
-                {['Transaction #', 'Date', 'Type', 'Category', 'Description', 'Amount', 'Status', 'Actions'].map(h => (
-                  <th key={h} className={`px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider ${h === 'Amount' ? 'text-right' : 'text-left'}`}>{h}</th>
+                {['Transaction #', 'Date', 'Type', 'Category', 'Description', 'Amount', 'Status', 'Actions'].map((h, i) => (
+                  <th key={i} className={`px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider ${h === 'Amount' ? 'text-right' : 'text-left'}`}>{h}</th>
                 ))}
               </tr>
             </thead>
