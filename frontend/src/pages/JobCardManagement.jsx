@@ -523,20 +523,12 @@ function JobCardManagement({ user, selectedBranchId }) {
                     </td>
                     <td className="px-5 py-4">
                       {canUpdate && jobCard.status !== 'cancelled' ? (
-                        <select
-                          value={jobCard.status}
-                          onChange={(e) => handleStatusChange(jobCard.id, e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                          className={`text-xs font-semibold px-2.5 py-1 rounded-full border cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/10 ${getStatusStyle(jobCard.status)}`}
-                        >
-                          <option value="pending">Pending</option>
-                          <option value="in_progress">In Progress</option>
-                          <option value="completed">Completed</option>
-                        </select>
+                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${getStatusStyle(jobCard.status)}`}>
+                          {jobCard.status}
+                        </span>
                       ) : (
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getStatusStyle(jobCard.status)}`}>
-                          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${getStatusDot(jobCard.status)}`} />
-                          {formatStatus(jobCard.status)}
+                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${getStatusStyle(jobCard.status)}`}>
+                          {jobCard.status}
                         </span>
                       )}
                     </td>

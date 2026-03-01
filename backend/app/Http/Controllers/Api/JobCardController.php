@@ -30,8 +30,8 @@ class JobCardController extends Controller
             $query->where('branch_id', $user->branch_id);
         }
 
-        // Manual branch filter if specified
-        if ($request->has('branch_id')) {
+        // Manual branch filter restricted to super-admins
+        if ($request->has('branch_id') && $user->role->name === 'super_admin') {
             $query->where('branch_id', $request->branch_id);
         }
 
@@ -197,7 +197,7 @@ class JobCardController extends Controller
             'expected_completion_date' => $validated['expected_completion_date'] ?? null,
             'customer_complaint' => $validated['details'] ?? '',
             'current_mileage' => $validated['current_mileage'] ?? null,
-            'status' => 'pending',
+            'status' => 'pending', // Automatically set status to pending
         ]);
 
         // Create tasks if provided
@@ -254,7 +254,6 @@ class JobCardController extends Controller
             'initial_inspection_notes' => 'nullable|string',
             'recommendations' => 'nullable|string',
             'estimated_completion_date' => 'nullable|date',
-            'labor_cost' => 'nullable|numeric|min:0',
             'parts_cost' => 'nullable|numeric|min:0',
             'other_charges' => 'nullable|numeric|min:0',
             'discount' => 'nullable|numeric|min:0',
@@ -264,7 +263,7 @@ class JobCardController extends Controller
         $jobCard->update($validated);
 
         // Recalculate totals if pricing fields updated
-        if ($request->hasAny(['labor_cost', 'parts_cost', 'other_charges', 'discount', 'advance_payment'])) {
+        if ($request->hasAny(['parts_cost', 'other_charges', 'discount', 'advance_payment'])) {
             $jobCard->calculateTotals();
         }
 
@@ -279,43 +278,7 @@ class JobCardController extends Controller
      */
     public function updateStatus(Request $request, $id)
     {
-        $user = $request->user();
-        
-        $permissions = DB::table('permissions')
-            ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
-            ->where('role_permissions.role_id', $user->role_id)
-            ->pluck('permissions.name')
-            ->toArray();
-        
-        if (!in_array('update_job_cards', $permissions)) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
-
-        $validated = $request->validate([
-            'status' => 'required|in:pending,in_progress,waiting_parts,waiting_customer,quality_check,completed,invoiced,paid,cancelled'
-        ]);
-
-        $jobCard = JobCard::findOrFail($id);
-        
-        // Check branch ownership for non-admin users
-        if ($user->role->name !== 'super_admin' && $jobCard->branch_id !== $user->branch_id) {
-            return response()->json(['message' => 'You can only update job cards in your branch'], 403);
-        }
-        
-        $oldStatus = $jobCard->status;
-        $jobCard->status = $validated['status'];
-
-        // Auto-set completion date when status changes to completed
-        if ($validated['status'] === 'completed' && !$jobCard->actual_completion_date) {
-            $jobCard->actual_completion_date = now();
-        }
-
-        $jobCard->save();
-
-        return response()->json([
-            'message' => "Job card status changed from {$oldStatus} to {$validated['status']}",
-            'job_card' => $jobCard
-        ]);
+        return response()->json(['message' => 'This endpoint is no longer available.'], 410);
     }
 
     /**
@@ -421,21 +384,13 @@ class JobCardController extends Controller
             'task_name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'category' => 'required|in:mechanical,electrical,bodywork,painting,diagnostic,maintenance,other',
-            'labor_hours' => 'nullable|numeric|min:0',
-            'labor_rate_per_hour' => 'nullable|numeric|min:0',
-            'estimated_duration_minutes' => 'nullable|integer|min:0',
-            'priority' => 'nullable|integer|in:0,1,2',
         ]);
 
         $jobCard = JobCard::findOrFail($id);
         $validated['job_card_id'] = $jobCard->id;
+        $validated['status'] = 'pending'; // Ensure default status is pending
 
         $task = Task::create($validated);
-
-        // Calculate labor cost if both hours and rate provided
-        if ($task->labor_hours && $task->labor_rate_per_hour) {
-            $task->calculateLaborCost();
-        }
 
         return response()->json([
             'message' => 'Task added successfully',

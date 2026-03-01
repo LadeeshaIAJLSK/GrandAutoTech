@@ -93,11 +93,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/tasks/{id}/assign', [TaskController::class, 'assignEmployees']);
     Route::post('/tasks/{id}/start', [TaskController::class, 'startTask']);
     Route::post('/tasks/{id}/stop', [TaskController::class, 'stopTask']);
+    Route::post('/tasks/{id}/resume', [TaskController::class, 'resumeTask']);
     Route::post('/tasks/{id}/complete', [TaskController::class, 'completeTask']);
     Route::get('/employees/available', [TaskController::class, 'getAvailableEmployees']);
     Route::get('/my-tasks', [TaskController::class, 'getMyTasks']);
     Route::get('/all-tasks', [TaskController::class, 'getAllTasks']);
-    Route::get('/my-tasks/active-timer', [TaskController::class, 'getActiveTimer']);
     Route::post('/tasks/{id}/mark-done', [TaskController::class, 'markAsDone']);
 
 
@@ -181,4 +181,10 @@ Route::get('/tasks/awaiting-approval', [TaskController::class, 'getTasksAwaiting
 Route::post('/tasks/{id}/approve', [TaskController::class, 'approveTask']);
 Route::post('/tasks/{id}/reject', [TaskController::class, 'rejectTask']);
 Route::post('/job-cards/{jobCardId}/approve', [TaskController::class, 'approveJobCard']);
+
+// Timer system routes
+Route::post('/tasks/{id}/start-timer', [TaskController::class, 'startTimer']);
+Route::post('/tasks/{id}/pause-timer', [TaskController::class, 'pauseTimer']);
+Route::post('/tasks/{id}/resume-timer', [TaskController::class, 'resumeTimer']);
+Route::post('/tasks/{id}/stop-timer', [TaskController::class, 'stopTimer']);
 });

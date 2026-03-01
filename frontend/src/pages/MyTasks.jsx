@@ -3,13 +3,13 @@ import axiosClient from '../api/axios'
 
 function MyTasks({ user }) {
   const [tasks, setTasks] = useState([])
-  const [activeTimer, setActiveTimer] = useState(null)
   const [loading, setLoading] = useState(true)
   const [showRequestPartsModal, setShowRequestPartsModal] = useState(false)
   const [selectedTask, setSelectedTask] = useState(null)
   const [employeeFilter, setEmployeeFilter] = useState('')
   const [taskParts, setTaskParts] = useState({})
   const [taskStatusFilter, setTaskStatusFilter] = useState('all')
+  const [timerUpdate, setTimerUpdate] = useState(0) // For live timer updates
 
   const [partsRequest, setPartsRequest] = useState({
     part_name: '',
@@ -22,8 +22,13 @@ function MyTasks({ user }) {
 
   useEffect(() => {
     fetchMyTasks()
-    checkActiveTimer()
-    const interval = setInterval(() => { checkActiveTimer() }, 30000)
+  }, [])
+
+  // Live timer update every second
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTimerUpdate(prev => prev + 1)
+    }, 1000)
     return () => clearInterval(interval)
   }, [])
 
@@ -46,44 +51,6 @@ function MyTasks({ user }) {
     }
   }
 
-  const checkActiveTimer = async () => {
-    try {
-      const token = localStorage.getItem('token')
-      const response = await axiosClient.get('/my-tasks/active-timer', { headers: { Authorization: `Bearer ${token}` } })
-      if (response.data.has_active_timer) {
-        setActiveTimer(response.data)
-      } else {
-        setActiveTimer(null)
-      }
-    } catch (error) {
-      console.error('Error:', error)
-    }
-  }
-
-  const handleStartTask = async (taskId) => {
-    try {
-      const token = localStorage.getItem('token')
-      await axiosClient.post(`/tasks/${taskId}/start`, {}, { headers: { Authorization: `Bearer ${token}` } })
-      alert('Task started! Timer is now running.')
-      fetchMyTasks()
-      checkActiveTimer()
-    } catch (error) {
-      alert(error.response?.data?.message || 'Error starting task')
-    }
-  }
-
-  const handlePauseTask = async (taskId) => {
-    try {
-      const token = localStorage.getItem('token')
-      await axiosClient.post(`/tasks/${taskId}/stop`, {}, { headers: { Authorization: `Bearer ${token}` } })
-      alert('Task paused!')
-      fetchMyTasks()
-      checkActiveTimer()
-    } catch (error) {
-      alert(error.response?.data?.message || 'Error pausing task')
-    }
-  }
-
   const handleMarkAsDone = async (taskId) => {
     if (!confirm('Submit this task for approval?')) return
     try {
@@ -91,7 +58,6 @@ function MyTasks({ user }) {
       const response = await axiosClient.post(`/tasks/${taskId}/mark-done`, {}, { headers: { Authorization: `Bearer ${token}` } })
       alert(`Task submitted for approval! Total time: ${Math.floor(response.data.total_time_spent / 60)}h ${response.data.total_time_spent % 60}m`)
       fetchMyTasks()
-      checkActiveTimer()
     } catch (error) {
       alert(error.response?.data?.message || 'Error completing task')
     }
@@ -143,11 +109,34 @@ function MyTasks({ user }) {
   }
 
   const getElapsedTime = (startTime) => {
-    const start = new Date(startTime)
-    const now = new Date()
-    const diffMs = now - start
-    const diffMins = Math.floor(diffMs / 60000)
-    return formatTime(diffMins)
+    if (!startTime) return '0h 0m'; // Fallback for missing start_time
+
+    const start = new Date(startTime);
+    const now = new Date();
+    const diffMs = now - start;
+
+    if (diffMs < 0) return '0h 0m'; // Fallback for future start_time
+
+    const diffMins = Math.floor(diffMs / 60000);
+    return formatTime(diffMins);
+  }
+
+  const getTotalElapsedTime = (task) => {
+    if (!task.time_tracking || task.time_tracking.length === 0) return '0h 0m'
+    
+    // Sum all completed durations
+    let totalMinutes = task.time_tracking
+      .filter(t => t.end_time)
+      .reduce((sum, t) => sum + (t.duration_minutes || 0), 0)
+    
+    // Add elapsed time from active timer if any
+    const activeTimer = task.time_tracking.find(t => !t.end_time)
+    if (activeTimer) {
+      const elapsedMinutes = Math.floor((new Date() - new Date(activeTimer.start_time)) / 60000)
+      totalMinutes += elapsedMinutes
+    }
+    
+    return formatTime(totalMinutes)
   }
 
   const getStatusStyle = (status) => {
@@ -225,6 +214,58 @@ function MyTasks({ user }) {
     { id: 'awaiting', label: 'Awaiting Approval',icon: <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
     { id: 'completed',label: 'Completed',        icon: <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg> },
   ]
+
+  const handleStartTask = async (taskId) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axiosClient.post(`/tasks/${taskId}/start-timer`, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      alert('Timer started!');
+      fetchMyTasks();
+    } catch (error) {
+      alert(error.response?.data?.message || 'Error starting timer');
+    }
+  };
+
+  const handlePauseTask = async (taskId) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axiosClient.post(`/tasks/${taskId}/pause-timer`, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      alert('Timer paused!');
+      fetchMyTasks();
+    } catch (error) {
+      alert(error.response?.data?.message || 'Error pausing timer');
+    }
+  };
+
+  const handleResumeTask = async (taskId) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axiosClient.post(`/tasks/${taskId}/resume-timer`, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      alert('Timer resumed!');
+      fetchMyTasks();
+    } catch (error) {
+      alert(error.response?.data?.message || 'Error resuming timer');
+    }
+  };
+
+  const handleStopTask = async (taskId) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axiosClient.post(`/tasks/${taskId}/stop-timer`, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      alert('Task completed!');
+      fetchMyTasks();
+    } catch (error) {
+      alert(error.response?.data?.message || 'Error stopping timer');
+    }
+  };
 
   return (
     <div className="space-y-5">
@@ -320,7 +361,7 @@ function MyTasks({ user }) {
               <div className="p-4 space-y-2.5">
                 {group.tasks.map(task => {
                   const totalTime = task.time_tracking?.reduce((sum, t) => sum + (t.duration_minutes || 0), 0) || 0
-                  const isRunning = activeTimer?.task?.id === task.id
+                  const isRunning = task.time_tracking?.some(t => !t.end_time) || false
                   const st = getStatusStyle(task.status)
 
                   return (
@@ -350,7 +391,7 @@ function MyTasks({ user }) {
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
-                            {isRunning ? getElapsedTime(activeTimer.timer.start_time) : formatTime(totalTime)}
+                            {getTotalElapsedTime(task)}
                           </div>
                         )}
                       </div>
@@ -381,15 +422,27 @@ function MyTasks({ user }) {
                         )}
                         {task.status === 'in_progress' && (
                           <>
-                            <button
-                              onClick={() => handlePauseTask(task.id)}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-yellow-50 hover:bg-yellow-100 text-yellow-700 border border-yellow-200 rounded-lg text-xs font-semibold transition-colors"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
-                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                              </svg>
-                              Pause
-                            </button>
+                            {isRunning ? (
+                              <button
+                                onClick={() => handlePauseTask(task.id)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-yellow-50 hover:bg-yellow-100 text-yellow-700 border border-yellow-200 rounded-lg text-xs font-semibold transition-colors"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                                </svg>
+                                Pause
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleResumeTask(task.id)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-xs font-semibold transition-colors"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                                </svg>
+                                Resume
+                              </button>
+                            )}
                             <button
                               onClick={() => handleMarkAsDone(task.id)}
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary hover:bg-primary-dark text-white rounded-lg text-xs font-semibold transition-colors shadow-sm"

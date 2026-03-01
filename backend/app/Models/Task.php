@@ -15,29 +15,24 @@ class Task extends Model
         'description',
         'category',
         'status',
-        'labor_hours',
         'labor_rate_per_hour',
         'labor_cost',
         'cost_price',
         'amount',
         'started_at',
         'completed_at',
-        'estimated_duration_minutes',
-        'actual_duration_minutes',
         'completion_notes',
         'priority',
     ];
 
     protected $casts = [
-        'labor_hours' => 'decimal:2',
         'labor_rate_per_hour' => 'decimal:2',
         'labor_cost' => 'decimal:2',
         'cost_price' => 'decimal:2',
         'amount' => 'decimal:2',
         'started_at' => 'datetime',
         'completed_at' => 'datetime',
-        'estimated_duration_minutes' => 'integer',
-        'actual_duration_minutes' => 'integer',
+        'completion_notes' => 'string',
         'priority' => 'integer',
     ];
 
@@ -75,12 +70,6 @@ class Task extends Model
     }
 
     // Helper methods
-    public function calculateLaborCost()
-    {
-        $this->labor_cost = $this->labor_hours * $this->labor_rate_per_hour;
-        $this->save();
-    }
-
     public function isCompleted()
     {
         return $this->status === 'completed';

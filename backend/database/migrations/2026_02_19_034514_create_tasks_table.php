@@ -32,19 +32,14 @@ return new class extends Migration
                 'cancelled'
             ])->default('pending');
             
-            // Pricing
-            $table->decimal('labor_hours', 5, 2)->default(0);
-            $table->decimal('labor_rate_per_hour', 10, 2)->default(0);
-            $table->decimal('labor_cost', 10, 2)->default(0);
-            
             // Time tracking
             $table->dateTime('started_at')->nullable();
             $table->dateTime('completed_at')->nullable();
-            $table->integer('estimated_duration_minutes')->nullable();
-            $table->integer('actual_duration_minutes')->nullable();
             
             $table->text('completion_notes')->nullable();
             $table->integer('priority')->default(0); // 0=normal, 1=high, 2=urgent
+            $table->integer('cost_price')->nullable();
+            $table->integer('amount')->nullable();
             
             $table->timestamps();
             

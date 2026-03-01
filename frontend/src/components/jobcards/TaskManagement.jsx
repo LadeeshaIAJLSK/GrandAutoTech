@@ -7,20 +7,28 @@ function TaskManagement({ jobCard, onUpdate, user }) {
   const [selectedTask, setSelectedTask] = useState(null)
   const [availableEmployees, setAvailableEmployees] = useState([])
   const [selectedEmployees, setSelectedEmployees] = useState([])
+  const [activeTimer, setActiveTimer] = useState(null)
+  const [timerUpdate, setTimerUpdate] = useState(0) // For live timer updates
 
   const [taskForm, setTaskForm] = useState({
     task_name: '',
     description: '',
     category: 'mechanical',
     priority: 0,
-    labor_hours: '',
-    labor_rate_per_hour: '5000',
   })
 
   const canAdd = user.permissions.includes('add_tasks')
   const canUpdate = user.permissions.includes('update_tasks')
   const canDelete = user.permissions.includes('delete_tasks')
   const canAssign = user.permissions.includes('assign_tasks') || ['super_admin', 'branch_admin'].includes(user.role.name)
+
+  // Live timer update every second
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTimerUpdate(prev => prev + 1)
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [])
 
   useEffect(() => {
     if (showAssignModal && selectedTask) {
@@ -50,7 +58,7 @@ function TaskManagement({ jobCard, onUpdate, user }) {
       })
       alert('Task added successfully!')
       setShowAddTaskModal(false)
-      setTaskForm({ task_name: '', description: '', category: 'mechanical', priority: 0, labor_hours: '', labor_rate_per_hour: '5000' })
+      setTaskForm({ task_name: '', description: '', category: 'mechanical', priority: 0 })
       onUpdate()
     } catch (error) {
       alert(error.response?.data?.message || 'Error adding task')
@@ -95,25 +103,55 @@ function TaskManagement({ jobCard, onUpdate, user }) {
 
   const handleStartTask = async (taskId) => {
     try {
-      const token = localStorage.getItem('token')
-      await axiosClient.post(`/tasks/${taskId}/start`, {}, { headers: { Authorization: `Bearer ${token}` } })
-      alert('Task started! Timer is running.')
-      onUpdate()
+      const token = localStorage.getItem('token');
+      await axiosClient.post(`/tasks/${taskId}/start-timer`, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      alert('Timer started!');
+      onUpdate();
     } catch (error) {
-      alert(error.response?.data?.message || 'Error starting task')
+      alert(error.response?.data?.message || 'Error starting timer');
     }
-  }
+  };
+
+  const handlePauseTask = async (taskId) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axiosClient.post(`/tasks/${taskId}/pause-timer`, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      alert('Timer paused!');
+      onUpdate();
+    } catch (error) {
+      alert(error.response?.data?.message || 'Error pausing timer');
+    }
+  };
+
+  const handleResumeTask = async (taskId) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axiosClient.post(`/tasks/${taskId}/resume-timer`, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      alert('Timer resumed!');
+      onUpdate();
+    } catch (error) {
+      alert(error.response?.data?.message || 'Error resuming timer');
+    }
+  };
 
   const handleStopTask = async (taskId) => {
     try {
-      const token = localStorage.getItem('token')
-      await axiosClient.post(`/tasks/${taskId}/stop`, {}, { headers: { Authorization: `Bearer ${token}` } })
-      alert('Task paused!')
-      onUpdate()
+      const token = localStorage.getItem('token');
+      await axiosClient.post(`/tasks/${taskId}/stop-timer`, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      alert('Task completed!');
+      onUpdate();
     } catch (error) {
-      alert(error.response?.data?.message || 'Error stopping task')
+      alert(error.response?.data?.message || 'Error stopping timer');
     }
-  }
+  };
 
   const handleCompleteTask = async (taskId) => {
     const notes = prompt('Completion notes (optional):')
@@ -168,6 +206,30 @@ function TaskManagement({ jobCard, onUpdate, user }) {
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-LK', { style: 'currency', currency: 'LKR' }).format(amount)
+  }
+
+  const formatTime = (minutes) => {
+    const hours = Math.floor(minutes / 60)
+    const mins = minutes % 60
+    return `${hours}h ${mins}m`
+  }
+
+  const getTotalElapsedTime = (task) => {
+    if (!task.time_tracking || task.time_tracking.length === 0) return '0h 0m'
+    
+    // Sum all completed durations
+    let totalMinutes = task.time_tracking
+      .filter(t => t.end_time)
+      .reduce((sum, t) => sum + (t.duration_minutes || 0), 0)
+    
+    // Add elapsed time from active timer if any
+    const activeTimer = task.time_tracking.find(t => !t.end_time)
+    if (activeTimer) {
+      const elapsedMinutes = Math.floor((new Date() - new Date(activeTimer.start_time)) / 60000)
+      totalMinutes += elapsedMinutes
+    }
+    
+    return formatTime(totalMinutes)
   }
 
   const tasks = jobCard.tasks || []
@@ -265,15 +327,9 @@ function TaskManagement({ jobCard, onUpdate, user }) {
                         </svg>
                         {task.category}
                       </span>
-                      {task.labor_hours && (
-                        <span className="text-xs text-gray-500">{task.labor_hours}h estimated</span>
-                      )}
-                      {task.labor_cost > 0 && (
-                        <span className="text-xs font-bold text-primary">{formatCurrency(task.labor_cost)}</span>
-                      )}
                       {totalTime > 0 && (
                         <span className="text-xs font-semibold text-purple-600">
-                          {Math.floor(totalTime / 60)}h {totalTime % 60}m tracked
+                          {getTotalElapsedTime(task)} tracked
                         </span>
                       )}
                     </div>
@@ -310,7 +366,7 @@ function TaskManagement({ jobCard, onUpdate, user }) {
 
                   {myAssignment && task.status !== 'completed' && (
                     <>
-                      {!hasActiveTimer && task.status === 'assigned' && (
+                      {task.status === 'assigned' && (
                         <button
                           onClick={() => handleStartTask(task.id)}
                           className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 rounded-lg text-xs font-semibold transition-colors"
@@ -324,13 +380,25 @@ function TaskManagement({ jobCard, onUpdate, user }) {
 
                       {hasActiveTimer && (
                         <button
-                          onClick={() => handleStopTask(task.id)}
+                          onClick={() => handlePauseTask(task.id)}
                           className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 rounded-lg text-xs font-semibold transition-colors animate-pulse"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
                             <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
                           </svg>
                           Pause
+                        </button>
+                      )}
+
+                      {!hasActiveTimer && task.status === 'in_progress' && (
+                        <button
+                          onClick={() => handleResumeTask(task.id)}
+                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-xs font-semibold transition-colors"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                          </svg>
+                          Resume
                         </button>
                       )}
 
@@ -438,41 +506,6 @@ function TaskManagement({ jobCard, onUpdate, user }) {
                   </select>
                 </div>
               </div>
-
-              <div className="grid grid-cols-2 gap-5">
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Labor Hours</label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    value={taskForm.labor_hours}
-                    onChange={(e) => setTaskForm({...taskForm, labor_hours: e.target.value})}
-                    placeholder="e.g., 2.5"
-                    className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Rate per Hour (LKR)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={taskForm.labor_rate_per_hour}
-                    onChange={(e) => setTaskForm({...taskForm, labor_rate_per_hour: e.target.value})}
-                    placeholder="5000"
-                    className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all"
-                  />
-                </div>
-              </div>
-
-              {taskForm.labor_hours && taskForm.labor_rate_per_hour && (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Estimated Labor Cost</span>
-                  <span className="text-lg font-bold text-green-600">
-                    {formatCurrency(taskForm.labor_hours * taskForm.labor_rate_per_hour)}
-                  </span>
-                </div>
-              )}
 
               <div className="flex justify-end gap-3 pt-5 border-t border-gray-100">
                 <button

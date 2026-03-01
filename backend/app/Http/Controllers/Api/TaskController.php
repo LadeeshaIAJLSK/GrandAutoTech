@@ -74,30 +74,6 @@ class TaskController extends Controller
     }
 
     /**
-     * Get active time tracking for user
-     */
-    public function getActiveTimer(Request $request)
-    {
-        $user = $request->user();
-        
-        $activeTimer = DB::table('task_time_tracking')
-            ->where('user_id', $user->id)
-            ->whereNull('end_time')
-            ->first();
-        
-        if ($activeTimer) {
-            $task = Task::with('jobCard')->find($activeTimer->task_id);
-            return response()->json([
-                'has_active_timer' => true,
-                'timer' => $activeTimer,
-                'task' => $task
-            ]);
-        }
-        
-        return response()->json(['has_active_timer' => false]);
-    }
-
-    /**
      * Mark task as done (employee completes) - NOW GOES TO AWAITING APPROVAL
      */
     public function markAsDone(Request $request, $id)
@@ -396,8 +372,6 @@ class TaskController extends Controller
             'description' => 'nullable|string',
             'category' => 'sometimes|in:mechanical,electrical,bodywork,painting,diagnostic,maintenance,other',
             'status' => 'sometimes|in:pending,assigned,in_progress,completed,on_hold,cancelled',
-            'labor_hours' => 'nullable|numeric|min:0',
-            'labor_rate_per_hour' => 'nullable|numeric|min:0',
             'cost_price' => 'sometimes|numeric|min:0',
             'amount' => 'sometimes|numeric|min:0',
             'priority' => 'nullable|integer|in:0,1,2',
@@ -415,11 +389,6 @@ class TaskController extends Controller
         }
 
         $task->update($validated);
-
-        // Recalculate labor cost if hours or rate changed
-        if ($request->has('labor_hours') || $request->has('labor_rate_per_hour')) {
-            $task->calculateLaborCost();
-        }
 
         return response()->json([
             'message' => 'Task updated successfully',
@@ -529,89 +498,6 @@ class TaskController extends Controller
     }
 
     /**
-     * Start working on task (for employees)
-     */
-    public function startTask(Request $request, $id)
-    {
-        $user = $request->user();
-        $task = Task::findOrFail($id);
-
-        // Check if user is assigned to this task or is super admin
-        $assignment = TaskAssignment::where('task_id', $task->id)
-            ->where('user_id', $user->id)
-            ->first();
-
-        if (!$assignment && $user->role->name !== 'super_admin') {
-            return response()->json([
-                'message' => 'You are not assigned to this task'
-            ], 403);
-        }
-
-        // Create time tracking entry
-        $timeTracking = TaskTimeTracking::create([
-            'task_id' => $task->id,
-            'user_id' => $user->id,
-            'start_time' => now(),
-        ]);
-
-        // Update task status
-        if ($task->status !== 'in_progress') {
-            $task->update([
-                'status' => 'in_progress',
-                'started_at' => now()
-            ]);
-        }
-
-        // Update assignment status (only if assignment exists)
-        if ($assignment) {
-            $assignment->update([
-                'status' => 'in_progress',
-                'started_at' => now()
-            ]);
-        }
-
-        return response()->json([
-            'message' => 'Task started',
-            'time_tracking' => $timeTracking,
-            'task' => $task->fresh()
-        ]);
-    }
-
-    /**
-     * Stop working on task (for employees)
-     */
-    public function stopTask(Request $request, $id)
-    {
-        $user = $request->user();
-        $task = Task::findOrFail($id);
-
-        // Find active time tracking entry
-        $timeTracking = TaskTimeTracking::where('task_id', $task->id)
-            ->where('user_id', $user->id)
-            ->whereNull('end_time')
-            ->latest()
-            ->first();
-
-        if (!$timeTracking) {
-            return response()->json([
-                'message' => 'No active time tracking found'
-            ], 400);
-        }
-
-        // Update time tracking
-        $timeTracking->update([
-            'end_time' => now()
-        ]);
-        $timeTracking->calculateDuration();
-
-        return response()->json([
-            'message' => 'Task stopped',
-            'time_tracking' => $timeTracking->fresh(),
-            'total_time_spent' => $task->getTotalTimeSpent()
-        ]);
-    }
-
-    /**
      * Complete task
      */
     public function completeTask(Request $request, $id)
@@ -697,5 +583,112 @@ class TaskController extends Controller
             ->get();
 
         return response()->json($employees);
+    }
+
+    /**
+     * Start a new timer for a task
+     */
+    public function startTimer(Request $request, $id)
+    {
+        $user = $request->user();
+        $task = Task::findOrFail($id);
+
+        // Ensure the user is assigned to the task or is a super admin
+        $assignment = TaskAssignment::where('task_id', $task->id)
+            ->where('user_id', $user->id)
+            ->first();
+
+        if (!$assignment && $user->role->name !== 'super_admin') {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        // Create a new timer entry
+        $timer = TaskTimeTracking::create([
+            'task_id' => $task->id,
+            'user_id' => $user->id,
+            'start_time' => now(),
+        ]);
+
+        // Update task status
+        $task->update(['status' => 'in_progress']);
+
+        return response()->json(['message' => 'Timer started', 'timer' => $timer]);
+    }
+
+    /**
+     * Pause the active timer for a task
+     */
+    public function pauseTimer(Request $request, $id)
+    {
+        $user = $request->user();
+        $task = Task::findOrFail($id);
+
+        // Find the active timer
+        $timer = TaskTimeTracking::where('task_id', $task->id)
+            ->where('user_id', $user->id)
+            ->whereNull('end_time')
+            ->first();
+
+        if (!$timer) {
+            return response()->json(['message' => 'No active timer found'], 400);
+        }
+
+        // Pause the timer
+        $timer->update(['end_time' => now()]);
+        $timer->calculateDuration();
+
+        return response()->json(['message' => 'Timer paused', 'timer' => $timer]);
+    }
+
+    /**
+     * Resume a paused timer for a task
+     */
+    public function resumeTimer(Request $request, $id)
+    {
+        $user = $request->user();
+        $task = Task::findOrFail($id);
+
+        // Ensure the user is assigned to the task or is a super admin
+        $assignment = TaskAssignment::where('task_id', $task->id)
+            ->where('user_id', $user->id)
+            ->first();
+
+        if (!$assignment && $user->role->name !== 'super_admin') {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        // Create a new timer entry
+        $timer = TaskTimeTracking::create([
+            'task_id' => $task->id,
+            'user_id' => $user->id,
+            'start_time' => now(),
+        ]);
+
+        return response()->json(['message' => 'Timer resumed', 'timer' => $timer]);
+    }
+
+    /**
+     * Stop the timer and complete the task
+     */
+    public function stopTimer(Request $request, $id)
+    {
+        $user = $request->user();
+        $task = Task::findOrFail($id);
+
+        // Find the active timer
+        $timer = TaskTimeTracking::where('task_id', $task->id)
+            ->where('user_id', $user->id)
+            ->whereNull('end_time')
+            ->first();
+
+        if ($timer) {
+            $timer->update(['end_time' => now()]);
+            $timer->calculateDuration();
+        }
+
+        // Mark the task as completed
+        $task->update(['status' => 'completed', 'completed_at' => now()]);
+
+        return response()->json(['message' => 'Task completed', 'task' => $task->fresh()]);
     }
 }
