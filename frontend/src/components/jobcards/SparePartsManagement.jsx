@@ -16,9 +16,6 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
     part_name: '',
     part_number: '',
     description: '',
-    quantity: 1,
-    unit_cost: '',
-    selling_price: '',
   })
 
   const canAdd = user.permissions.includes('add_spare_parts')
@@ -27,6 +24,30 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
   const canApprove = user.permissions.includes('approve_spare_parts')
   const role = user.role.name
 
+  // Check if user is assigned to a task
+  const isAssignedToTask = (taskId) => {
+    if (!taskId) return false
+    
+    // First check if task is in jobCard.tasks
+    const task = jobCard.tasks?.find(t => t.id === taskId)
+    if (task && task.assignedEmployees) {
+      return task.assignedEmployees.some(emp => emp.id === user.id)
+    }
+    
+    // Also check in spare parts requests for the task with assignedEmployees
+    const part = jobCard.spare_parts_requests?.find(p => p.task_id === taskId)
+    if (part && part.task && part.task.assignedEmployees) {
+      return part.task.assignedEmployees.some(emp => emp.id === user.id)
+    }
+    
+    return false
+  }
+
+  // Can mark as delivered if: has permission OR is assigned to task
+  const canMarkAsDelivered = (part) => {
+    return canUpdate || isAssignedToTask(part.task_id)
+  }
+
   const handleAddPart = async (e) => {
     e.preventDefault()
     try {
@@ -34,7 +55,7 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
       await axiosClient.post(`/job-cards/${jobCard.id}/spare-parts`, partForm, { headers: { Authorization: `Bearer ${token}` } })
       alert('Spare part requested successfully!')
       setShowAddModal(false)
-      setPartForm({ task_id: '', part_name: '', part_number: '', description: '', quantity: 1, unit_cost: '', selling_price: '' })
+      setPartForm({ task_id: '', part_name: '', part_number: '', description: '' })
       onUpdate()
     } catch (error) {
       alert(error.response?.data?.message || 'Error requesting part')
@@ -290,19 +311,21 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
                   </div>
                 </div>
 
-                {/* Pricing Row */}
-                <div className="grid grid-cols-3 gap-3 mb-4 pt-3 border-t border-gray-100">
-                  {[
-                    { label: 'Unit Cost', value: formatCurrency(part.unit_cost) },
-                    { label: 'Selling Price', value: formatCurrency(part.selling_price) },
-                    { label: 'Total', value: formatCurrency(part.total_cost), highlight: true },
-                  ].map(f => (
-                    <div key={f.label}>
-                      <p className="text-xs text-gray-400 uppercase tracking-wide">{f.label}</p>
-                      <p className={`font-bold text-sm mt-0.5 ${f.highlight ? 'text-primary text-base' : 'text-gray-800'}`}>{f.value}</p>
-                    </div>
-                  ))}
-                </div>
+                {/* Pricing Row - Only for Admins */}
+                {(canUpdate || ['super_admin', 'branch_admin'].includes(role)) && (
+                  <div className="grid grid-cols-3 gap-3 mb-4 pt-3 border-t border-gray-100">
+                    {[
+                      { label: 'Unit Cost', value: formatCurrency(part.unit_cost) },
+                      { label: 'Selling Price', value: formatCurrency(part.selling_price) },
+                      { label: 'Total', value: formatCurrency(part.total_cost), highlight: true },
+                    ].map(f => (
+                      <div key={f.label}>
+                        <p className="text-xs text-gray-400 uppercase tracking-wide">{f.label}</p>
+                        <p className={`font-bold text-sm mt-0.5 ${f.highlight ? 'text-primary text-base' : 'text-gray-800'}`}>{f.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 {/* Dev debug */}
                 {process.env.NODE_ENV === 'development' && (
@@ -371,7 +394,7 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
                     </button>
                   )}
 
-                  {part.overall_status === 'process' && (
+                  {part.overall_status === 'process' && canMarkAsDelivered(part) && (
                     <button onClick={() => handleMarkAsDelivered(part.id)}
                       className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 rounded-lg text-xs font-semibold transition-colors">
                       <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -460,25 +483,7 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
                 <textarea value={partForm.description} onChange={(e) => setPartForm({...partForm, description: e.target.value})} placeholder="Additional details..." rows="2" 
                   className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all resize-none" />
               </div>
-              <div className="grid grid-cols-3 gap-4">
-                {[
-                  { label: 'Quantity *', key: 'quantity', type: 'number', min: '1', placeholder: '1' },
-                  { label: 'Unit Cost (LKR) *', key: 'unit_cost', type: 'number', min: '0', step: '0.01', placeholder: '3000' },
-                  { label: 'Selling Price (LKR) *', key: 'selling_price', type: 'number', min: '0', step: '0.01', placeholder: '4500' },
-                ].map(f => (
-                  <div key={f.key} className="space-y-1.5">
-                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">{f.label}</label>
-                    <input type={f.type} min={f.min} step={f.step} value={partForm[f.key]} onChange={(e) => setPartForm({...partForm, [f.key]: e.target.value})} required placeholder={f.placeholder}
-                      className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all" />
-                  </div>
-                ))}
-              </div>
-              {partForm.quantity && partForm.selling_price && (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Total Amount</span>
-                  <span className="text-lg font-bold text-green-600">{formatCurrency(partForm.quantity * partForm.selling_price)}</span>
-                </div>
-              )}
+
               <div className="flex justify-end gap-3 pt-5 border-t border-gray-100">
                 <button type="button" onClick={() => setShowAddModal(false)} className="px-5 py-2.5 text-sm bg-white hover:bg-gray-50 text-gray-700 rounded-lg font-semibold border border-gray-300 shadow-sm transition-colors">Cancel</button>
                 <button type="submit" className="px-5 py-2.5 text-sm bg-primary hover:bg-primary-dark text-white rounded-lg font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-px" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>Request Part</button>

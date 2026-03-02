@@ -16,7 +16,7 @@ class SparePartsRequestController extends Controller
     public function index($jobCardId)
     {
         $parts = SparePartsRequest::where('job_card_id', $jobCardId)
-            ->with(['task', 'requestedBy', 'employeeApprovedBy', 'adminApprovedBy'])
+            ->with(['task.assignedEmployees', 'requestedBy', 'employeeApprovedBy', 'adminApprovedBy'])
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -45,9 +45,6 @@ class SparePartsRequestController extends Controller
             'part_name' => 'required|string|max:255',
             'part_number' => 'nullable|string|max:100',
             'description' => 'nullable|string',
-            'quantity' => 'required|integer|min:1',
-            'unit_cost' => 'required|numeric|min:0',
-            'selling_price' => 'required|numeric|min:0',
         ]);
 
         $jobCard = JobCard::findOrFail($jobCardId);
@@ -59,9 +56,6 @@ class SparePartsRequestController extends Controller
             'part_name' => $validated['part_name'],
             'part_number' => $validated['part_number'] ?? null,
             'description' => $validated['description'] ?? null,
-            'quantity' => $validated['quantity'],
-            'unit_cost' => $validated['unit_cost'],
-            'selling_price' => $validated['selling_price'],
         ]);
 
         $part->calculateTotal();
@@ -324,13 +318,22 @@ class SparePartsRequestController extends Controller
             ], 400);
         }
 
-        // Check authorization: must be the requesting employee OR authorized staff
+        // Check authorization: must be the requesting employee OR authorized staff OR assigned to task
         $isAuthorizedStaff = in_array($user->role->name ?? '', ['super_admin', 'branch_admin']);
         $isRequestingEmployee = $part->requested_by === $user->id;
         
-        if (!$isAuthorizedStaff && !$isRequestingEmployee) {
+        // Check if user is assigned to the task
+        $isAssignedToTask = false;
+        if ($part->task_id) {
+            $isAssignedToTask = DB::table('task_assignments')
+                ->where('task_id', $part->task_id)
+                ->where('user_id', $user->id)
+                ->exists();
+        }
+        
+        if (!$isAuthorizedStaff && !$isRequestingEmployee && !$isAssignedToTask) {
             return response()->json([
-                'message' => 'Only the requesting employee or authorized staff can confirm delivery'
+                'message' => 'Only the requesting employee, task-assigned employee, or authorized staff can confirm delivery'
             ], 403);
         }
 
@@ -351,6 +354,7 @@ class SparePartsRequestController extends Controller
     public function updateStatus(Request $request, $id)
     {
         $user = $request->user();
+        $part = SparePartsRequest::findOrFail($id);
         
         $permissions = DB::table('permissions')
             ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
@@ -358,7 +362,16 @@ class SparePartsRequestController extends Controller
             ->pluck('permissions.name')
             ->toArray();
         
-        if (!in_array('update_spare_parts', $permissions)) {
+        // Check if user has permission or is assigned to the task
+        $isAssignedToTask = false;
+        if ($part->task_id) {
+            $isAssignedToTask = DB::table('task_assignments')
+                ->where('task_id', $part->task_id)
+                ->where('user_id', $user->id)
+                ->exists();
+        }
+        
+        if (!in_array('update_spare_parts', $permissions) && !$isAssignedToTask) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -366,8 +379,6 @@ class SparePartsRequestController extends Controller
             'overall_status' => 'required|in:ordered,process,delivered',
             'actual_cost' => 'nullable|numeric|min:0',
         ]);
-
-        $part = SparePartsRequest::findOrFail($id);
 
         // Must be fully approved first
         if (!$part->isFullyApproved()) {

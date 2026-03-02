@@ -81,7 +81,10 @@ class SparePartsRequest extends Model
     // Helper methods
     public function calculateTotal()
     {
-        $this->total_cost = $this->quantity * $this->selling_price;
+        // Always calculate - use defaults if needed
+        $quantity = $this->quantity ?? 1;
+        $sellingPrice = $this->selling_price ?? 0;
+        $this->total_cost = $quantity * $sellingPrice;
         $this->save();
     }
 

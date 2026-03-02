@@ -119,4 +119,66 @@ class JobCard extends Model
     {
         return !in_array($this->status, ['completed', 'invoiced', 'paid', 'cancelled']);
     }
+
+    /**
+     * Update job card status based on related tasks
+     * pending -> in_progress when any task starts
+     */
+    public function updateStatusBasedOnTasks()
+    {
+        // Check if any task is in progress
+        $hasInProgressTask = $this->tasks()->where('status', 'in_progress')->exists();
+        
+        if ($hasInProgressTask && $this->status === 'pending') {
+            $this->update(['status' => 'in_progress']);
+        }
+    }
+
+    /**
+     * Check if all tasks are completed and approved
+     */
+    public function areAllTasksApproved()
+    {
+        $tasks = $this->tasks()->get();
+        
+        if ($tasks->isEmpty()) {
+            return false; // No tasks, cannot be approved
+        }
+
+        foreach ($tasks as $task) {
+            // Check if task is completed
+            if ($task->status !== 'completed') {
+                return false;
+            }
+
+            // Check if task has inspection and it's approved
+            $taskInspections = $task->inspections;
+            if ($taskInspections->isEmpty()) {
+                return false; // No inspection for this task
+            }
+
+            $allInspectionsApproved = $taskInspections->every(function($inspection) {
+                return $inspection->status === 'approved';
+            });
+
+            if (!$allInspectionsApproved) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Mark inspection as completed and update job card status
+     */
+    public function markInspectionCompleted()
+    {
+        // Check if all tasks are approved before marking inspection complete
+        if ($this->areAllTasksApproved()) {
+            $this->update(['status' => 'completed']);
+            return true;
+        }
+        return false;
+    }
 }

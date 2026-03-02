@@ -99,14 +99,21 @@ class TaskController extends Controller
         if ($activeTracking) {
             $activeTracking->update([
                 'end_time' => now(),
-                'duration_minutes' => now()->diffInMinutes($activeTracking->start_time)
+                'duration_minutes' => floor(now()->diffInMinutes($activeTracking->start_time))
             ]);
         }
         
-        // Calculate total time spent
-        $totalMinutes = TaskTimeTracking::where('task_id', $id)
+        // Calculate total time spent by summing elapsed time for all tracking records
+        $trackingRecords = TaskTimeTracking::where('task_id', $id)
             ->where('user_id', $user->id)
-            ->sum('duration_minutes');
+            ->get();
+        
+        $totalMinutes = 0;
+        foreach ($trackingRecords as $record) {
+            if ($record->start_time && $record->end_time) {
+                $totalMinutes += floor($record->start_time->diffInMinutes($record->end_time));
+            }
+        }
         
         // Update task to AWAITING APPROVAL (not completed yet!)
         $task->update([
@@ -316,6 +323,45 @@ class TaskController extends Controller
             'message' => 'Job card approved and marked as completed',
             'job_card' => $jobCard->fresh()
         ]);
+    }
+
+    /**
+     * Mark job card inspection as completed
+     */
+    public function completeJobCardInspection(Request $request, $jobCardId)
+    {
+        $user = $request->user();
+        
+        $permissions = DB::table('permissions')
+            ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
+            ->where('role_permissions.role_id', $user->role_id)
+            ->pluck('permissions.name')
+            ->toArray();
+        
+        if (!in_array('approve_tasks', $permissions) && !in_array($user->role->name, ['super_admin', 'branch_admin'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $jobCard = JobCard::findOrFail($jobCardId);
+
+        // Check if all tasks are completed and approved
+        if (!$jobCard->areAllTasksApproved()) {
+            return response()->json([
+                'message' => 'Cannot complete inspection. Not all tasks are approved yet.'
+            ], 400);
+        }
+
+        // Mark inspection as completed
+        if ($jobCard->markInspectionCompleted()) {
+            return response()->json([
+                'message' => 'Job card inspection completed. Status updated to completed.',
+                'job_card' => $jobCard->fresh()
+            ]);
+        } else {
+            return response()->json([
+                'message' => 'Could not mark inspection as completed.'
+            ], 400);
+        }
     }
 
     /**
@@ -611,6 +657,10 @@ class TaskController extends Controller
 
         // Update task status
         $task->update(['status' => 'in_progress']);
+
+        // Update job card status if any task is in progress
+        $jobCard = $task->jobCard;
+        $jobCard->updateStatusBasedOnTasks();
 
         return response()->json(['message' => 'Timer started', 'timer' => $timer]);
     }

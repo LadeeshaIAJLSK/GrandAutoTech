@@ -17,11 +17,11 @@ return new class extends Migration
             $table->string('part_name');
             $table->string('part_number')->nullable();
             $table->text('description')->nullable();
-            $table->integer('quantity')->default(1);
+            $table->integer('quantity')->nullable()->default(null)->change();
             
             // Pricing
-            $table->decimal('unit_cost', 10, 2)->default(0);
-            $table->decimal('selling_price', 10, 2)->default(0);
+            $table->decimal('unit_cost', 10, 2)->nullable()->default(null)->change();
+            $table->decimal('selling_price', 10, 2)->nullable()->default(null)->change();
             $table->decimal('total_cost', 10, 2)->default(0);
             
             // 3-Level Approval Status
