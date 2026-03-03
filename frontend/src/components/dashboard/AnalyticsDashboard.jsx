@@ -43,8 +43,8 @@ function AnalyticsDashboard({ user }) {
 
   const getStatusDot = (status) => {
     const colors = {
-      pending: 'bg-yellow-400', in_progress: 'bg-blue-500', waiting_parts: 'bg-purple-500',
-      waiting_customer: 'bg-orange-500', quality_check: 'bg-indigo-500', completed: 'bg-green-500',
+      pending: 'bg-yellow-400', in_progress: 'bg-blue-500',
+      completed: 'bg-green-500', inspected: 'bg-indigo-500',
       invoiced: 'bg-teal-500', paid: 'bg-emerald-500', cancelled: 'bg-red-500',
     }
     return colors[status] || 'bg-gray-400'
@@ -52,9 +52,8 @@ function AnalyticsDashboard({ user }) {
 
   const getStatusLabel = (status) => {
     const labels = {
-      pending: 'Pending', in_progress: 'In Progress', waiting_parts: 'Waiting Parts',
-      waiting_customer: 'Waiting Customer', quality_check: 'Quality Check',
-      completed: 'Completed', invoiced: 'Invoiced', paid: 'Paid', cancelled: 'Cancelled',
+      pending: 'Pending', in_progress: 'In Progress',
+      completed: 'Completed', inspected: 'Inspected',
     }
     return labels[status] || status
   }
@@ -164,11 +163,9 @@ function AnalyticsDashboard({ user }) {
           </h3>
           <div className="space-y-3">
             {[
-              { label: 'Waiting Parts',  count: stats?.waiting_parts  || 0, cls: 'bg-purple-500' },
-              { label: 'Quality Check',  count: stats?.quality_check  || 0, cls: 'bg-indigo-500' },
               { label: 'Completed',      count: stats?.completed      || 0, cls: 'bg-green-500'  },
-              { label: 'Invoiced',       count: stats?.invoiced       || 0, cls: 'bg-teal-500'   },
-              { label: 'Paid',           count: stats?.paid           || 0, cls: 'bg-emerald-500'},
+              { label: 'Inspected',     count: stats?.inspected      || 0, cls: 'bg-indigo-500' },
+
             ].map(item => {
               const pct = stats?.total > 0 ? (item.count / stats.total) * 100 : 0
               return (

@@ -75,6 +75,13 @@ class PermissionSeeder extends Seeder
             // Settings
             ['module' => 'settings', 'action' => 'view', 'name' => 'view_settings', 'display_name' => 'View Settings'],
             ['module' => 'settings', 'action' => 'update', 'name' => 'update_settings', 'display_name' => 'Update Settings'],
+            
+            // Petty Cash
+            ['module' => 'petty_cash', 'action' => 'view', 'name' => 'view_petty_cash_funds', 'display_name' => 'View Petty Cash Funds'],
+            ['module' => 'petty_cash', 'action' => 'create', 'name' => 'create_petty_cash_fund', 'display_name' => 'Create Petty Cash Fund'],
+            ['module' => 'petty_cash', 'action' => 'record_expense', 'name' => 'record_petty_cash_expense', 'display_name' => 'Record Petty Cash Expense'],
+            ['module' => 'petty_cash', 'action' => 'approve', 'name' => 'approve_petty_cash_expense', 'display_name' => 'Approve/Reject Petty Cash Expenses'],
+            ['module' => 'petty_cash', 'action' => 'replenish', 'name' => 'record_petty_cash_replenishment', 'display_name' => 'Record Petty Cash Replenishment'],
         ];
 
         foreach ($permissions as $permission) {

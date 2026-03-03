@@ -45,9 +45,23 @@ class SparePartsRequestController extends Controller
             'part_name' => 'required|string|max:255',
             'part_number' => 'nullable|string|max:100',
             'description' => 'nullable|string',
+            'quantity' => 'required|integer|min:1',
         ]);
 
         $jobCard = JobCard::findOrFail($jobCardId);
+
+        // If task_id is provided, check if task status allows requesting parts
+        if ($validated['task_id']) {
+            $task = \App\Models\Task::findOrFail($validated['task_id']);
+            
+            // Only allow requesting parts if task is 'assigned' or 'in_progress'
+            if (!in_array($task->status, ['assigned', 'in_progress'])) {
+                return response()->json([
+                    'message' => 'Cannot request spare parts for this task. Task must be in assigned or in progress status.',
+                    'task_status' => $task->status
+                ], 422);
+            }
+        }
 
         $part = SparePartsRequest::create([
             'job_card_id' => $jobCard->id,
@@ -56,6 +70,7 @@ class SparePartsRequestController extends Controller
             'part_name' => $validated['part_name'],
             'part_number' => $validated['part_number'] ?? null,
             'description' => $validated['description'] ?? null,
+            'quantity' => $validated['quantity'],
         ]);
 
         $part->calculateTotal();

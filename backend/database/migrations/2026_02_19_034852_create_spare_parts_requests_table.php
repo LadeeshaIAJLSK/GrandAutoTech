@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('part_name');
             $table->string('part_number')->nullable();
             $table->text('description')->nullable();
-            $table->integer('quantity')->nullable()->default(null)->change();
+            $table->integer('quantity')->default(1);
             
             // Pricing
             $table->decimal('unit_cost', 10, 2)->nullable()->default(null)->change();

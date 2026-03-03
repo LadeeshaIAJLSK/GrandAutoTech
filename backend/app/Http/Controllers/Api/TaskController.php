@@ -89,6 +89,23 @@ class TaskController extends Controller
         if (!$assignment) {
             return response()->json(['message' => 'You are not assigned to this task'], 403);
         }
+
+        // Check if all requested spare parts are delivered
+        $requestedParts = SparePartsRequest::where('task_id', $id)->get();
+        if ($requestedParts->count() > 0) {
+            $undeliveredParts = $requestedParts->filter(function($part) {
+                return $part->overall_status !== 'delivered';
+            });
+            
+            if ($undeliveredParts->count() > 0) {
+                $partNames = $undeliveredParts->pluck('part_name')->toArray();
+                return response()->json([
+                    'message' => 'Cannot mark task as done. All requested spare parts must be delivered first.',
+                    'undelivered_parts' => $partNames,
+                    'undelivered_count' => $undeliveredParts->count()
+                ], 422);
+            }
+        }
         
         // Stop any active time tracking
         $activeTracking = TaskTimeTracking::where('task_id', $id)
@@ -326,9 +343,9 @@ class TaskController extends Controller
     }
 
     /**
-     * Mark job card inspection as completed
+     * Mark job card as inspected (after inspection is done)
      */
-    public function completeJobCardInspection(Request $request, $jobCardId)
+    public function markJobCardAsInspected(Request $request, $jobCardId)
     {
         $user = $request->user();
         
@@ -344,24 +361,22 @@ class TaskController extends Controller
 
         $jobCard = JobCard::findOrFail($jobCardId);
 
-        // Check if all tasks are completed and approved
-        if (!$jobCard->areAllTasksApproved()) {
+        // Check if job card is in completed status (ready for inspection)
+        if ($jobCard->status !== 'completed') {
             return response()->json([
-                'message' => 'Cannot complete inspection. Not all tasks are approved yet.'
+                'message' => 'Job card must be in completed status to mark as inspected.'
             ], 400);
         }
 
-        // Mark inspection as completed
-        if ($jobCard->markInspectionCompleted()) {
-            return response()->json([
-                'message' => 'Job card inspection completed. Status updated to completed.',
-                'job_card' => $jobCard->fresh()
-            ]);
-        } else {
-            return response()->json([
-                'message' => 'Could not mark inspection as completed.'
-            ], 400);
-        }
+        // Mark as inspected
+        $jobCard->update([
+            'status' => 'inspected'
+        ]);
+
+        return response()->json([
+            'message' => 'Job card marked as inspected. Ready for invoicing.',
+            'job_card' => $jobCard->fresh()
+        ]);
     }
 
     /**

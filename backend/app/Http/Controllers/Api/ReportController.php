@@ -40,11 +40,11 @@ class ReportController extends Controller
 
         // Outstanding dues
         $outstandingDues = JobCard::where('balance_amount', '>', 0)
-            ->whereIn('status', ['invoiced', 'completed'])
+            ->whereIn('status', ['inspected', 'completed'])
             ->sum('balance_amount');
 
         // Paid job cards
-        $paidJobCards = JobCard::where('status', 'paid')
+        $paidJobCards = JobCard::where('status', 'inspected')
             ->whereBetween('updated_at', [$startDate, $endDate])
             ->count();
 
@@ -89,7 +89,7 @@ class ReportController extends Controller
         
         $query = JobCard::with(['customer', 'vehicle'])
             ->where('balance_amount', '>', 0)
-            ->whereIn('status', ['invoiced', 'completed', 'in_progress']);
+            ->whereIn('status', ['inspected', 'completed', 'in_progress']);
 
         // Branch filter
         $role = DB::table('roles')->where('id', $user->role_id)->first();

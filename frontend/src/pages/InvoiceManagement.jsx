@@ -39,7 +39,7 @@ function InvoiceManagement({ user, selectedBranchId }) {
       const allJobCards = Array.isArray(jobCardsData) ? jobCardsData : []
 
       const invoicePromises = allJobCards
-        .filter(jc => jc.status === 'completed' || jc.status === 'invoiced' || jc.status === 'paid')
+        .filter(jc => jc.status === 'inspected')
         .map(async (jobCard) => {
           try {
             const invoiceResponse = await axiosClient.get(`/job-cards/${jobCard.id}/invoice`, { headers: { Authorization: `Bearer ${token}` } })

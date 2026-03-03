@@ -41,6 +41,13 @@ class PaymentController extends Controller
 
         $jobCard = JobCard::findOrFail($validated['job_card_id']);
 
+        // Check if advance payment and job card is completed or inspected
+        if ($validated['payment_type'] === 'advance' && in_array($jobCard->status, ['completed', 'inspected'])) {
+            return response()->json([
+                'message' => 'Cannot add advance payment. Job card is ' . ($jobCard->status === 'completed' ? 'completed' : 'under inspection') . '.'
+            ], 422);
+        }
+
         // Generate payment number
         $paymentNumber = $this->generatePaymentNumber();
 

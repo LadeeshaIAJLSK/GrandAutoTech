@@ -99,7 +99,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/my-tasks', [TaskController::class, 'getMyTasks']);
     Route::get('/all-tasks', [TaskController::class, 'getAllTasks']);
     Route::post('/tasks/{id}/mark-done', [TaskController::class, 'markAsDone']);
-    Route::post('/job-cards/{jobCardId}/complete-inspection', [TaskController::class, 'completeJobCardInspection']);
+    Route::post('/job-cards/{jobCardId}/mark-inspected', [TaskController::class, 'markJobCardAsInspected']);
 
 
     // Spare Parts Management

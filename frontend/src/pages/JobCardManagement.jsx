@@ -132,13 +132,8 @@ function JobCardManagement({ user, selectedBranchId }) {
     const styles = {
       pending:          'bg-yellow-50 text-yellow-700 border-yellow-200',
       in_progress:      'bg-blue-50 text-blue-700 border-blue-200',
-      waiting_parts:    'bg-purple-50 text-purple-700 border-purple-200',
-      waiting_customer: 'bg-orange-50 text-orange-700 border-orange-200',
-      quality_check:    'bg-indigo-50 text-indigo-700 border-indigo-200',
-      completed:        'bg-green-50 text-green-700 border-green-200',
-      invoiced:         'bg-teal-50 text-teal-700 border-teal-200',
-      paid:             'bg-emerald-50 text-emerald-700 border-emerald-200',
-      cancelled:        'bg-red-50 text-red-600 border-red-200',
+      completed:        'bg-orange-50 text-orange-700 border-orange-200',
+      inspected:        'bg-indigo-50 text-indigo-700 border-indigo-200',
     }
     return styles[status] || 'bg-gray-50 text-gray-700 border-gray-200'
   }
@@ -147,13 +142,8 @@ function JobCardManagement({ user, selectedBranchId }) {
     const dots = {
       pending:          'bg-yellow-400',
       in_progress:      'bg-blue-500',
-      waiting_parts:    'bg-purple-500',
-      waiting_customer: 'bg-orange-400',
-      quality_check:    'bg-indigo-500',
-      completed:        'bg-green-500',
-      invoiced:         'bg-teal-500',
-      paid:             'bg-emerald-500',
-      cancelled:        'bg-red-400',
+      completed:        'bg-orange-500',
+      inspected:        'bg-indigo-500',
     }
     return dots[status] || 'bg-gray-400'
   }
@@ -233,7 +223,7 @@ function JobCardManagement({ user, selectedBranchId }) {
         </svg>
         View
       </button>
-      {canUpdate && jobCard.status !== 'paid' && jobCard.status !== 'cancelled' && (
+      {canUpdate && (
         <button
           className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
           onClick={() => setOpenMenuId(null)}
@@ -433,13 +423,8 @@ function JobCardManagement({ user, selectedBranchId }) {
           <option value="">All Statuses</option>
           <option value="pending">Pending</option>
           <option value="in_progress">In Progress</option>
-          <option value="waiting_parts">Waiting Parts</option>
-          <option value="waiting_customer">Waiting Customer</option>
-          <option value="quality_check">Quality Check</option>
           <option value="completed">Completed</option>
-          <option value="invoiced">Invoiced</option>
-          <option value="paid">Paid</option>
-          <option value="cancelled">Cancelled</option>
+          <option value="inspected">Inspected</option>
         </select>
 
         <div className="ml-auto flex items-center gap-1.5 bg-white border border-gray-200 rounded-lg px-3.5 py-2 shadow-sm">

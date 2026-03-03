@@ -19,6 +19,8 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef }) {
     selling_price: 0,
     part_id: null,
     part_status: null,
+    overall_status: null,
+    actual_cost: 0,
   })
 
   const [paymentForm, setPaymentForm] = useState({
@@ -51,6 +53,23 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef }) {
   const canViewInvoices = user?.role?.name === 'super_admin' || user?.permissions?.includes('view_invoices')
   const canEditLaborCost = user?.role?.name === 'super_admin' || user?.permissions?.includes('edit_labor_cost') || user?.permissions?.includes('edit_pricing')
   const canEditApprovedParts = user?.role?.name === 'super_admin' || user?.permissions?.includes('edit_approved_parts') || user?.permissions?.includes('edit_spare_parts')
+
+  // Validate pricing for invoice generation
+  const validateInvoicePricing = () => {
+    const incompleteParts = (jobCard.spare_parts_requests || [])
+      .filter(part => ['delivered', 'installed'].includes(part.overall_status) && (part.unit_cost == 0 || part.selling_price == 0))
+    
+    const incompleteTasks = (jobCard.tasks || [])
+      .filter(task => task.status === 'completed' && (task.cost_price == 0 || task.amount == 0))
+    
+    return {
+      isValid: incompleteParts.length === 0 && incompleteTasks.length === 0,
+      incompleteParts,
+      incompleteTasks
+    }
+  }
+
+  const invoicePricingStatus = validateInvoicePricing()
 
   // Calculate pricing totals
   const calculateTasksTotal = () => {
@@ -173,10 +192,23 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef }) {
       if (user?.role?.name === 'super_admin') updateData.force_update = true
       await axiosClient.put(`/spare-parts/${editSparePartForm.part_id}`, updateData, { headers: { Authorization: `Bearer ${token}` } })
       alert('Spare part prices updated successfully!')
+      
+      // Update status if it has changed
+      if (editSparePartForm.overall_status) {
+        const statusData = {
+          overall_status: editSparePartForm.overall_status
+        }
+        if (editSparePartForm.overall_status === 'process' && editSparePartForm.actual_cost) {
+          statusData.actual_cost = parseFloat(editSparePartForm.actual_cost)
+        }
+        await axiosClient.patch(`/spare-parts/${editSparePartForm.part_id}/status`, statusData, { headers: { Authorization: `Bearer ${token}` } })
+        alert('Status updated successfully!')
+      }
+      
       setShowEditSparePartModal(false)
       onUpdate()
     } catch (error) {
-      alert(error.response?.data?.message || 'Error updating spare part prices')
+      alert(error.response?.data?.message || 'Error updating spare part')
     }
   }
 
@@ -243,7 +275,7 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef }) {
   const formatCurrency = (amount) => new Intl.NumberFormat('en-LK', { style: 'currency', currency: 'LKR' }).format(amount)
 
   const payments = jobCard.payments || []
-  const hasInvoice = jobCard.status === 'invoiced' || jobCard.status === 'paid'
+  const hasInvoice = jobCard.status === 'inspected'
 
   const inputCls = "w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all"
   const labelCls = "block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
@@ -338,16 +370,29 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef }) {
             Advance Payments
           </h3>
           {canAddPayments && (
-            <button onClick={() => setShowAdvancePaymentModal(true)}
-              className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm hover:shadow-md hover:-translate-y-px"
-              style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>
-              <span className="flex items-center justify-center w-4 h-4 bg-white/25 rounded">
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                </svg>
-              </span>
-              Add Advance Payment
-            </button>
+            <div className="relative group">
+              <button onClick={() => setShowAdvancePaymentModal(true)}
+                 disabled={['completed', 'inspected'].includes(jobCard?.status)}
+              title={['completed', 'inspected'].includes(jobCard?.status) ? 'Cannot add advance payment. Job card is completed.' : 'Record an advance payment'}
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm ${
+                  ['completed', 'inspected'].includes(jobCard?.status)
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-60'
+                    : 'bg-emerald-600 hover:bg-emerald-700 text-white hover:shadow-md hover:-translate-y-px'
+                }`}
+                style={jobCard?.status !== 'completed' ? { textShadow: '0 1px 2px rgba(0,0,0,0.2)' } : {}}>
+                <span className="flex items-center justify-center w-4 h-4 bg-white/25 rounded">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                  </svg>
+                </span>
+                Add Advance Payment
+              </button>
+              {['completed', 'inspected'].includes(jobCard?.status) && (
+                <div className="hidden group-hover:block absolute right-0 mt-2 w-48 bg-red-600 text-white text-xs rounded-lg shadow-lg p-2 z-10">
+                  Cannot add advance payments. Job card is completed.
+                </div>
+              )}
+            </div>
           )}
         </div>
 
@@ -405,6 +450,7 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef }) {
               <tr className="border-b-2 border-gray-100 bg-gradient-to-r from-gray-50 to-gray-50/60">
                 <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Service Details</th>
                 <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Employee</th>
+                <th className="px-5 py-3.5 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Duration</th>
                 <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
                 <th className="px-5 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Cost Price</th>
                 <th className="px-5 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Amount</th>
@@ -413,7 +459,19 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef }) {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {jobCard.tasks && jobCard.tasks.length > 0 ? (
-                jobCard.tasks.map((task) => (
+                jobCard.tasks.map((task) => {
+                  // Calculate total time spent on the task
+                  const getTotalDuration = () => {
+                    if (!task.time_tracking || task.time_tracking.length === 0) return '0h 0m'
+                    let totalMinutes = task.time_tracking
+                      .filter(t => t.end_time)
+                      .reduce((sum, t) => sum + (t.duration_minutes || 0), 0)
+                    const hours = Math.floor(totalMinutes / 60)
+                    const mins = totalMinutes % 60
+                    return `${hours}h ${mins}m`
+                  }
+
+                  return (
                   <tr key={task.id} className="hover:bg-gray-50/70 transition-colors">
                     <td className="px-5 py-4">
                       <p className="font-semibold text-gray-900">{task.description || task.name}</p>
@@ -422,6 +480,11 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef }) {
                     <td className="px-5 py-4">
                       <p className="text-sm text-gray-700">{task.assigned_employees?.[0]?.name || <span className="text-gray-300">Unassigned</span>}</p>
                       <p className="text-xs text-gray-400">{task.assigned_employees?.[0]?.employee_code || ''}</p>
+                    </td>
+                    <td className="px-5 py-4 text-center">
+                      <span className="inline-block px-2.5 py-1.5 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg font-semibold text-xs">
+                        {getTotalDuration()}
+                      </span>
                     </td>
                     <td className="px-5 py-4">
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
@@ -448,9 +511,10 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef }) {
                       )}
                     </td>
                   </tr>
-                ))
+                  )
+                })
               ) : (
-                <tr><td colSpan="6" className="px-5 py-12 text-center text-sm text-gray-400">No services added yet</td></tr>
+                <tr><td colSpan="7" className="px-5 py-12 text-center text-sm text-gray-400">No services added yet</td></tr>
               )}
             </tbody>
           </table>
@@ -492,7 +556,8 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef }) {
               <tr className="border-b-2 border-gray-100 bg-gradient-to-r from-gray-50 to-gray-50/60">
                 <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Part Details</th>
                 <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Task & Employee</th>
-                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-5 py-3.5 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Quantity</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Delivery Status</th>
                 <th className="px-5 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Cost Price</th>
                 <th className="px-5 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Selling Price</th>
                 <th className="px-5 py-3.5 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Action</th>
@@ -504,7 +569,7 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef }) {
                   <tr key={part.id} className="hover:bg-gray-50/70 transition-colors">
                     <td className="px-5 py-4">
                       <p className="font-semibold text-gray-900">{part.part_name || part.description}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">Qty: {part.quantity}</p>
+                      {part.part_number && <p className="text-xs text-gray-400 mt-0.5">#{part.part_number}</p>}
                     </td>
                     <td className="px-5 py-4">
                       <p className="text-sm text-gray-600">{part.task?.task_name || <span className="text-gray-300">N/A</span>}</p>
@@ -512,14 +577,19 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef }) {
                         {part.task?.assigned_employees?.[0]?.name || 'Unassigned'}
                       </p>
                     </td>
+                    <td className="px-5 py-4 text-center">
+                      <span className="inline-block px-2.5 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg font-semibold text-xs">
+                        {part.quantity}
+                      </span>
+                    </td>
                     <td className="px-5 py-4">
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
-                        part.status === 'approved' ? 'bg-gray-50 text-gray-700 border-gray-200' :
-                        part.status === 'priced'   ? 'bg-green-50 text-green-700 border-green-200' :
-                        'bg-orange-50 text-orange-700 border-orange-200'
+                        part.overall_status === 'delivered' ? 'bg-teal-50 text-teal-700 border-teal-200' :
+                        part.overall_status === 'process'   ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                        'bg-gray-50 text-gray-700 border-gray-200'
                       }`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${part.status === 'approved' ? 'bg-gray-400' : part.status === 'priced' ? 'bg-green-500' : 'bg-orange-400'}`} />
-                        {(part.status || 'pending').toUpperCase()}
+                        <span className={`w-1.5 h-1.5 rounded-full ${part.overall_status === 'delivered' ? 'bg-teal-500' : part.overall_status === 'process' ? 'bg-blue-500' : 'bg-gray-400'}`} />
+                        {(part.overall_status || 'pending').toUpperCase()}
                       </span>
                     </td>
                     <td className="px-5 py-4 text-right text-gray-600 text-sm">{formatCurrency(part.cost_price || 0)}</td>
@@ -527,7 +597,7 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef }) {
                     <td className="px-5 py-4 text-center">
                       {(canEditLaborCost || (canEditApprovedParts && ['approved', 'rejected'].includes(part.status))) && (
                         <button
-                          onClick={() => { setEditSparePartForm({ cost_price: part.cost_price || 0, selling_price: part.selling_price || part.cost_price || 0, part_id: part.id, part_status: part.status }); setShowEditSparePartModal(true) }}
+                          onClick={() => { setEditSparePartForm({ cost_price: part.cost_price || 0, selling_price: part.selling_price || part.cost_price || 0, part_id: part.id, part_status: part.status, overall_status: part.overall_status || '', actual_cost: part.unit_cost || 0 }); setShowEditSparePartModal(true) }}
                           title={['approved', 'rejected'].includes(part.status) ? 'Edit approved/rejected part' : 'Edit spare part price'}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg text-xs font-semibold transition-colors">
                           <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -540,7 +610,7 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef }) {
                   </tr>
                 ))
               ) : (
-                <tr><td colSpan="6" className="px-5 py-12 text-center text-sm text-gray-400">No spare parts added yet</td></tr>
+                <tr><td colSpan="7" className="px-5 py-12 text-center text-sm text-gray-400">No spare parts added yet</td></tr>
               )}
             </tbody>
           </table>
@@ -840,31 +910,72 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef }) {
         </div>
 
         {/* Action Buttons */}
-        <div className="mt-5 pt-5 border-t border-gray-100 flex flex-wrap gap-3">
-          {!hasInvoice && canViewInvoices && (
-            <button onClick={handleGenerateInvoice}
-              className="flex-1 inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm hover:shadow-md"
-              style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-              Generate Invoice
-            </button>
+        <div className="mt-5 pt-5 border-t border-gray-100">
+          {/* Invoice Pricing Validation Warnings */}
+          {jobCard?.status === 'inspected' && !hasInvoice && !invoicePricingStatus.isValid && (
+            <div className="mb-4 p-4 bg-red-50 border-l-4 border-red-500 rounded">
+              <div className="flex gap-3">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4v2m0 4v2m0-14a9 9 0 110 18 9 9 0 010-18z" />
+                </svg>
+                <div className="flex-1">
+                  <h4 className="font-bold text-red-800 mb-2">Cannot Generate Invoice - Incomplete Pricing</h4>
+                  {invoicePricingStatus.incompleteParts.length > 0 && (
+                    <div className="mb-2">
+                      <p className="text-sm text-red-700 font-semibold mb-1">Spare Parts with incomplete pricing:</p>
+                      <ul className="text-sm text-red-700 list-disc list-inside">
+                        {invoicePricingStatus.incompleteParts.map(part => (
+                          <li key={part.id}>{part.part_name} (Cost Price: {part.unit_cost || 0}, Selling Price: {part.selling_price || 0})</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {invoicePricingStatus.incompleteTasks.length > 0 && (
+                    <div>
+                      <p className="text-sm text-red-700 font-semibold mb-1">Services with incomplete pricing:</p>
+                      <ul className="text-sm text-red-700 list-disc list-inside">
+                        {invoicePricingStatus.incompleteTasks.map(task => (
+                          <li key={task.id}>{task.task_name} (Cost Price: {task.cost_price || 0}, Amount: {task.amount || 0})</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           )}
-          {hasInvoice && canViewInvoices && (
-            <button onClick={handleViewInvoice}
-              className="flex-1 inline-flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 text-white py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm hover:shadow-md"
-              style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-              View Invoice
-            </button>
-          )}
-          {canAddPayments && jobCard.balance_amount > 0 && (
-            <button onClick={() => setShowPaymentModal(true)}
-              className="flex-1 inline-flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm hover:shadow-md"
-              style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
-              Record Payment
-            </button>
-          )}
+
+          <div className="flex flex-wrap gap-3">
+            {!hasInvoice && canViewInvoices && (
+              <button onClick={handleGenerateInvoice}
+                disabled={jobCard?.status !== 'inspected' || !invoicePricingStatus.isValid}
+                className={`flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm ${
+                  jobCard?.status !== 'inspected' || !invoicePricingStatus.isValid
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-60'
+                    : 'bg-blue-600 hover:bg-blue-700 text-white hover:shadow-md'
+                }`}
+                style={jobCard?.status === 'inspected' && invoicePricingStatus.isValid ? { textShadow: '0 1px 2px rgba(0,0,0,0.2)' } : {}}>
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                Generate Invoice
+              </button>
+            )}
+            {hasInvoice && canViewInvoices && (
+              <button onClick={handleViewInvoice}
+                className="flex-1 inline-flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 text-white py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm hover:shadow-md"
+                style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                View Invoice
+              </button>
+            )}
+            {canAddPayments && jobCard.balance_amount > 0 && (
+              <button onClick={() => setShowPaymentModal(true)}
+                className="flex-1 inline-flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm hover:shadow-md"
+                style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
+                Record Payment
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -883,7 +994,7 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef }) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b-2 border-gray-100 bg-gradient-to-r from-gray-50 to-gray-50/60">
-                  {['Payment #', 'Date', 'Amount', 'Method', 'Type', 'Received By', 'Action'].map(h => (
+                  {['Payment #', 'Date', 'Amount', 'Method', 'Type', 'Received By', 'Action'].map((h, i) => (
                     <th key={i} className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
@@ -925,6 +1036,8 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef }) {
         )}
       </div>
 
+      {/* Modals */}
+      <>
       {/* Record Payment Modal */}
       {showPaymentModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -1011,9 +1124,9 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef }) {
                   </div>
                 )}
               </div>
-              <div className="flex justify-end gap-3 px-7 py-4 border-t border-gray-100 bg-gray-50/50 rounded-b-2xl flex-shrink-0">
-                <button type="button" onClick={() => setShowAdvancePaymentModal(false)} className="px-5 py-2 text-sm bg-white hover:bg-gray-50 text-gray-700 rounded-lg font-semibold border border-gray-300 shadow-sm transition-colors">Cancel</button>
-                <button type="submit" className="px-5 py-2 text-sm text-white rounded-lg font-bold transition-all shadow-md hover:shadow-lg bg-emerald-600 hover:bg-emerald-700" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>Record Advance Payment</button>
+              <div className="flex justify-end gap-3 px-7 py-4 border-t border-gray-100 bg-gray-50/50 rounded-b-2xl">
+                <button type="button" onClick={() => setShowAdvancePaymentModal(false)} className="px-5 py-2 text-sm bg-white hover:bg-gray-50 text-gray-700 rounded-lg font-semibold border border-gray-300 shadow-sm">Cancel</button>
+                <button type="submit" className="px-5 py-2 text-sm text-white rounded-lg font-bold bg-emerald-600 hover:bg-emerald-700">Record Advance Payment</button>
               </div>
             </form>
           </div>
@@ -1158,7 +1271,7 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef }) {
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full flex flex-col">
             <ModalHeader
-              title="Edit Spare Part Price"
+              title="Edit Spare Part"
               subtitle={`Job Card: ${jobCard.job_card_number || 'N/A'}`}
               onClose={() => setShowEditSparePartModal(false)}
               colorClass={['approved', 'rejected'].includes(editSparePartForm.part_status) ? 'bg-red-50/50' : 'bg-orange-50/50'}
@@ -1187,15 +1300,35 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef }) {
                     onChange={(e) => setEditSparePartForm({...editSparePartForm, selling_price: e.target.value})}
                     placeholder="Enter selling price" className={inputCls} />
                 </div>
+                <div className="space-y-1.5">
+                  <label className={labelCls}>Delivery Status</label>
+                  <select value={editSparePartForm.overall_status || ''}
+                    onChange={(e) => setEditSparePartForm({...editSparePartForm, overall_status: e.target.value || null})}
+                    className={inputCls}>
+                    <option value="">-- Select Status --</option>
+                    <option value="ordered">Ordered</option>
+                    <option value="process">Process (Received)</option>
+                    <option value="delivered">Delivered</option>
+                  </select>
+                </div>
+                {editSparePartForm.overall_status === 'process' && (
+                  <div className="space-y-1.5">
+                    <label className={labelCls}>Actual Cost (when received)</label>
+                    <input type="number" step="0.01" value={editSparePartForm.actual_cost}
+                      onChange={(e) => setEditSparePartForm({...editSparePartForm, actual_cost: e.target.value})}
+                      placeholder="Enter actual cost from supplier" className={inputCls} />
+                  </div>
+                )}
               </form>
             </div>
             <div className="flex justify-end gap-3 px-7 py-4 border-t border-gray-100 bg-gray-50/50 rounded-b-2xl">
               <button type="button" onClick={() => setShowEditSparePartModal(false)} className="px-5 py-2 text-sm bg-white hover:bg-gray-50 text-gray-700 rounded-lg font-semibold border border-gray-300 shadow-sm">Cancel</button>
-              <button type="submit" form="editSparePartForm" className="px-5 py-2 text-sm bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-bold shadow-md transition-all" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>Update Price</button>
+              <button type="submit" form="editSparePartForm" className="px-5 py-2 text-sm bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-bold shadow-md transition-all" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>Update</button>
             </div>
           </div>
         </div>
       )}
+      </>
     </div>
   )
 }

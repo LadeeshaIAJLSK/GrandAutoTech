@@ -64,7 +64,7 @@ public function getTotalSpentAttribute()
 
 public function getActiveJobCardsCountAttribute()
 {
-    return $this->jobCards()->whereNotIn('status', ['completed', 'cancelled', 'paid'])->count();
+    return $this->jobCards()->whereNotIn('status', ['completed', 'inspected']).count();
 }
 
     // Future relationships

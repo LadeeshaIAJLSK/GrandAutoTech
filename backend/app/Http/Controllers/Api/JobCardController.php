@@ -380,13 +380,21 @@ class JobCardController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
+        $jobCard = JobCard::findOrFail($id);
+
+        // Check if job card is completed or inspected
+        if (in_array($jobCard->status, ['completed', 'inspected'])) {
+            return response()->json([
+                'message' => 'Cannot add tasks. Job card is ' . ($jobCard->status === 'completed' ? 'completed' : 'under inspection') . '.'
+            ], 422);
+        }
+
         $validated = $request->validate([
             'task_name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'category' => 'required|in:mechanical,electrical,bodywork,painting,diagnostic,maintenance,other',
         ]);
 
-        $jobCard = JobCard::findOrFail($id);
         $validated['job_card_id'] = $jobCard->id;
         $validated['status'] = 'pending'; // Ensure default status is pending
 
@@ -460,12 +468,9 @@ class JobCardController extends Controller
             'total' => $query->count(),
             'pending' => (clone $query)->where('status', 'pending')->count(),
             'in_progress' => (clone $query)->where('status', 'in_progress')->count(),
-            'waiting_parts' => (clone $query)->where('status', 'waiting_parts')->count(),
-            'quality_check' => (clone $query)->where('status', 'quality_check')->count(),
             'completed' => (clone $query)->where('status', 'completed')->count(),
-            'invoiced' => (clone $query)->where('status', 'invoiced')->count(),
-            'paid' => (clone $query)->where('status', 'paid')->count(),
-            'total_revenue' => (clone $query)->whereIn('status', ['paid'])->sum('total_amount'),
+            'inspected' => (clone $query)->where('status', 'inspected')->count(),
+            'total_revenue' => (clone $query)->whereIn('status', ['inspected'])->sum('total_amount'),
         ];
 
         return response()->json($stats);

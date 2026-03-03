@@ -42,7 +42,7 @@ function TaskApproval({ user }) {
       const tasksMap = {}
       
       for (const jobCard of allJobCards) {
-        if (['quality_check', 'completed', 'invoiced', 'paid', 'cancelled'].includes(jobCard.status)) {
+        if (['inspected'].includes(jobCard.status)) {
           continue
         }
 
@@ -112,7 +112,7 @@ function TaskApproval({ user }) {
       await axiosClient.post(`/job-cards/${jobCardId}/approve`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      alert('Inspection marked as completed! Moving to Invoices...')
+      alert('Job card marked as completed! ')
       setTimeout(() => { navigate('/invoices') }, 1000)
     } catch (error) {
       alert(error.response?.data?.message || 'Error marking inspection completed')
@@ -251,9 +251,9 @@ function TaskApproval({ user }) {
               <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
-              Inspection
+              WORK COMPLETED
             </h2>
-            <p className="text-sm text-gray-400 mt-0.5">Job cards with all tasks approved, ready for inspection</p>
+            <p className="text-sm text-gray-400 mt-0.5">Job cards with all tasks completed, pending closure</p>
           </div>
           <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3.5 py-2 shadow-sm">
             <span className="w-2 h-2 rounded-full bg-amber-500 opacity-80" />
@@ -278,10 +278,7 @@ function TaskApproval({ user }) {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2.5 flex-wrap mb-1.5">
                       <h4 className="font-bold text-gray-900">{jobCard.job_card_number}</h4>
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                        Pending Inspection
-                      </span>
+                      
                     </div>
                     <div className="flex flex-wrap gap-3 text-xs text-gray-500 mt-1">
                       <span className="inline-flex items-center gap-1">
@@ -330,9 +327,7 @@ function TaskApproval({ user }) {
                 )}
 
                 <div className="mt-4 p-4 bg-amber-50 border border-amber-100 rounded-lg">
-                  <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-3">
-                    All tasks approved and ready for inspection
-                  </p>
+                  
                   <button
                     onClick={() => handleMarkInspectionCompleted(jobCard.id)}
                     disabled={inspectionLoading[jobCard.id]}
@@ -349,7 +344,7 @@ function TaskApproval({ user }) {
                         <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
-                        Mark as Inspection Completed
+                        Mark as JobCard Completed
                       </>
                     )}
                   </button>

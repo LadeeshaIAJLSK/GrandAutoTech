@@ -112,12 +112,12 @@ class JobCard extends Model
 
     public function isCompleted()
     {
-        return $this->status === 'completed' || $this->status === 'invoiced' || $this->status === 'paid';
+        return $this->status === 'inspected';
     }
 
     public function canBeEdited()
     {
-        return !in_array($this->status, ['completed', 'invoiced', 'paid', 'cancelled']);
+        return !in_array($this->status, ['inspected']);
     }
 
     /**

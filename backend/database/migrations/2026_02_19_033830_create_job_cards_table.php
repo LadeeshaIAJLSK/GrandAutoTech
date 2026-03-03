@@ -21,13 +21,8 @@ return new class extends Migration
             $table->enum('status', [
                 'pending',        // Just created
                 'in_progress',    // Work started
-                'waiting_parts',  // Waiting for spare parts approval
-                'waiting_customer', // Waiting for customer approval
-                'quality_check',  // In inspection
-                'completed',      // All work done
-                'invoiced',       // Invoice generated
-                'paid',          // Payment received
-                'cancelled'      // Job cancelled
+                'completed',      // All work done, ready for inspection
+                'inspected'       // Inspection completed
             ])->default('pending');
             
             $table->text('customer_complaint')->nullable(); // What customer reported

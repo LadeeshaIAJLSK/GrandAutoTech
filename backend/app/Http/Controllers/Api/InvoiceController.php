@@ -29,6 +29,44 @@ class InvoiceController extends Controller
 
         $jobCard = JobCard::with(['tasks', 'sparePartsRequests', 'customer'])->findOrFail($jobCardId);
 
+        // Check if job card is inspected
+        if ($jobCard->status !== 'inspected') {
+            return response()->json([
+                'message' => 'Job card must be marked as inspected before generating invoice',
+                'current_status' => $jobCard->status
+            ], 400);
+        }
+
+        // Validate spare parts pricing
+        $sparePartsWithoutPricing = $jobCard->sparePartsRequests
+            ->whereIn('overall_status', ['delivered', 'installed'])
+            ->filter(function($part) {
+                return $part->unit_cost == 0 || $part->selling_price == 0;
+            });
+        
+        if ($sparePartsWithoutPricing->count() > 0) {
+            $partNames = $sparePartsWithoutPricing->pluck('part_name')->toArray();
+            return response()->json([
+                'message' => 'Cannot generate invoice. The following spare parts have missing or zero pricing (cost price and/or selling price must be greater than 0):',
+                'incomplete_parts' => $partNames
+            ], 422);
+        }
+
+        // Validate services (tasks) pricing
+        $tasksWithoutPricing = $jobCard->tasks
+            ->where('status', 'completed')
+            ->filter(function($task) {
+                return $task->cost_price == 0 || $task->amount == 0;
+            });
+        
+        if ($tasksWithoutPricing->count() > 0) {
+            $taskNames = $tasksWithoutPricing->pluck('task_name')->toArray();
+            return response()->json([
+                'message' => 'Cannot generate invoice. The following services have missing or zero pricing (cost price and/or amount must be greater than 0):',
+                'incomplete_tasks' => $taskNames
+            ], 422);
+        }
+
         // Check if invoice already exists
         $existingInvoice = Invoice::where('job_card_id', $jobCard->id)->first();
         if ($existingInvoice) {
@@ -68,14 +106,14 @@ class InvoiceController extends Controller
             'total_amount' => $totalAmount,
             'advance_paid' => $advancePaid,
             'balance_due' => $balanceDue,
-            'status' => $balanceDue > 0 ? 'sent' : 'paid',
+            'status' => $balanceDue > 0 ? 'sent' : 'sent',
             'invoice_date' => now(),
             'due_date' => now()->addDays(7),
         ]);
 
         // Update job card status
         $jobCard->update([
-            'status' => 'invoiced',
+            'status' => 'sent',
             'total_amount' => $totalAmount,
             'balance_amount' => $balanceDue
         ]);

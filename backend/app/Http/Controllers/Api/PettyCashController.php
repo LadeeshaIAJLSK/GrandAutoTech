@@ -20,7 +20,13 @@ class PettyCashController extends Controller
         $query = PettyCashFund::with(['branch', 'custodian']);
 
         $role = DB::table('roles')->where('id', $user->role_id)->first();
+        // Branch admins see only their branch's funds
         if ($role->name === 'branch_admin' && $user->branch_id) {
+            $query->where('branch_id', $user->branch_id);
+        }
+        // Super admins see all funds (no filter needed)
+        // Other roles see only their branch's funds if they have one
+        elseif ($role->name !== 'super_admin' && $user->branch_id) {
             $query->where('branch_id', $user->branch_id);
         }
 
@@ -32,17 +38,30 @@ class PettyCashController extends Controller
     // Create fund
     public function createFund(Request $request)
     {
+        $user = $request->user();
+        
+        // Check permission
+        if (!$user->hasPermission('create_petty_cash_fund')) {
+            return response()->json(['message' => 'Unauthorized: You do not have permission to create funds'], 403);
+        }
+
         $validated = $request->validate([
             'fund_name' => 'required|string|max:255',
             'initial_amount' => 'required|numeric|min:0',
             'replenishment_threshold' => 'nullable|numeric|min:0',
+            'branch_id' => 'required|exists:branches,id',
         ]);
 
-        $user = $request->user();
+        $userRole = DB::table('roles')->where('id', $user->role_id)->first();
+        
+        // Check authorization: super_admin can access all branches, branch_admin only their own
+        if ($userRole->name === 'branch_admin' && $user->branch_id !== $validated['branch_id']) {
+            return response()->json(['message' => 'Unauthorized: Branch admin can only create funds for their own branch'], 403);
+        }
 
         $fund = PettyCashFund::create([
             'fund_name' => $validated['fund_name'],
-            'branch_id' => $user->branch_id,
+            'branch_id' => $validated['branch_id'],
             'custodian_id' => $user->id,
             'initial_amount' => $validated['initial_amount'],
             'current_balance' => $validated['initial_amount'],
@@ -86,6 +105,13 @@ class PettyCashController extends Controller
     // Record expense
     public function recordExpense(Request $request)
     {
+        $user = $request->user();
+
+        // Check permission
+        if (!$user->hasPermission('record_petty_cash_expense')) {
+            return response()->json(['message' => 'Unauthorized: You do not have permission to record expenses'], 403);
+        }
+
         $validated = $request->validate([
             'fund_id' => 'required|exists:petty_cash_funds,id',
             'amount' => 'required|numeric|min:0.01',
@@ -96,8 +122,13 @@ class PettyCashController extends Controller
             'transaction_date' => 'required|date',
         ]);
 
-        $user = $request->user();
         $fund = PettyCashFund::findOrFail($validated['fund_id']);
+        $userRole = DB::table('roles')->where('id', $user->role_id)->first();
+
+        // Check branch authorization: branch_admin can only record expenses for their branch
+        if ($userRole->name === 'branch_admin' && $user->branch_id !== $fund->branch_id) {
+            return response()->json(['message' => 'Unauthorized: Branch admin can only record expenses for their branch'], 403);
+        }
 
         // Check if enough balance
         if ($fund->current_balance < $validated['amount']) {
@@ -134,7 +165,20 @@ class PettyCashController extends Controller
     public function approveTransaction(Request $request, $id)
     {
         $user = $request->user();
+
+        // Check permission
+        if (!$user->hasPermission('approve_petty_cash_expense')) {
+            return response()->json(['message' => 'Unauthorized: You do not have permission to approve expenses'], 403);
+        }
+
         $transaction = PettyCashTransaction::findOrFail($id);
+        $fund = $transaction->fund;
+        $userRole = DB::table('roles')->where('id', $user->role_id)->first();
+
+        // Check branch authorization
+        if ($userRole->name === 'branch_admin' && $user->branch_id !== $fund->branch_id) {
+            return response()->json(['message' => 'Unauthorized: Branch admin can only approve expenses for their branch'], 403);
+        }
 
         if ($transaction->status !== 'pending') {
             return response()->json(['message' => 'Transaction already processed'], 400);
@@ -147,7 +191,6 @@ class PettyCashController extends Controller
         ]);
 
         // Update fund balance
-        $fund = $transaction->fund;
         $fund->updateBalance($transaction->amount, $transaction->type);
 
         return response()->json([
@@ -160,12 +203,25 @@ class PettyCashController extends Controller
     // Reject transaction
     public function rejectTransaction(Request $request, $id)
     {
+        $user = $request->user();
+
+        // Check permission
+        if (!$user->hasPermission('approve_petty_cash_expense')) {
+            return response()->json(['message' => 'Unauthorized: You do not have permission to reject expenses'], 403);
+        }
+
         $validated = $request->validate([
             'rejection_reason' => 'required|string',
         ]);
 
-        $user = $request->user();
         $transaction = PettyCashTransaction::findOrFail($id);
+        $fund = $transaction->fund;
+        $userRole = DB::table('roles')->where('id', $user->role_id)->first();
+
+        // Check branch authorization
+        if ($userRole->name === 'branch_admin' && $user->branch_id !== $fund->branch_id) {
+            return response()->json(['message' => 'Unauthorized: Branch admin can only reject expenses for their branch'], 403);
+        }
 
         if ($transaction->status !== 'pending') {
             return response()->json(['message' => 'Transaction already processed'], 400);

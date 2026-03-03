@@ -16,6 +16,8 @@ function JobCardDetail({ jobCardId, onClose, user } = {}) {
   const [jobCard, setJobCard] = useState(null)
   const [loading, setLoading] = useState(true)
   const [activeSection, setActiveSection] = useState('overview')
+  const [inspectedTasks, setInspectedTasks] = useState({})
+  const [markingInspected, setMarkingInspected] = useState(false)
 
   // Refs for sections
   const overviewRef = useRef(null)
@@ -81,22 +83,16 @@ function JobCardDetail({ jobCardId, onClose, user } = {}) {
     const styles = {
       pending:          'bg-yellow-50 text-yellow-700 border-yellow-200',
       in_progress:      'bg-blue-50 text-blue-700 border-blue-200',
-      waiting_parts:    'bg-purple-50 text-purple-700 border-purple-200',
-      waiting_customer: 'bg-orange-50 text-orange-700 border-orange-200',
-      quality_check:    'bg-indigo-50 text-indigo-700 border-indigo-200',
-      completed:        'bg-green-50 text-green-700 border-green-200',
-      invoiced:         'bg-teal-50 text-teal-700 border-teal-200',
-      paid:             'bg-emerald-50 text-emerald-700 border-emerald-200',
-      cancelled:        'bg-red-50 text-red-600 border-red-200',
+      completed:        'bg-orange-50 text-orange-700 border-orange-200',
+      inspected:        'bg-indigo-50 text-indigo-700 border-indigo-200',
     }
     return styles[status] || 'bg-gray-50 text-gray-700 border-gray-200'
   }
 
   const getStatusDot = (status) => {
     const dots = {
-      pending: 'bg-yellow-400', in_progress: 'bg-blue-500', waiting_parts: 'bg-purple-500',
-      waiting_customer: 'bg-orange-500', quality_check: 'bg-indigo-500', completed: 'bg-green-500',
-      invoiced: 'bg-teal-500', paid: 'bg-emerald-500', cancelled: 'bg-red-400',
+      pending: 'bg-yellow-400', in_progress: 'bg-blue-500',
+      completed: 'bg-orange-500', inspected: 'bg-indigo-500',
     }
     return dots[status] || 'bg-gray-400'
   }
@@ -104,6 +100,99 @@ function JobCardDetail({ jobCardId, onClose, user } = {}) {
   const formatStatus = (status) => status.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
 
   const formatCurrency = (amount) => new Intl.NumberFormat('en-LK', { style: 'currency', currency: 'LKR', minimumFractionDigits: 2 }).format(amount)
+
+  const handleTaskInspectionChange = (taskId) => {
+    setInspectedTasks(prev => ({
+      ...prev,
+      [taskId]: !prev[taskId]
+    }))
+  }
+
+  const handleCheckAllTasks = () => {
+    const allChecked = jobCard.tasks?.length > 0 && 
+      jobCard.tasks.every(task => inspectedTasks[task.id])
+    
+    if (allChecked) {
+      setInspectedTasks({})
+    } else {
+      const newInspected = {}
+      jobCard.tasks?.forEach(task => {
+        newInspected[task.id] = true
+      })
+      setInspectedTasks(newInspected)
+    }
+  }
+
+  const validatePricingBeforeInspection = () => {
+    // Check spare parts pricing - only if spare parts exist
+    if (jobCard.spare_parts_requests && jobCard.spare_parts_requests.length > 0) {
+      for (const sparePart of jobCard.spare_parts_requests) {
+        // Only validate if pricing fields are set
+        if ((sparePart.cost_price !== null && sparePart.cost_price !== undefined) || 
+            (sparePart.amount !== null && sparePart.amount !== undefined)) {
+          if (!sparePart.cost_price || sparePart.cost_price === 0) {
+            return {
+              valid: false,
+              message: `Spare part "${sparePart.part_name}" has zero cost price. Please enter a valid cost price.`
+            }
+          }
+          if (!sparePart.amount || sparePart.amount === 0) {
+            return {
+              valid: false,
+              message: `Spare part "${sparePart.part_name}" has zero selling price. Please enter a valid selling price.`
+            }
+          }
+        }
+      }
+    }
+
+    // Check task/service pricing - only for tasks that have pricing set
+    if (jobCard.tasks && jobCard.tasks.length > 0) {
+      for (const task of jobCard.tasks) {
+        // Only validate if task has cost or amount assigned (not all tasks need pricing)
+        if ((task.cost !== null && task.cost !== undefined && task.cost > 0) || 
+            (task.amount !== null && task.amount !== undefined && task.amount > 0)) {
+          if (!task.cost || task.cost === 0) {
+            return {
+              valid: false,
+              message: `Task "${task.task_name}" has invalid cost. Please enter a valid cost price.`
+            }
+          }
+          if (!task.amount || task.amount === 0) {
+            return {
+              valid: false,
+              message: `Task "${task.task_name}" has invalid amount. Please enter a valid amount.`
+            }
+          }
+        }
+      }
+    }
+
+    return { valid: true }
+  }
+
+  const handleMarkAsInspected = async () => {
+    const validation = validatePricingBeforeInspection()
+    if (!validation.valid) {
+      alert(validation.message)
+      return
+    }
+
+    try {
+      setMarkingInspected(true)
+      const token = localStorage.getItem('token')
+      await axiosClient.post(`/job-cards/${jobCard.id}/mark-inspected`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      alert('Job card marked as inspected successfully!')
+      fetchJobCard()
+      setInspectedTasks({})
+    } catch (error) {
+      alert(error.response?.data?.message || 'Error marking job card as inspected')
+    } finally {
+      setMarkingInspected(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -353,6 +442,141 @@ function JobCardDetail({ jobCardId, onClose, user } = {}) {
             </svg>
             Quality Inspection
           </h2>
+
+          {/* Task Inspection Section - Only show when completed */}
+          {jobCard.status === 'completed' && jobCard.tasks && jobCard.tasks.length > 0 && (
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200 shadow-sm p-6 mb-6">
+              <div className="flex items-center gap-3 mb-5">
+                <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900">Mark Job Card as Inspected</h3>
+                  <p className="text-sm text-gray-600">Review and approve all task-related actions for this job card.</p>
+                </div>
+              </div>
+
+              {/* Check All Checkbox */}
+              <div className="bg-white rounded-lg p-4 mb-4 border border-blue-100">
+                <label className="flex items-center gap-3 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={jobCard.tasks?.length > 0 && jobCard.tasks.every(task => inspectedTasks[task.id])}
+                    onChange={handleCheckAllTasks}
+                    className="w-5 h-5 rounded border-2 border-blue-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                  />
+                  <span className="font-semibold text-gray-700 group-hover:text-gray-900">
+                    {jobCard.tasks?.every(task => inspectedTasks[task.id]) ? 'Uncheck All' : 'Check All Tasks'}
+                  </span>
+                </label>
+              </div>
+
+              {/* Task List with Checkboxes */}
+              <div className="space-y-2 mb-5 max-h-96 overflow-y-auto">
+                {jobCard.tasks.map((task) => (
+                  <div key={task.id} className="bg-white rounded-lg p-4 border border-gray-200 hover:border-blue-300 hover:shadow-sm transition-all">
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={!!inspectedTasks[task.id]}
+                        onChange={() => handleTaskInspectionChange(task.id)}
+                        className="w-5 h-5 rounded border-2 border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer mt-0.5 flex-shrink-0"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-gray-900 truncate">{task.task_name}</p>
+                        <p className="text-sm text-gray-600 mt-0.5">{task.description || 'No description'}</p>
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 capitalize">
+                            {task.category || 'general'}
+                          </span>
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                            ✓ Completed
+                          </span>
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+                ))}
+              </div>
+
+              {/* Mark as Inspected Button */}
+              {(() => {
+                const pricingValidation = validatePricingBeforeInspection()
+                const tasksChecked = jobCard.tasks?.length > 0 && jobCard.tasks.every(task => inspectedTasks[task.id])
+                
+                // Determine specific disabled reason
+                let disabledReason = null
+                let buttonText = 'Mark All as Inspected'
+                
+                if (markingInspected) {
+                  buttonText = 'Marking as Inspected...'
+                } else if (!pricingValidation.valid) {
+                  // Check if it's spare parts or tasks pricing issue
+                  if (pricingValidation.message.includes('Spare')) {
+                    disabledReason = 'Fix Spare Parts Pricing'
+                    buttonText = 'Fix Spare Parts Pricing'
+                  } else if (pricingValidation.message.includes('Task') || pricingValidation.message.includes('Service')) {
+                    disabledReason = 'Fix Services Pricing'
+                    buttonText = 'Fix Services Pricing'
+                  } else {
+                    disabledReason = 'Fix Pricing Issues'
+                    buttonText = 'Fix Pricing Issues'
+                  }
+                } else if (!tasksChecked) {
+                  disabledReason = 'Check all tasks to proceed'
+                  buttonText = 'Check All Tasks to Proceed'
+                }
+                
+                const isDisabled = markingInspected || disabledReason !== null
+                
+                return (
+                  <div>
+                    <button
+                      onClick={handleMarkAsInspected}
+                      disabled={isDisabled}
+                      title={disabledReason || 'Mark job card as inspected and complete the inspection process'}
+                      className={`w-full py-3 rounded-lg font-bold text-white transition-all flex items-center justify-center gap-2 ${
+                        isDisabled
+                          ? 'bg-gray-300 cursor-not-allowed opacity-60'
+                          : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md hover:shadow-lg'
+                      }`}
+                    >
+                      {markingInspected ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          Marking as Inspected...
+                        </>
+                      ) : (
+                        <>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          {buttonText}
+                        </>
+                      )}
+                    </button>
+                    
+                    {/* Validation Messages */}
+                    {!pricingValidation.valid && (
+                      <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                        <p className="text-xs font-semibold text-red-700 uppercase tracking-wide mb-1">Pricing Issue</p>
+                        <p className="text-sm text-red-700">{pricingValidation.message}</p>
+                      </div>
+                    )}
+                    
+                    {!tasksChecked && pricingValidation.valid && (
+                      <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <p className="text-xs font-semibold text-yellow-700 uppercase tracking-wide mb-1">Tasks Not Reviewed</p>
+                        <p className="text-sm text-yellow-700">Please check all tasks above before proceeding with inspection.</p>
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
+            </div>
+          )}
 
           {jobCard.inspections && jobCard.inspections.length > 0 ? (
             <div className="space-y-3">

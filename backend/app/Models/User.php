@@ -107,4 +107,18 @@ public function receivedPayments()
 {
     return $this->hasMany(Payment::class, 'received_by');
 }
+
+/**
+ * Check if user has a specific permission through their role
+ */
+public function hasPermission($permissionName)
+{
+    if (!$this->role) {
+        return false;
+    }
+    
+    return $this->role->permissions()
+        ->where('permissions.name', $permissionName)
+        ->exists();
+}
 }

@@ -15,6 +15,7 @@ function MyTasks({ user }) {
     part_name: '',
     part_number: '',
     description: '',
+    quantity: '',
   })
   const [expandedPartsTask, setExpandedPartsTask] = useState(null)
 
@@ -50,6 +51,19 @@ function MyTasks({ user }) {
   }
 
   const handleMarkAsDone = async (taskId) => {
+    // Check if there are any requested spare parts
+    const task = tasks.find(t => t.id === taskId)
+    const parts = taskParts[taskId] || []
+    
+    // If there are requested parts, check if all are delivered
+    if (parts.length > 0) {
+      const undeliveredParts = parts.filter(p => p.overall_status !== 'delivered')
+      if (undeliveredParts.length > 0) {
+        alert(`❌ Cannot mark task as done!\n\nYou have ${undeliveredParts.length} spare part(s) that are not yet delivered:\n\n${undeliveredParts.map(p => `• ${p.part_name}`).join('\n')}\n\nPlease mark all spare parts as delivered first.`)
+        return
+      }
+    }
+
     if (!confirm('Submit this task for approval?')) return
     try {
       const token = localStorage.getItem('token')
@@ -57,7 +71,13 @@ function MyTasks({ user }) {
       alert(`Task submitted for approval! Total time: ${Math.floor(response.data.total_time_spent / 60)}h ${response.data.total_time_spent % 60}m`)
       fetchMyTasks()
     } catch (error) {
-      alert(error.response?.data?.message || 'Error completing task')
+      // Handle backend validation errors about undelivered parts
+      if (error.response?.data?.undelivered_parts && error.response?.data?.undelivered_parts.length > 0) {
+        const partsList = error.response.data.undelivered_parts.join('\n• ')
+        alert(`❌ Cannot mark task as done!\n\nThe following spare parts are not yet delivered:\n• ${partsList}\n\nPlease mark all spare parts as delivered first.`)
+      } else {
+        alert(error.response?.data?.message || 'Error completing task')
+      }
     }
   }
 
@@ -441,30 +461,58 @@ function MyTasks({ user }) {
                                 Resume
                               </button>
                             )}
-                            <button
-                              onClick={() => handleMarkAsDone(task.id)}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary hover:bg-primary-dark text-white rounded-lg text-xs font-semibold transition-colors shadow-sm"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
-                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                              </svg>
-                              Complete
-                            </button>
+                            {(() => {
+                              const parts = taskParts[task.id] || []
+                              const hasUndeliveredParts = parts.length > 0 && parts.some(p => p.overall_status !== 'delivered')
+                              return (
+                                <button
+                                  onClick={() => handleMarkAsDone(task.id)}
+                                  disabled={hasUndeliveredParts}
+                                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors shadow-sm ${
+                                    hasUndeliveredParts
+                                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200'
+                                      : 'bg-primary hover:bg-primary-dark text-white'
+                                  }`}
+                                  title={hasUndeliveredParts ? 'Mark all spare parts as delivered first' : ''}
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                  </svg>
+                                  Complete
+                                  {hasUndeliveredParts && <span className="ml-1 text-xs">⚠</span>}
+                                </button>
+                              )
+                            })()}
                           </>
                         )}
-                        <button
-                          onClick={() => {
-                            setSelectedTask(task)
-                            fetchTaskParts(task.id)
-                            setShowRequestPartsModal(true)
-                          }}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-xs font-semibold transition-colors ml-auto"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
-                          </svg>
-                          Parts
-                        </button>
+                        {(() => {
+                          const canRequestParts = task.status === 'assigned' || task.status === 'in_progress'
+                          return (
+                            <button
+                              onClick={() => {
+                                if (!canRequestParts) {
+                                  alert('Cannot request parts for this task. Only tasks that are assigned or in progress can request parts.')
+                                  return
+                                }
+                                setSelectedTask(task)
+                                fetchTaskParts(task.id)
+                                setShowRequestPartsModal(true)
+                              }}
+                              disabled={!canRequestParts}
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ml-auto ${
+                                canRequestParts
+                                  ? 'bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200'
+                                  : 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200'
+                              }`}
+                              title={!canRequestParts ? 'Cannot request parts once task is submitted or completed' : ''}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
+                              </svg>
+                              Parts
+                            </button>
+                          )
+                        })()}
                       </div>
 
                       {/* Spare Parts Section - Collapsible */}
@@ -562,6 +610,10 @@ function MyTasks({ user }) {
               <div className="space-y-1.5">
                 <label className={labelCls}>Part Number</label>
                 <input type="text" value={partsRequest.part_number} onChange={(e) => setPartsRequest({...partsRequest, part_number: e.target.value})} placeholder="e.g., BP-12345" className={inputCls} />
+              </div>
+              <div className="space-y-1.5">
+                <label className={labelCls}>Quantity <span className="text-red-400">*</span></label>
+                <input type="number" value={partsRequest.quantity} onChange={(e) => setPartsRequest({...partsRequest, quantity: e.target.value})} required placeholder="e.g., 4" min="1" className={inputCls} />
               </div>
               <div className="space-y-1.5">
                 <label className={labelCls}>Description</label>
