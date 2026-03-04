@@ -18,9 +18,9 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
     description: '',
   })
 
-  const canAdd = user.permissions.includes('add_spare_parts')
-  const canUpdate = user.permissions.includes('update_spare_parts')
-  const canDelete = user.permissions.includes('delete_spare_parts')
+  const canAdd = user.role.name === 'super_admin' || user.permissions.includes('add_spare_parts')
+  const canUpdate = user.role.name === 'super_admin' || user.permissions.includes('update_spare_parts')
+  const canDelete = user.role.name === 'super_admin' || user.permissions.includes('delete_spare_parts')
   const canApprove = user.permissions.includes('approve_spare_parts')
   const role = user.role.name
 

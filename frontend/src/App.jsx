@@ -18,6 +18,7 @@ import BranchOverview from './pages/BranchOverview'
 import Layout from './components/Layout'
 import MyTasks from './pages/MyTasks'
 import TaskApproval from './pages/TaskApproval'
+import ActivityLog from './pages/ActivityLog'
 
 function App() {
   const [user, setUser] = useState(null)
@@ -154,6 +155,11 @@ function App() {
         <Route 
           path="/branch-overview" 
           element={user ? <Layout user={user} onLogout={handleLogout}><BranchOverview user={user} /></Layout> : <Navigate to="/login" />} 
+        />
+
+        <Route 
+          path="/activity-log" 
+          element={user ? <Layout user={user} onLogout={handleLogout}><ActivityLog user={user} /></Layout> : <Navigate to="/login" />} 
         />
         
         <Route 

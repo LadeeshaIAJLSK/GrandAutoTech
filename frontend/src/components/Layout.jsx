@@ -26,7 +26,7 @@ function Layout({ user, onLogout, children }) {
     }
   }
 
-  const canViewUsers = user.permissions.includes('view_users')
+  const canViewUsers = user.permissions.includes('view_users') || ['super_admin', 'branch_admin'].includes(user.role.name)
 
   const isActive = (path) => location.pathname === path || location.pathname.startsWith(path + '/')
 
@@ -111,6 +111,7 @@ function Layout({ user, onLogout, children }) {
     cash: <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>,
     access: <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>,
     branch: <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>,
+    activity: <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>,
     allUsers: <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>,
     branchAdmin: <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
     accountant: <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>,
@@ -213,7 +214,7 @@ function Layout({ user, onLogout, children }) {
             )}
 
             {/* Customers & Vehicles */}
-            {(user.permissions.includes('view_customers') || user.permissions.includes('view_vehicles')) && (
+            {(user.role.name === 'super_admin' || user.permissions.includes('view_customers') || user.permissions.includes('view_vehicles')) && (
               <NavItem path="/customers" icon={icons.customers} label="Customers & Vehicles" />
             )}
 
@@ -223,7 +224,7 @@ function Layout({ user, onLogout, children }) {
             )}
 
             {/* Job Cards */}
-            {user.permissions.includes('view_job_cards') && (
+            {(user.role.name === 'super_admin' || user.permissions.includes('view_job_cards')) && (
               <NavItem path="/job-cards" icon={icons.jobCards} label="Job Cards" />
             )}
 
@@ -279,6 +280,11 @@ function Layout({ user, onLogout, children }) {
             {/* Branch Overview */}
             {user.role.name === 'super_admin' && (
               <NavItem path="/branch-overview" icon={icons.branch} label="Branch Overview" />
+            )}
+
+            {/* Activity Log */}
+            {user.role.name === 'super_admin' && (
+              <NavItem path="/activity-log" icon={icons.activity} label="Activity Logs" />
             )}
           </nav>
 

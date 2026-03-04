@@ -25,7 +25,7 @@ function Dashboard({ user, onLogout }) {
     }
   }
 
-  const canViewUsers = user.permissions.includes('view_users')
+  const canViewUsers = user.role.name === 'super_admin' || user.permissions.includes('view_users')
 
   const handleRoleTabClick = (roleName, roleDisplayName) => {
     setCurrentPage('users')

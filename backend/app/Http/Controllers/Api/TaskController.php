@@ -116,7 +116,7 @@ class TaskController extends Controller
         if ($activeTracking) {
             $activeTracking->update([
                 'end_time' => now(),
-                'duration_minutes' => floor(now()->diffInMinutes($activeTracking->start_time))
+                'duration_minutes' => floor($activeTracking->start_time->diffInMinutes(now()))
             ]);
         }
         
@@ -145,7 +145,7 @@ class TaskController extends Controller
         
         return response()->json([
             'message' => 'Task submitted for approval',
-            'task' => $task->fresh(),
+            'task' => $task->fresh()->load('timeTracking'),
             'total_time_spent' => $totalMinutes
         ]);
     }
@@ -615,7 +615,7 @@ class TaskController extends Controller
 
         return response()->json([
             'message' => 'Task completed successfully',
-            'task' => $task->fresh()->load('assignedEmployees')
+            'task' => $task->fresh()->load(['assignedEmployees', 'timeTracking'])
         ]);
     }
 
@@ -677,7 +677,7 @@ class TaskController extends Controller
         $jobCard = $task->jobCard;
         $jobCard->updateStatusBasedOnTasks();
 
-        return response()->json(['message' => 'Timer started', 'timer' => $timer]);
+        return response()->json(['message' => 'Timer started', 'task' => $task->fresh()->load('timeTracking')]);
     }
 
     /**
@@ -702,7 +702,7 @@ class TaskController extends Controller
         $timer->update(['end_time' => now()]);
         $timer->calculateDuration();
 
-        return response()->json(['message' => 'Timer paused', 'timer' => $timer]);
+        return response()->json(['message' => 'Timer paused', 'task' => $task->fresh()->load('timeTracking')]);
     }
 
     /**
@@ -729,7 +729,7 @@ class TaskController extends Controller
             'start_time' => now(),
         ]);
 
-        return response()->json(['message' => 'Timer resumed', 'timer' => $timer]);
+        return response()->json(['message' => 'Timer resumed', 'task' => $task->fresh()->load('timeTracking')]);
     }
 
     /**
@@ -754,6 +754,6 @@ class TaskController extends Controller
         // Mark the task as completed
         $task->update(['status' => 'completed', 'completed_at' => now()]);
 
-        return response()->json(['message' => 'Task completed', 'task' => $task->fresh()]);
+        return response()->json(['message' => 'Task completed', 'task' => $task->fresh()->load('timeTracking')]);
     }
 }

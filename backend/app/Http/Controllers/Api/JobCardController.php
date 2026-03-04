@@ -458,10 +458,13 @@ class JobCardController extends Controller
         
         $query = JobCard::query();
 
-        // Branch filter for branch admins
+        // Branch filter
         $role = DB::table('roles')->where('id', $user->role_id)->first();
         if ($role->name === 'branch_admin' && $user->branch_id) {
             $query->where('branch_id', $user->branch_id);
+        } elseif ($role->name === 'super_admin' && $request->has('branch_id')) {
+            // Super admins can filter by any branch
+            $query->where('branch_id', $request->branch_id);
         }
 
         $stats = [

@@ -20,14 +20,36 @@ class PettyCashController extends Controller
         $query = PettyCashFund::with(['branch', 'custodian']);
 
         $role = DB::table('roles')->where('id', $user->role_id)->first();
-        // Branch admins see only their branch's funds
-        if ($role->name === 'branch_admin' && $user->branch_id) {
-            $query->where('branch_id', $user->branch_id);
-        }
-        // Super admins see all funds (no filter needed)
-        // Other roles see only their branch's funds if they have one
-        elseif ($role->name !== 'super_admin' && $user->branch_id) {
-            $query->where('branch_id', $user->branch_id);
+        $requestedBranchId = $request->query('branch_id');
+
+        // If a specific branch is requested
+        if ($requestedBranchId) {
+            // Super admin can see any branch's funds
+            if ($role->name === 'super_admin') {
+                $query->where('branch_id', $requestedBranchId);
+            }
+            // Branch admin can only see their own branch
+            elseif ($role->name === 'branch_admin' && $user->branch_id == $requestedBranchId) {
+                $query->where('branch_id', $requestedBranchId);
+            }
+            // Unauthorized access to other branches
+            elseif ($role->name === 'branch_admin' && $user->branch_id != $requestedBranchId) {
+                return response()->json(['message' => 'Unauthorized: You can only view your own branch'], 403);
+            }
+            else {
+                return response()->json(['message' => 'Unauthorized access'], 403);
+            }
+        } 
+        // No specific branch requested - show user's own branch(es)
+        else {
+            if ($role->name === 'branch_admin' && $user->branch_id) {
+                $query->where('branch_id', $user->branch_id);
+            }
+            // Super admins see all funds (no filter needed)
+            // Other roles see only their branch's funds if they have one
+            elseif ($role->name !== 'super_admin' && $user->branch_id) {
+                $query->where('branch_id', $user->branch_id);
+            }
         }
 
         $funds = $query->get();
@@ -83,6 +105,21 @@ class PettyCashController extends Controller
 
         if ($request->fund_id) {
             $query->where('fund_id', $request->fund_id);
+        }
+
+        // Filter by branch_id if requested - ensure user has access
+        if ($request->branch_id) {
+            $role = DB::table('roles')->where('id', $user->role_id)->first();
+            
+            // Super admin can see any branch's transactions
+            if ($role->name === 'super_admin') {
+                // Filter transactions through their fund's branch
+                $query->whereHas('fund', fn($q) => $q->where('branch_id', $request->branch_id));
+            }
+            // Branch admin can only see their own branch's transactions
+            elseif ($role->name === 'branch_admin' && $user->branch_id == $request->branch_id) {
+                $query->whereHas('fund', fn($q) => $q->where('branch_id', $request->branch_id));
+            }
         }
 
         if ($request->status) {
@@ -287,15 +324,31 @@ class PettyCashController extends Controller
     // Get summary report
     public function getSummary(Request $request)
     {
+        $user = $request->user();
         $fundId = $request->fund_id;
         $startDate = $request->start_date ?? now()->startOfMonth();
         $endDate = $request->end_date ?? now();
+        $branchId = $request->branch_id;
 
         $query = PettyCashTransaction::where('status', 'approved')
             ->whereBetween('transaction_date', [$startDate, $endDate]);
 
         if ($fundId) {
             $query->where('fund_id', $fundId);
+        }
+
+        // Filter by branch_id if requested
+        if ($branchId) {
+            $role = DB::table('roles')->where('id', $user->role_id)->first();
+            
+            // Super admin can see any branch's summary
+            if ($role->name === 'super_admin') {
+                $query->whereHas('fund', fn($q) => $q->where('branch_id', $branchId));
+            }
+            // Branch admin can only see their own branch's summary
+            elseif ($role->name === 'branch_admin' && $user->branch_id == $branchId) {
+                $query->whereHas('fund', fn($q) => $q->where('branch_id', $branchId));
+            }
         }
 
         $totalExpenses = (clone $query)->where('type', 'expense')->sum('amount');
@@ -305,6 +358,7 @@ class PettyCashController extends Controller
             ->where('type', 'expense')
             ->whereBetween('transaction_date', [$startDate, $endDate])
             ->when($fundId, fn($q) => $q->where('fund_id', $fundId))
+            ->when($branchId, fn($q) => $q->whereHas('fund', fn($subQ) => $subQ->where('branch_id', $branchId)))
             ->select('category', DB::raw('SUM(amount) as total'))
             ->groupBy('category')
             ->get();

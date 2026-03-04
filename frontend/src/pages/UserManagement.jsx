@@ -29,9 +29,9 @@ function UserManagement({ user, roleFilter }) {
     is_active: true
   })
 
-  const canAdd = user.permissions.includes('add_users')
-  const canUpdate = user.permissions.includes('update_users')
-  const canDelete = user.permissions.includes('delete_users')
+  const canAdd = user.role.name === 'super_admin' || user.permissions.includes('add_users')
+  const canUpdate = user.role.name === 'super_admin' || user.permissions.includes('update_users')
+  const canDelete = user.role.name === 'super_admin' || user.permissions.includes('delete_users')
 
   const currentRole = roleFilter ? roles.find(r => r.name === roleFilter.name) : null
 

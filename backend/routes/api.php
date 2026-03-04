@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\PettyCashController;
 use App\Http\Controllers\Api\AccessRightsController;
 use App\Http\Controllers\Api\BranchController;
+use App\Http\Controllers\ActivityController;
 
 
 // Public routes
@@ -142,6 +143,12 @@ Route::post('/quotations/{id}/send', [QuotationController::class, 'sendToCustome
 Route::post('/quotations/{id}/approve', [QuotationController::class, 'approve']);
 Route::post('/quotations/{id}/convert', [QuotationController::class, 'convertToJobCard']);
 
+// Quotation Items
+Route::post('/quotations/{quotationId}/items', [QuotationController::class, 'addItem']);
+Route::put('/quotations/{quotationId}/items/{itemId}', [QuotationController::class, 'updateItem']);
+Route::delete('/quotations/{quotationId}/items/{itemId}', [QuotationController::class, 'deleteItem']);
+Route::post('/quotations/{quotationId}/items/reorder', [QuotationController::class, 'reorderItems']);
+
 // Financial Reports
 Route::get('/reports/financial-summary', [ReportController::class, 'financialSummary']);
 Route::get('/reports/payment-methods', [ReportController::class, 'paymentMethodBreakdown']);
@@ -188,4 +195,9 @@ Route::post('/tasks/{id}/start-timer', [TaskController::class, 'startTimer']);
 Route::post('/tasks/{id}/pause-timer', [TaskController::class, 'pauseTimer']);
 Route::post('/tasks/{id}/resume-timer', [TaskController::class, 'resumeTimer']);
 Route::post('/tasks/{id}/stop-timer', [TaskController::class, 'stopTimer']);
+
+// Activity Logs (Super Admin Only)
+Route::get('/activities', [ActivityController::class, 'index']);
+Route::get('/activities/statistics', [ActivityController::class, 'statistics']);
+Route::get('/activities/filters', [ActivityController::class, 'filters']);
 });

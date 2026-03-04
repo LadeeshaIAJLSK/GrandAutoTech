@@ -67,9 +67,20 @@ class Quotation extends Model
         return $this->belongsTo(JobCard::class);
     }
 
+    public function items()
+    {
+        return $this->hasMany(QuotationItem::class)->orderBy('order');
+    }
+
     public function calculateTotal()
     {
-        $this->total_amount = $this->labor_cost + $this->parts_cost + $this->other_charges - $this->discount;
+        // If quotation has items, calculate from items
+        if ($this->items()->count() > 0) {
+            $this->total_amount = $this->items()->sum('amount') + ($this->other_charges ?? 0) - ($this->discount ?? 0);
+        } else {
+            // Fallback to labor + parts calculation
+            $this->total_amount = $this->labor_cost + $this->parts_cost + ($this->other_charges ?? 0) - ($this->discount ?? 0);
+        }
         $this->save();
     }
 

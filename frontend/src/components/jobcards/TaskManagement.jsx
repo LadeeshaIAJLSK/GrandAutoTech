@@ -17,9 +17,9 @@ function TaskManagement({ jobCard, onUpdate, user }) {
     priority: 0,
   })
 
-  const canAdd = user.permissions.includes('add_tasks')
-  const canUpdate = user.permissions.includes('update_tasks')
-  const canDelete = user.permissions.includes('delete_tasks')
+  const canAdd = user.role.name === 'super_admin' || user.permissions.includes('add_tasks')
+  const canUpdate = user.role.name === 'super_admin' || user.permissions.includes('update_tasks')
+  const canDelete = user.role.name === 'super_admin' || user.permissions.includes('delete_tasks')
   const canAssign = user.permissions.includes('assign_tasks') || ['super_admin', 'branch_admin'].includes(user.role.name)
 
   // Live timer update every second

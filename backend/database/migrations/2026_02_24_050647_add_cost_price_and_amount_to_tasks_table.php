@@ -12,8 +12,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('tasks', function (Blueprint $table) {
-            $table->decimal('cost_price', 10, 2)->default(0)->after('labor_cost');
-            $table->decimal('amount', 10, 2)->default(0)->after('cost_price');
+            if (!Schema::hasColumn('tasks', 'cost_price')) {
+                $table->decimal('cost_price', 10, 2)->default(0);
+            }
+            if (!Schema::hasColumn('tasks', 'amount')) {
+                $table->decimal('amount', 10, 2)->default(0);
+            }
         });
     }
 

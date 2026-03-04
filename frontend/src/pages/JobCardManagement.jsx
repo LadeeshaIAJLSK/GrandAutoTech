@@ -21,9 +21,9 @@ function JobCardManagement({ user, selectedBranchId }) {
   const buttonRefs = useRef({})
   const branchDropdownRef = useRef(null)
 
-  const canAdd = user.permissions.includes('add_job_cards')
-  const canUpdate = user.permissions.includes('update_job_cards')
-  const canDelete = user.permissions.includes('delete_job_cards')
+  const canAdd = user.role.name === 'super_admin' || user.permissions.includes('add_job_cards')
+  const canUpdate = user.role.name === 'super_admin' || user.permissions.includes('update_job_cards')
+  const canDelete = user.role.name === 'super_admin' || user.permissions.includes('delete_job_cards')
 
   useEffect(() => {
     // Load saved branch filter from localStorage (for super admin only)

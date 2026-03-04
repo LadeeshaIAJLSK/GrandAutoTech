@@ -20,8 +20,8 @@ return new class extends Migration
             $table->integer('quantity')->default(1);
             
             // Pricing
-            $table->decimal('unit_cost', 10, 2)->nullable()->default(null)->change();
-            $table->decimal('selling_price', 10, 2)->nullable()->default(null)->change();
+            $table->decimal('unit_cost', 10, 2)->nullable()->default(null);
+            $table->decimal('selling_price', 10, 2)->nullable()->default(null);
             $table->decimal('total_cost', 10, 2)->default(0);
             
             // 3-Level Approval Status

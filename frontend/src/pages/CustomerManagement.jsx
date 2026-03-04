@@ -50,13 +50,13 @@ function CustomerManagement({ user }) {
     branch_id: ''
   })
 
-  // Permissions
-  const canAddCustomers = user.permissions.includes('add_customers')
-  const canUpdateCustomers = user.permissions.includes('update_customers')
-  const canDeleteCustomers = user.permissions.includes('delete_customers')
-  const canAddVehicles = user.permissions.includes('add_vehicles')
-  const canUpdateVehicles = user.permissions.includes('update_vehicles')
-  const canDeleteVehicles = user.permissions.includes('delete_vehicles')
+  // Permissions - Super admin has access to all actions
+  const canAddCustomers = user.role.name === 'super_admin' || user.permissions.includes('add_customers')
+  const canUpdateCustomers = user.role.name === 'super_admin' || user.permissions.includes('update_customers')
+  const canDeleteCustomers = user.role.name === 'super_admin' || user.permissions.includes('delete_customers')
+  const canAddVehicles = user.role.name === 'super_admin' || user.permissions.includes('add_vehicles')
+  const canUpdateVehicles = user.role.name === 'super_admin' || user.permissions.includes('update_vehicles')
+  const canDeleteVehicles = user.role.name === 'super_admin' || user.permissions.includes('delete_vehicles')
 
   console.log('User Permissions:', {
     role: user.role.name,

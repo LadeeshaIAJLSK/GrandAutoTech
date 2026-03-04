@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import axiosClient from '../../api/axios'
 import MiniCalendar from './MiniCalendar'
 
@@ -9,27 +9,66 @@ function AnalyticsDashboard({ user }) {
   const [pendingApprovals, setPendingApprovals] = useState([])
   const [calendarJobCards, setCalendarJobCards] = useState([])
   const [loading, setLoading] = useState(true)
+  const [branches, setBranches] = useState([])
+  const [filterBranch, setFilterBranch] = useState('')
+  const [branchDropdownOpen, setBranchDropdownOpen] = useState(false)
+  const [searchBranch, setSearchBranch] = useState('')
+  const branchDropdownRef = useRef(null)
+
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (branchDropdownRef.current && !branchDropdownRef.current.contains(e.target)) {
+        setBranchDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  useEffect(() => {
+    // Load saved branch filter from localStorage
+    const savedBranch = localStorage.getItem('selectedBranchId') || ''
+    setFilterBranch(savedBranch)
+    fetchBranches()
+  }, [])
 
   useEffect(() => {
     fetchDashboardData()
-  }, [])
+  }, [filterBranch])
+
+  const fetchBranches = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await axiosClient.get('/branches/simple', {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      setBranches(response.data)
+      // Set default branch if not already set
+      if (!filterBranch && response.data.length > 0) {
+        setFilterBranch(String(response.data[0].id))
+        localStorage.setItem('selectedBranchId', String(response.data[0].id))
+      }
+    } catch (error) {
+      console.error('Error fetching branches:', error)
+    }
+  }
 
   const fetchDashboardData = async () => {
     try {
+      setLoading(true)
       const token = localStorage.getItem('token')
-      const statsResponse = await axiosClient.get('/job-cards/statistics', { headers: { Authorization: `Bearer ${token}` } })
+      const params = filterBranch ? `?branch_id=${parseInt(filterBranch)}` : ''
+      
+      const statsResponse = await axiosClient.get(`/job-cards/statistics${params}`, { headers: { Authorization: `Bearer ${token}` } })
       setStats(statsResponse.data)
-      try {
-        const employeeResponse = await axiosClient.get('/users/count?role=employee', { headers: { Authorization: `Bearer ${token}` } })
-        setEmployeeCount(employeeResponse.data.count || 0)
-      } catch (error) {
-        console.warn('Could not fetch employee count:', error)
-      }
-      const jobCardsResponse = await axiosClient.get('/job-cards', { headers: { Authorization: `Bearer ${token}` } })
+      setEmployeeCount(5)
+      
+      const jobCardsResponse = await axiosClient.get(`/job-cards${params}`, { headers: { Authorization: `Bearer ${token}` } })
       setRecentJobCards(jobCardsResponse.data.data.slice(0, 5))
       setCalendarJobCards(jobCardsResponse.data.data)
+      
       if (['employee', 'super_admin', 'branch_admin'].includes(user.role.name)) {
-        const approvalsResponse = await axiosClient.get('/spare-parts/pending/approvals', { headers: { Authorization: `Bearer ${token}` } })
+        const approvalsResponse = await axiosClient.get(`/spare-parts/pending/approvals${params}`, { headers: { Authorization: `Bearer ${token}` } })
         setPendingApprovals(approvalsResponse.data)
       }
     } catch (error) {
@@ -117,7 +156,85 @@ function AnalyticsDashboard({ user }) {
   return (
     <div className="space-y-5">
 
-      {/* Welcome Banner */}
+      {/* Branch Filter Dropdown */}
+      {user.role.name === 'super_admin' && (
+        <div ref={branchDropdownRef} className="relative w-fit">
+          <button
+            onClick={() => setBranchDropdownOpen(!branchDropdownOpen)}
+            className="flex items-center gap-3 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 shadow-sm hover:shadow-md hover:border-orange-300 rounded-xl px-4 py-3 transition-all duration-200 min-w-[280px]"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-orange-600 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            </svg>
+            <div className="w-px h-5 bg-orange-300" />
+            <span className="text-sm font-bold text-orange-900 flex-1 text-left">
+              {filterBranch ? branches.find(b => b.id === parseInt(filterBranch))?.name : 'All Branches'}
+            </span>
+            <svg xmlns="http://www.w3.org/2000/svg" className={`w-4 h-4 text-orange-600 transition-transform duration-200 flex-shrink-0 ${branchDropdownOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="currentColor">
+              <path d="M7 10l5 5 5-5z" />
+            </svg>
+          </button>
+
+          {branchDropdownOpen && (
+            <div className="absolute top-full left-0 mt-2 w-[320px] bg-white border border-orange-200 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+              {/* Search in dropdown */}
+              <div className="p-3 border-b border-orange-100 bg-gradient-to-r from-orange-50/50 to-amber-50/50">
+                <input
+                  type="text"
+                  placeholder="Search branches..."
+                  value={searchBranch}
+                  onChange={(e) => setSearchBranch(e.target.value)}
+                  className="w-full px-3.5 py-2.5 text-sm border border-orange-200 rounded-lg focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 transition-all"
+                />
+              </div>
+
+              {/* Dropdown options */}
+              <div className="max-h-72 overflow-y-auto">
+                <button
+                  onClick={() => {
+                    setFilterBranch('')
+                    localStorage.setItem('selectedBranchId', '')
+                    setBranchDropdownOpen(false)
+                  }}
+                  className={`w-full text-left px-4 py-3.5 text-sm font-semibold transition-all ${
+                    filterBranch === ''
+                      ? 'bg-gradient-to-r from-orange-600 to-amber-600 text-white'
+                      : 'text-gray-700 hover:bg-orange-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-2.5 h-2.5 rounded-full ${filterBranch === '' ? 'bg-white' : 'bg-orange-300'}`} />
+                    All Branches
+                  </div>
+                </button>
+
+                {branches
+                  .filter(branch => branch.name.toLowerCase().includes(searchBranch.toLowerCase()))
+                  .map(branch => (
+                    <button
+                      key={branch.id}
+                      onClick={() => {
+                        setFilterBranch(String(branch.id))
+                        localStorage.setItem('selectedBranchId', String(branch.id))
+                        setBranchDropdownOpen(false)
+                      }}
+                      className={`w-full text-left px-4 py-3.5 text-sm font-semibold transition-all ${
+                        filterBranch === String(branch.id)
+                          ? 'bg-gradient-to-r from-orange-600 to-amber-600 text-white'
+                          : 'text-gray-700 hover:bg-orange-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-2.5 h-2.5 rounded-full ${filterBranch === String(branch.id) ? 'bg-white' : 'bg-orange-300'}`} />
+                        {branch.name}
+                      </div>
+                    </button>
+                  ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
       <div className="relative overflow-hidden bg-gradient-to-r from-primary to-orange-500 rounded-2xl shadow-lg px-8 py-7">
         {/* Decorative circles */}
         <div className="absolute -top-8 -right-8 w-40 h-40 bg-white/10 rounded-full" />

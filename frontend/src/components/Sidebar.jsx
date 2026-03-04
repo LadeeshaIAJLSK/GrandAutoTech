@@ -27,21 +27,6 @@ function Sidebar({
           📊 Dashboard
         </button>
 
-        {/* Petty Cash */}
-        <button
-          onClick={() => {
-            setCurrentPage('petty-cash')
-            setUsersMenuOpen(false)
-          }}
-          className={`w-full text-left px-6 py-3 transition-colors ${
-            currentPage === 'petty-cash' 
-              ? 'bg-primary text-white font-semibold' 
-              : 'text-gray-300 hover:bg-sidebar-hover'
-          }`}
-        >
-          💰 Petty Cash
-        </button>
-
         {/* Users with Submenu */}
         {canViewUsers && (
           <div>
