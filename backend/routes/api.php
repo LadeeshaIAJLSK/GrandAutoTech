@@ -72,7 +72,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/job-cards/statistics', [JobCardController::class, 'getStatistics']);
     Route::get('/job-cards/{id}', [JobCardController::class, 'show']);
     Route::post('/job-cards', [JobCardController::class, 'store']);
-    Route::put('/job-cards/{id}', [JobCardController::class, 'update']);
+    Route::put('/job-cards/{id}', [JobCardController::class, 'update']);//used
     Route::patch('/job-cards/{id}/status', [JobCardController::class, 'updateStatus']);
     Route::delete('/job-cards/{id}', [JobCardController::class, 'destroy']);
 
@@ -84,12 +84,27 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/job-cards/{id}/tasks', [JobCardController::class, 'addTask']);
 
     // Job Card Charges
-    Route::post('/job-cards/{id}/charges', [JobCardController::class, 'addCharge']);
+    Route::post('/job-cards/{id}/charges', [JobCardController::class, 'addCharge']);//used
+
+
+
+    
+    // Spare Parts Management
+    Route::get('/job-cards/{jobCardId}/spare-parts', [SparePartsRequestController::class, 'index']);//used
+    Route::post('/job-cards/{jobCardId}/spare-parts', [SparePartsRequestController::class, 'store']);
+    Route::put('/spare-parts/{id}', [SparePartsRequestController::class, 'update']);//used
+    Route::delete('/spare-parts/{id}', [SparePartsRequestController::class, 'destroy']);
+    // Approval Workflow
+    Route::post('/spare-parts/{id}/approve/employee', [SparePartsRequestController::class, 'employeeApprove']);
+    Route::post('/spare-parts/{id}/approve/admin', [SparePartsRequestController::class, 'adminApprove']);
+    Route::post('/spare-parts/{id}/approve/customer', [SparePartsRequestController::class, 'customerApprove']);
+    Route::post('/spare-parts/{id}/confirm-delivery', [SparePartsRequestController::class, 'confirmDelivery']);//used
+    Route::get('/spare-parts/pending/approvals', [SparePartsRequestController::class, 'getPendingApprovals']);
 
     // Tasks Management
     Route::get('/job-cards/{jobCardId}/tasks', [TaskController::class, 'index']);
     Route::get('/tasks/{id}', [TaskController::class, 'show']);
-    Route::put('/tasks/{id}', [TaskController::class, 'update']);
+    Route::put('/tasks/{id}', [TaskController::class, 'update']);//used
     Route::delete('/tasks/{id}', [TaskController::class, 'destroy']);
     Route::post('/tasks/{id}/assign', [TaskController::class, 'assignEmployees']);
     Route::post('/tasks/{id}/start', [TaskController::class, 'startTask']);
@@ -97,27 +112,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/tasks/{id}/resume', [TaskController::class, 'resumeTask']);
     Route::post('/tasks/{id}/complete', [TaskController::class, 'completeTask']);
     Route::get('/employees/available', [TaskController::class, 'getAvailableEmployees']);
-    Route::get('/my-tasks', [TaskController::class, 'getMyTasks']);
-    Route::get('/all-tasks', [TaskController::class, 'getAllTasks']);
+    Route::get('/my-tasks', [TaskController::class, 'getMyTasks']);//used
+    Route::get('/all-tasks', [TaskController::class, 'getAllTasks']);//used
     Route::post('/tasks/{id}/mark-done', [TaskController::class, 'markAsDone']);
     Route::post('/job-cards/{jobCardId}/mark-inspected', [TaskController::class, 'markJobCardAsInspected']);
 
 
-    // Spare Parts Management
-Route::get('/job-cards/{jobCardId}/spare-parts', [SparePartsRequestController::class, 'index']);
-Route::post('/job-cards/{jobCardId}/spare-parts', [SparePartsRequestController::class, 'store']);
-Route::put('/spare-parts/{id}', [SparePartsRequestController::class, 'update']);
-Route::delete('/spare-parts/{id}', [SparePartsRequestController::class, 'destroy']);
 
-// Approval Workflow
-Route::post('/spare-parts/{id}/approve/employee', [SparePartsRequestController::class, 'employeeApprove']);
-Route::post('/spare-parts/{id}/approve/admin', [SparePartsRequestController::class, 'adminApprove']);
-Route::post('/spare-parts/{id}/approve/customer', [SparePartsRequestController::class, 'customerApprove']);
-Route::post('/spare-parts/{id}/confirm-delivery', [SparePartsRequestController::class, 'confirmDelivery']);
-Route::get('/spare-parts/pending/approvals', [SparePartsRequestController::class, 'getPendingApprovals']);
+
 
 // Status Updates
-Route::patch('/spare-parts/{id}/status', [SparePartsRequestController::class, 'updateStatus']);
+Route::patch('/spare-parts/{id}/status', [SparePartsRequestController::class, 'updateStatus']);//used
 
 
 
@@ -157,6 +162,7 @@ Route::get('/reports/daily-revenue', [ReportController::class, 'dailyRevenue']);
 
 Route::get('/petty-cash/funds', [PettyCashController::class, 'getFunds']);
 Route::post('/petty-cash/funds', [PettyCashController::class, 'createFund']);
+Route::put('/petty-cash/funds/{fundId}/fixed-amount', [PettyCashController::class, 'editFixedAmount']);
 Route::get('/petty-cash/transactions', [PettyCashController::class, 'getTransactions']);
 Route::post('/petty-cash/expense', [PettyCashController::class, 'recordExpense']);
 Route::post('/petty-cash/replenishment', [PettyCashController::class, 'recordReplenishment']);

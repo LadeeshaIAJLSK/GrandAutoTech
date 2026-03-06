@@ -6,6 +6,9 @@ function AccessRightsManagement({ user }) {
   const [groupedPermissions, setGroupedPermissions] = useState({})
   const [selectedRole, setSelectedRole] = useState(null)
   const [selectedPermissions, setSelectedPermissions] = useState([])
+  const [employeePermissions, setEmployeePermissions] = useState([])
+  const [supervisorPermissions, setSupervisorPermissions] = useState([])
+  const [technicianType, setTechnicianType] = useState('employee') // 'employee' or 'supervisor'
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -32,7 +35,19 @@ function AccessRightsManagement({ user }) {
 
   const selectRole = (role) => {
     setSelectedRole(role)
-    setSelectedPermissions(role.permissions.map(p => p.id))
+    setTechnicianType('employee')
+    
+    if (role.is_technician) {
+      // For technician role, set employee and supervisor permissions separately
+      const employeePerms = role.permissions_employee.map(p => p.id)
+      const supervisorPerms = role.permissions_supervisor.map(p => p.id)
+      setEmployeePermissions(employeePerms)
+      setSupervisorPermissions(supervisorPerms)
+      setSelectedPermissions(employeePerms)
+    } else {
+      // For regular roles, use the permissions array
+      setSelectedPermissions(role.permissions.map(p => p.id))
+    }
   }
 
   const togglePermission = (permissionId) => {
@@ -41,16 +56,47 @@ function AccessRightsManagement({ user }) {
     } else {
       setSelectedPermissions([...selectedPermissions, permissionId])
     }
+
+    // Update employee/supervisor permissions based on current tab
+    if (selectedRole.is_technician) {
+      if (technicianType === 'employee') {
+        setEmployeePermissions(selectedPermissions)
+      } else {
+        setSupervisorPermissions(selectedPermissions)
+      }
+    }
   }
 
   const toggleAllInModule = (module) => {
     const modulePermissions = groupedPermissions[module]
     const modulePermissionIds = modulePermissions.map(p => p.id)
     const allSelected = modulePermissionIds.every(id => selectedPermissions.includes(id))
+    
+    let newPermissions
     if (allSelected) {
-      setSelectedPermissions(selectedPermissions.filter(id => !modulePermissionIds.includes(id)))
+      newPermissions = selectedPermissions.filter(id => !modulePermissionIds.includes(id))
     } else {
-      setSelectedPermissions([...new Set([...selectedPermissions, ...modulePermissionIds])])
+      newPermissions = [...new Set([...selectedPermissions, ...modulePermissionIds])]
+    }
+    
+    setSelectedPermissions(newPermissions)
+
+    // Update employee/supervisor permissions based on current tab
+    if (selectedRole.is_technician) {
+      if (technicianType === 'employee') {
+        setEmployeePermissions(newPermissions)
+      } else {
+        setSupervisorPermissions(newPermissions)
+      }
+    }
+  }
+
+  const switchTechnicianType = (type) => {
+    setTechnicianType(type)
+    if (type === 'employee') {
+      setSelectedPermissions(employeePermissions)
+    } else {
+      setSelectedPermissions(supervisorPermissions)
     }
   }
 
@@ -58,9 +104,22 @@ function AccessRightsManagement({ user }) {
     setSaving(true)
     try {
       const token = localStorage.getItem('token')
-      await axiosClient.put(`/access-rights/roles/${selectedRole.id}`, {
-        permission_ids: selectedPermissions
-      }, { headers: { Authorization: `Bearer ${token}` } })
+      
+      let payload
+      if (selectedRole.is_technician) {
+        payload = {
+          employee_permissions: employeePermissions,
+          supervisor_permissions: supervisorPermissions
+        }
+      } else {
+        payload = {
+          permission_ids: selectedPermissions
+        }
+      }
+
+      await axiosClient.put(`/access-rights/roles/${selectedRole.id}`, payload, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
       alert('Permissions updated successfully!')
       fetchRolesAndPermissions()
     } catch (error) {
@@ -116,7 +175,7 @@ function AccessRightsManagement({ user }) {
               >
                 <div className="text-sm font-semibold">{role.display_name}</div>
                 <div className={`text-xs mt-0.5 ${selectedRole?.id === role.id ? 'text-white/70' : 'text-gray-400'}`}>
-                  {role.permissions.length} permission{role.permissions.length !== 1 ? 's' : ''}
+                  {role.is_technician ? 'With subtypes' : `${role.permissions?.length || 0} permissions`}
                 </div>
               </button>
             ))}
@@ -156,6 +215,32 @@ function AccessRightsManagement({ user }) {
                   )}
                 </button>
               </div>
+
+              {/* Technician Type Tabs */}
+              {selectedRole.is_technician && (
+                <div className="flex gap-3 mb-5 pb-4 border-b border-gray-100">
+                  <button
+                    onClick={() => switchTechnicianType('employee')}
+                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                      technicianType === 'employee'
+                        ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    Employee Technician
+                  </button>
+                  <button
+                    onClick={() => switchTechnicianType('supervisor')}
+                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                      technicianType === 'supervisor'
+                        ? 'bg-purple-100 text-purple-700 border border-purple-200'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    Supervisor Technician
+                  </button>
+                </div>
+              )}
 
               {/* Permission Modules */}
               <div className="space-y-4">
@@ -260,6 +345,11 @@ function AccessRightsManagement({ user }) {
           <p className="text-xs text-gray-600 mt-0.5">
             Changes to permissions will affect all users with this role immediately.
             Be careful when removing critical permissions like "view_dashboard" or "view_job_cards".
+            {selectedRole?.is_technician && (
+              <>
+                <br />Employee and Supervisor technicians have separate permission sets. Employee permissions are for basic task execution, while Supervisor permissions include approval and management capabilities.
+              </>
+            )}
           </p>
         </div>
       </div>

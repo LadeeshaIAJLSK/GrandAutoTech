@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class UserController extends Controller
@@ -32,6 +33,11 @@ class UserController extends Controller
             ->where(function($query) use ($user) {
                 $query->whereNull('role_permissions.branch_id')
                       ->orWhere('role_permissions.branch_id', $user->branch_id);
+            })
+            ->where(function($query) use ($user) {
+                // Check if permission applies to this user's technician_type
+                $query->whereNull('role_permissions.technician_type')
+                      ->orWhere('role_permissions.technician_type', $user->technician_type);
             })
             ->pluck('permissions.name')
             ->toArray();
@@ -63,6 +69,11 @@ class UserController extends Controller
             ->where(function($query) use ($user) {
                 $query->whereNull('role_permissions.branch_id')
                       ->orWhere('role_permissions.branch_id', $user->branch_id);
+            })
+            ->where(function($query) use ($user) {
+                // Check if permission applies to this user's technician_type
+                $query->whereNull('role_permissions.technician_type')
+                      ->orWhere('role_permissions.technician_type', $user->technician_type);
             })
             ->pluck('permissions.name')
             ->toArray();
@@ -151,7 +162,6 @@ class UserController extends Controller
 
         return response()->json($targetUser);
     }
-
     /**
      * Create new user
      */
@@ -162,13 +172,23 @@ class UserController extends Controller
         // Validate input first (branch_id is required from frontend)
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'first_name' => 'nullable|string|max:255',
             'email' => 'required|email|unique:users,email',
             'phone' => 'required|string|max:20',
             'employee_code' => 'required|string|unique:users,employee_code',
             'password' => 'required|string|min:8',
             'role_id' => 'required|exists:roles,id',
+            'technician_type' => 'nullable|in:employee,supervisor',
             'branch_id' => 'required|exists:branches,id',
-            'is_active' => 'boolean',
+            'is_active' => 'nullable|in:0,1,true,false',
+            'gender' => 'required|in:male,female,other',
+            'date_of_birth' => 'required|date',
+            'join_date' => 'required|date',
+            'left_date' => 'nullable|date',
+            'emergency_contact_name' => 'required|string|max:255',
+            'emergency_contact_no' => 'required|string|max:20',
+            'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+            'special_notes' => 'nullable|string',
         ]);
 
         // Check WRITE permission (with branch restriction)
@@ -184,6 +204,16 @@ class UserController extends Controller
             return response()->json(['message' => 'Cannot create super admin users. There is only one super admin in the system.'], 403);
         }
 
+        // Validate technician_type is required when role is technician
+        if ($requestedRole && $requestedRole->name === 'technician') {
+            if (!isset($validated['technician_type']) || empty($validated['technician_type'])) {
+                return response()->json(['message' => 'Technician type (employee or supervisor) is required for technician role'], 422);
+            }
+        } else {
+            // Clear technician_type if role is not technician
+            $validated['technician_type'] = null;
+        }
+
         // For branch admins, ensure branch_id matches their branch (already validated above)
         $role = DB::table('roles')->where('id', $user->role_id)->first();
         if ($role->name === 'branch_admin') {
@@ -191,6 +221,20 @@ class UserController extends Controller
         }
 
         $validated['password'] = Hash::make($validated['password']);
+
+        // Convert is_active to boolean
+        if (isset($validated['is_active'])) {
+            $validated['is_active'] = filter_var($validated['is_active'], FILTER_VALIDATE_BOOLEAN);
+        } else {
+            $validated['is_active'] = true; // Default to true
+        }
+
+        // Handle file upload if present
+        if ($request->hasFile('profile_image')) {
+            $file = $request->file('profile_image');
+            $path = $file->store('profiles', 'public');
+            $validated['profile_image'] = $path;
+        }
 
         $newUser = User::create($validated);
 
@@ -217,14 +261,43 @@ class UserController extends Controller
 
         $validated = $request->validate([
             'name' => 'sometimes|string|max:255',
+            'first_name' => 'nullable|string|max:255',
             'email' => ['sometimes', 'email', Rule::unique('users')->ignore($id)],
             'phone' => 'sometimes|required|string|max:20',
             'employee_code' => ['sometimes', 'required', 'string', Rule::unique('users')->ignore($id)],
             'password' => 'nullable|string|min:8',
             'role_id' => 'sometimes|exists:roles,id',
+            'technician_type' => 'nullable|in:employee,supervisor',
             'branch_id' => 'sometimes|required|exists:branches,id',
-            'is_active' => 'boolean',
+            'is_active' => 'nullable|in:0,1,true,false',
+            'gender' => 'sometimes|required|in:male,female,other',
+            'date_of_birth' => 'sometimes|required|date',
+            'join_date' => 'sometimes|required|date',
+            'left_date' => 'nullable|date',
+            'emergency_contact_name' => 'sometimes|required|string|max:255',
+            'emergency_contact_no' => 'sometimes|required|string|max:20',
+            'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+            'special_notes' => 'nullable|string',
         ]);
+
+        // If role_id is being updated, validate technician_type
+        if (isset($validated['role_id'])) {
+            $newRole = DB::table('roles')->where('id', $validated['role_id'])->first();
+            if ($newRole && $newRole->name === 'technician') {
+                if (!isset($validated['technician_type']) || empty($validated['technician_type'])) {
+                    return response()->json(['message' => 'Technician type (employee or supervisor) is required for technician role'], 422);
+                }
+            } else {
+                // Clear technician_type if role is not technician
+                $validated['technician_type'] = null;
+            }
+        } elseif (isset($validated['technician_type'])) {
+            // If updating technician_type, ensure current role is technician
+            $currentRole = DB::table('roles')->where('id', $targetUser->role_id)->first();
+            if (!$currentRole || $currentRole->name !== 'technician') {
+                return response()->json(['message' => 'Technician type can only be set for technician role'], 422);
+            }
+        }
 
         // Branch Admin cannot change branch
         $role = DB::table('roles')->where('id', $user->role_id)->first();
@@ -234,6 +307,22 @@ class UserController extends Controller
 
         if (isset($validated['password'])) {
             $validated['password'] = Hash::make($validated['password']);
+        }
+
+        // Convert is_active to boolean
+        if (isset($validated['is_active'])) {
+            $validated['is_active'] = filter_var($validated['is_active'], FILTER_VALIDATE_BOOLEAN);
+        }
+
+        // Handle file upload if present
+        if ($request->hasFile('profile_image')) {
+            $file = $request->file('profile_image');
+            // Delete old image if exists
+            if ($targetUser->profile_image) {
+                Storage::disk('public')->delete($targetUser->profile_image);
+            }
+            $path = $file->store('profiles', 'public');
+            $validated['profile_image'] = $path;
         }
 
         $targetUser->update($validated);

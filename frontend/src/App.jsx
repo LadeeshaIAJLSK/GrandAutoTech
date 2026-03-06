@@ -181,7 +181,7 @@ function UserManagementRoute({ user }) {
   const roleMap = {
     'branch_admin': { name: 'branch_admin', displayName: 'Branch Admins' },
     'accountant': { name: 'accountant', displayName: 'Accountants' },
-    'employee': { name: 'employee', displayName: 'Technicians' },
+    'employee': { name: 'technician', displayName: 'Technicians' },
     'support_staff': { name: 'support_staff', displayName: 'Support Staff' }
   }
   const roleFilter = roleMap[role] || null

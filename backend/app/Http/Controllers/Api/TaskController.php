@@ -17,6 +17,7 @@ class TaskController extends Controller
     /**
      * Get tasks assigned to current employee
      */
+    //used
     public function getMyTasks(Request $request)
     {
         $user = $request->user();
@@ -44,6 +45,7 @@ class TaskController extends Controller
     /**
      * Get all tasks (for super admin to see all employee tasks)
      */
+    //used
     public function getAllTasks(Request $request)
     {
         $user = $request->user();

@@ -18,13 +18,23 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name',
+        'first_name',
         'email',
         'phone',
         'employee_code',
         'password',
         'role_id',
+        'technician_type',
         'branch_id',
         'is_active',
+        'gender',
+        'date_of_birth',
+        'join_date',
+        'left_date',
+        'emergency_contact_name',
+        'emergency_contact_no',
+        'profile_image',
+        'special_notes',
     ];
 
     /**
@@ -48,6 +58,9 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
+            'date_of_birth' => 'date',
+            'join_date' => 'date',
+            'left_date' => 'date',
         ];
     }
 

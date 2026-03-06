@@ -16,8 +16,12 @@ function JobCardDetail({ jobCardId, onClose, user } = {}) {
   const [jobCard, setJobCard] = useState(null)
   const [loading, setLoading] = useState(true)
   const [activeSection, setActiveSection] = useState('overview')
-  const [inspectedTasks, setInspectedTasks] = useState({})
-  const [markingInspected, setMarkingInspected] = useState(false)
+  const [savingPrices, setSavingPrices] = useState(false)
+  const [pricingStatus, setPricingStatus] = useState({
+    savedServices: false,
+    savedSpareParts: false,
+    savedCharges: false
+  })
 
   // Refs for sections
   const overviewRef = useRef(null)
@@ -25,7 +29,6 @@ function JobCardDetail({ jobCardId, onClose, user } = {}) {
   const partsRef = useRef(null)
   const advancePaymentsRef = useRef(null)
   const pricingRef = useRef(null)
-  const inspectionRef = useRef(null)
   const historyRef = useRef(null)
   const printRef = useRef()
 
@@ -70,7 +73,7 @@ function JobCardDetail({ jobCardId, onClose, user } = {}) {
   }
 
   const handlePrint = useReactToPrint({
-    content: () => printRef.current,
+    contentRef: printRef,
     documentTitle: jobCard?.job_card_number,
   })
 
@@ -101,96 +104,97 @@ function JobCardDetail({ jobCardId, onClose, user } = {}) {
 
   const formatCurrency = (amount) => new Intl.NumberFormat('en-LK', { style: 'currency', currency: 'LKR', minimumFractionDigits: 2 }).format(amount)
 
-  const handleTaskInspectionChange = (taskId) => {
-    setInspectedTasks(prev => ({
-      ...prev,
-      [taskId]: !prev[taskId]
-    }))
+  // Check if there are any records in pricing sections
+  const hasPricingRecords = () => {
+    const hasServices = jobCard.tasks?.some(task => task.amount > 0) || false
+    const hasParts = jobCard.spare_parts_requests?.length > 0 || false
+    const hasCharges = jobCard.otherCharges?.length > 0 || false
+    return hasServices || hasParts || hasCharges
   }
 
-  const handleCheckAllTasks = () => {
-    const allChecked = jobCard.tasks?.length > 0 && 
-      jobCard.tasks.every(task => inspectedTasks[task.id])
+  // Check if all pricing sections with records have been saved
+  const allPricingSectionsSaved = () => {
+    const hasServices = jobCard.tasks?.some(task => task.amount > 0) || false
+    const hasParts = jobCard.spare_parts_requests?.length > 0 || false
+    const hasCharges = jobCard.otherCharges?.length > 0 || false
+
+    // If section has records, it must be saved
+    if (hasServices && !pricingStatus.savedServices) return false
+    if (hasParts && !pricingStatus.savedSpareParts) return false
+    if (hasCharges && !pricingStatus.savedCharges) return false
+
+    // At least one section with records must exist
+    return hasServices || hasParts || hasCharges
+  }
+
+  // Get list of unsaved sections
+  const getUnsavedSections = () => {
+    const unsaved = []
+    if ((jobCard.tasks?.some(task => task.amount > 0) || false) && !pricingStatus.savedServices) {
+      unsaved.push('Services Pricing')
+    }
+    if ((jobCard.spare_parts_requests?.length > 0 || false) && !pricingStatus.savedSpareParts) {
+      unsaved.push('Spare Parts Pricing')
+    }
+    if ((jobCard.otherCharges?.length > 0 || false) && !pricingStatus.savedCharges) {
+      unsaved.push('Additional Charges')
+    }
+    return unsaved
+  }
+
+  // Validate all pricing before marking as inspected
+  const validateAllPricing = () => {
+    const errors = []
     
-    if (allChecked) {
-      setInspectedTasks({})
-    } else {
-      const newInspected = {}
-      jobCard.tasks?.forEach(task => {
-        newInspected[task.id] = true
-      })
-      setInspectedTasks(newInspected)
+    // Check tasks with amounts
+    jobCard.tasks?.forEach(task => {
+      if (task.amount && task.amount > 0 && (!task.cost_price || task.cost_price === 0)) {
+        errors.push(`Task "${task.task_name}" has no cost price set`)
+      }
+    })
+
+    // Check spare parts
+    jobCard.spare_parts_requests?.forEach(part => {
+      if (part.overall_status === 'delivered' || part.overall_status === 'installed') {
+        if (!part.unit_cost || part.unit_cost === 0) {
+          errors.push(`Spare part "${part.part_name}" has no unit cost set`)
+        }
+        if (!part.selling_price || part.selling_price === 0) {
+          errors.push(`Spare part "${part.part_name}" has no selling price set`)
+        }
+      }
+    })
+
+    // Check other charges
+    jobCard.otherCharges?.forEach((charge, idx) => {
+      if (!charge.amount || charge.amount === 0) {
+        errors.push(`Charge "${charge.description}" has no amount set`)
+      }
+    })
+
+    return {
+      isValid: errors.length === 0,
+      errors
     }
   }
 
-  const validatePricingBeforeInspection = () => {
-    // Check spare parts pricing - only if spare parts exist
-    if (jobCard.spare_parts_requests && jobCard.spare_parts_requests.length > 0) {
-      for (const sparePart of jobCard.spare_parts_requests) {
-        // Only validate if pricing fields are set
-        if ((sparePart.cost_price !== null && sparePart.cost_price !== undefined) || 
-            (sparePart.amount !== null && sparePart.amount !== undefined)) {
-          if (!sparePart.cost_price || sparePart.cost_price === 0) {
-            return {
-              valid: false,
-              message: `Spare part "${sparePart.part_name}" has zero cost price. Please enter a valid cost price.`
-            }
-          }
-          if (!sparePart.amount || sparePart.amount === 0) {
-            return {
-              valid: false,
-              message: `Spare part "${sparePart.part_name}" has zero selling price. Please enter a valid selling price.`
-            }
-          }
-        }
-      }
-    }
-
-    // Check task/service pricing - only for tasks that have pricing set
-    if (jobCard.tasks && jobCard.tasks.length > 0) {
-      for (const task of jobCard.tasks) {
-        // Only validate if task has cost or amount assigned (not all tasks need pricing)
-        if ((task.cost !== null && task.cost !== undefined && task.cost > 0) || 
-            (task.amount !== null && task.amount !== undefined && task.amount > 0)) {
-          if (!task.cost || task.cost === 0) {
-            return {
-              valid: false,
-              message: `Task "${task.task_name}" has invalid cost. Please enter a valid cost price.`
-            }
-          }
-          if (!task.amount || task.amount === 0) {
-            return {
-              valid: false,
-              message: `Task "${task.task_name}" has invalid amount. Please enter a valid amount.`
-            }
-          }
-        }
-      }
-    }
-
-    return { valid: true }
-  }
-
-  const handleMarkAsInspected = async () => {
-    const validation = validatePricingBeforeInspection()
-    if (!validation.valid) {
-      alert(validation.message)
+  const handleSavePrices = async () => {
+    // Check if all pricing sections with records are saved
+    if (!allPricingSectionsSaved()) {
+      const unsaved = getUnsavedSections()
+      alert(`❌ Please save pricing for:\n\n• ${unsaved.join('\n• ')}\n\nBefore proceeding.`)
       return
     }
 
     try {
-      setMarkingInspected(true)
-      const token = localStorage.getItem('token')
-      await axiosClient.post(`/job-cards/${jobCard.id}/mark-inspected`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      alert('Job card marked as inspected successfully!')
+      setSavingPrices(true)
+      await axiosClient.post(`/job-cards/${jobCard.id}/mark-inspected`, {})
+      alert('✅ Prices saved and job card marked as inspected!')
       fetchJobCard()
-      setInspectedTasks({})
     } catch (error) {
-      alert(error.response?.data?.message || 'Error marking job card as inspected')
+      alert(error.response?.data?.message || 'Error saving prices')
     } finally {
-      setMarkingInspected(false)
+      setSavingPrices(false)
     }
   }
 
@@ -222,8 +226,6 @@ function JobCardDetail({ jobCardId, onClose, user } = {}) {
       icon: <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg> },
     { key: 'pricing',         ref: pricingRef,         label: 'Pricing & Payments',
       icon: <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
-    { key: 'inspection',      ref: inspectionRef,      label: 'Inspection',
-      icon: <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
     { key: 'history',         ref: historyRef,         label: 'History',
       icon: <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
   ]
@@ -431,221 +433,88 @@ function JobCardDetail({ jobCardId, onClose, user } = {}) {
 
         {/* Pricing & Payments Section */}
         <section ref={pricingRef} className="scroll-mt-40">
-          <PaymentManagement jobCard={jobCard} onUpdate={fetchJobCard} user={user} advancePaymentsRef={advancePaymentsRef} />
+          <PaymentManagement jobCard={jobCard} onUpdate={fetchJobCard} user={user} advancePaymentsRef={advancePaymentsRef} onPricingStatusChange={setPricingStatus} />
         </section>
 
-        {/* Inspection Section */}
-        <section ref={inspectionRef} className="scroll-mt-40">
-          <h2 className="text-base font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2 mb-4">
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            Quality Inspection
-          </h2>
-
-          {/* Task Inspection Section - Only show when completed */}
-          {jobCard.status === 'completed' && jobCard.tasks && jobCard.tasks.length > 0 && (
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200 shadow-sm p-6 mb-6">
+        {/* Save Prices Section - Only show when job card is completed */}
+        {jobCard.status === 'completed' && (
+          <section className="scroll-mt-40">
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border-2 border-green-200 shadow-sm p-6">
               <div className="flex items-center gap-3 mb-5">
-                <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
                 <div>
-                  <h3 className="font-bold text-gray-900">Mark Job Card as Inspected</h3>
-                  <p className="text-sm text-gray-600">Review and approve all task-related actions for this job card.</p>
+                  <h3 className="font-bold text-gray-900">Save Prices & Mark as Inspected</h3>
+                  <p className="text-sm text-gray-600">Review all prices for services, spare parts, and additional charges before completing.</p>
                 </div>
               </div>
 
-              {/* Check All Checkbox */}
-              <div className="bg-white rounded-lg p-4 mb-4 border border-blue-100">
-                <label className="flex items-center gap-3 cursor-pointer group">
-                  <input
-                    type="checkbox"
-                    checked={jobCard.tasks?.length > 0 && jobCard.tasks.every(task => inspectedTasks[task.id])}
-                    onChange={handleCheckAllTasks}
-                    className="w-5 h-5 rounded border-2 border-blue-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                  />
-                  <span className="font-semibold text-gray-700 group-hover:text-gray-900">
-                    {jobCard.tasks?.every(task => inspectedTasks[task.id]) ? 'Uncheck All' : 'Check All Tasks'}
-                  </span>
-                </label>
-              </div>
-
-              {/* Task List with Checkboxes */}
-              <div className="space-y-2 mb-5 max-h-96 overflow-y-auto">
-                {jobCard.tasks.map((task) => (
-                  <div key={task.id} className="bg-white rounded-lg p-4 border border-gray-200 hover:border-blue-300 hover:shadow-sm transition-all">
-                    <label className="flex items-start gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={!!inspectedTasks[task.id]}
-                        onChange={() => handleTaskInspectionChange(task.id)}
-                        className="w-5 h-5 rounded border-2 border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer mt-0.5 flex-shrink-0"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-gray-900 truncate">{task.task_name}</p>
-                        <p className="text-sm text-gray-600 mt-0.5">{task.description || 'No description'}</p>
-                        <div className="flex items-center gap-2 mt-2">
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 capitalize">
-                            {task.category || 'general'}
-                          </span>
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">
-                            ✓ Completed
-                          </span>
-                        </div>
-                      </div>
-                    </label>
-                  </div>
-                ))}
-              </div>
-
-              {/* Mark as Inspected Button */}
               {(() => {
-                const pricingValidation = validatePricingBeforeInspection()
-                const tasksChecked = jobCard.tasks?.length > 0 && jobCard.tasks.every(task => inspectedTasks[task.id])
-                
-                // Determine specific disabled reason
-                let disabledReason = null
-                let buttonText = 'Mark All as Inspected'
-                
-                if (markingInspected) {
-                  buttonText = 'Marking as Inspected...'
-                } else if (!pricingValidation.valid) {
-                  // Check if it's spare parts or tasks pricing issue
-                  if (pricingValidation.message.includes('Spare')) {
-                    disabledReason = 'Fix Spare Parts Pricing'
-                    buttonText = 'Fix Spare Parts Pricing'
-                  } else if (pricingValidation.message.includes('Task') || pricingValidation.message.includes('Service')) {
-                    disabledReason = 'Fix Services Pricing'
-                    buttonText = 'Fix Services Pricing'
-                  } else {
-                    disabledReason = 'Fix Pricing Issues'
-                    buttonText = 'Fix Pricing Issues'
-                  }
-                } else if (!tasksChecked) {
-                  disabledReason = 'Check all tasks to proceed'
-                  buttonText = 'Check All Tasks to Proceed'
-                }
-                
-                const isDisabled = markingInspected || disabledReason !== null
+                const hasPricing = hasPricingRecords()
+                const allSaved = allPricingSectionsSaved()
+                const unsaved = getUnsavedSections()
                 
                 return (
                   <div>
                     <button
-                      onClick={handleMarkAsInspected}
-                      disabled={isDisabled}
-                      title={disabledReason || 'Mark job card as inspected and complete the inspection process'}
+                      onClick={handleSavePrices}
+                      disabled={savingPrices || !allSaved}
                       className={`w-full py-3 rounded-lg font-bold text-white transition-all flex items-center justify-center gap-2 ${
-                        isDisabled
+                        savingPrices || !allSaved
                           ? 'bg-gray-300 cursor-not-allowed opacity-60'
-                          : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md hover:shadow-lg'
+                          : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 shadow-md hover:shadow-lg'
                       }`}
                     >
-                      {markingInspected ? (
+                      {savingPrices ? (
                         <>
                           <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                          Marking as Inspected...
+                          Saving Prices...
                         </>
                       ) : (
                         <>
                           <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                           </svg>
-                          {buttonText}
+                          Save Prices & Mark as Inspected
                         </>
                       )}
                     </button>
                     
-                    {/* Validation Messages */}
-                    {!pricingValidation.valid && (
+                    {/* Unsaved Sections Feedback */}
+                    {hasPricing && !allSaved && unsaved.length > 0 && (
                       <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                        <p className="text-xs font-semibold text-red-700 uppercase tracking-wide mb-1">Pricing Issue</p>
-                        <p className="text-sm text-red-700">{pricingValidation.message}</p>
+                        <p className="text-xs font-semibold text-red-700 uppercase tracking-wide mb-2">❌ Unsaved Sections</p>
+                        <p className="text-sm text-red-700 mb-2">Please save pricing for the following sections before completing:</p>
+                        <ul className="text-sm text-red-700 space-y-1">
+                          {unsaved.map((section, idx) => (
+                            <li key={idx}>• {section}</li>
+                          ))}
+                        </ul>
                       </div>
                     )}
-                    
-                    {!tasksChecked && pricingValidation.valid && (
-                      <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                        <p className="text-xs font-semibold text-yellow-700 uppercase tracking-wide mb-1">Tasks Not Reviewed</p>
-                        <p className="text-sm text-yellow-700">Please check all tasks above before proceeding with inspection.</p>
+
+                    {hasPricing && allSaved && (
+                      <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                        <p className="text-xs font-semibold text-green-700 uppercase tracking-wide">✅ All Prices Saved</p>
+                        <p className="text-sm text-green-700 mt-1">All pricing sections have been saved. Ready to mark as inspected.</p>
+                      </div>
+                    )}
+
+                    {!hasPricing && (
+                      <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">No Records Found</p>
+                        <p className="text-sm text-blue-700 mt-1">No services, spare parts, or additional charges were recorded. No pricing needed.</p>
                       </div>
                     )}
                   </div>
                 )
               })()}
             </div>
-          )}
-
-          {jobCard.inspections && jobCard.inspections.length > 0 ? (
-            <div className="space-y-3">
-              {jobCard.inspections.map((inspection) => (
-                <div key={inspection.id} className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="font-bold text-gray-900 capitalize">{inspection.inspection_type} Inspection</h3>
-                      <p className="text-xs text-gray-400 mt-0.5">
-                        {inspection.inspector?.name} · {new Date(inspection.inspected_at).toLocaleString()}
-                      </p>
-                    </div>
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${
-                      inspection.status === 'approved' ? 'bg-green-50 text-green-700 border-green-200' :
-                      inspection.status === 'rejected' ? 'bg-red-50 text-red-600 border-red-200' :
-                      'bg-yellow-50 text-yellow-700 border-yellow-200'
-                    }`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${
-                        inspection.status === 'approved' ? 'bg-green-500' :
-                        inspection.status === 'rejected' ? 'bg-red-400' : 'bg-yellow-400'
-                      }`} />
-                      {inspection.status === 'approved' ? 'Approved' :
-                       inspection.status === 'rejected' ? 'Rejected' : 'Needs Revision'}
-                    </span>
-                  </div>
-
-                  {inspection.quality_rating && (
-                    <div className="mb-3">
-                      <p className="text-xs text-gray-400 uppercase tracking-wide mb-1.5">Quality Rating</p>
-                      <div className="flex gap-0.5">
-                        {[...Array(5)].map((_, i) => (
-                          <svg key={i} xmlns="http://www.w3.org/2000/svg" className={`w-5 h-5 ${i < inspection.quality_rating ? 'text-yellow-400' : 'text-gray-200'}`} viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                          </svg>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {inspection.notes && (
-                    <div className="mb-3">
-                      <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Notes</p>
-                      <p className="text-sm text-gray-700">{inspection.notes}</p>
-                    </div>
-                  )}
-
-                  {inspection.issues_found && (
-                    <div className="flex gap-2.5 p-3.5 bg-red-50 border border-red-200 rounded-lg mt-2">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                      </svg>
-                      <div>
-                        <p className="text-xs font-semibold text-red-700 uppercase tracking-wide mb-0.5">Issues Found</p>
-                        <p className="text-sm text-red-700">{inspection.issues_found}</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 text-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 text-gray-200 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <p className="text-sm text-gray-400">No inspections performed yet</p>
-            </div>
-          )}
-        </section>
+          </section>
+        )}
 
         {/* History Section */}
         <section ref={historyRef} className="scroll-mt-40">

@@ -1,19 +1,21 @@
 import { useState, useEffect } from 'react'
 import axiosClient from '../../api/axios'
 
-function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef }) {
+function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef, onPricingStatusChange }) {
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showAdvancePaymentModal, setShowAdvancePaymentModal] = useState(false)
   const [showInvoiceModal, setShowInvoiceModal] = useState(false)
   const [showEditLaborModal, setShowEditLaborModal] = useState(false)
   const [showEditSparePartModal, setShowEditSparePartModal] = useState(false)
   const [invoice, setInvoice] = useState(null)
+  //used
   const [editLaborForm, setEditLaborForm] = useState({
     labor_cost: jobCard?.labor_cost || 0,
     cost_price: 0,
     amount: 0,
     task_id: null,
   })
+  //used
   const [editSparePartForm, setEditSparePartForm] = useState({
     cost_price: 0,
     selling_price: 0,
@@ -22,6 +24,8 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef }) {
     overall_status: null,
     actual_cost: 0,
   })
+
+  //confussed 
 
   const [paymentForm, setPaymentForm] = useState({
     amount: '',
@@ -32,7 +36,7 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef }) {
     payment_date: new Date().toISOString().slice(0, 10),
     notes: '',
   })
-
+//advance paymnet
   const [advancePaymentForm, setAdvancePaymentForm] = useState({
     amount: '',
     payment_method: 'cash',
@@ -47,6 +51,12 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef }) {
     cost_price: '',
     amount: '',
   })
+
+  // Track which pricing sections have been saved
+  const [savedServicesPrices, setSavedServicesPrices] = useState(false)
+  const [savedSparePartsPrices, setSavedSparePartsPrices] = useState(false)
+  const [savedAdditionalCharges, setSavedAdditionalCharges] = useState(false)
+  const [savingPricingSection, setSavingPricingSection] = useState(null)
 
   const canAddPayments = user?.role?.name === 'super_admin' || user?.permissions?.includes('add_payments')
   const canDeletePayments = user?.role?.name === 'super_admin' || user?.permissions?.includes('delete_payments')
@@ -100,6 +110,17 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef }) {
     }
     console.log('  - Full jobCard:', jobCard)
   }, [jobCard])
+
+  // Notify parent component when pricing status changes
+  useEffect(() => {
+    if (onPricingStatusChange) {
+      onPricingStatusChange({
+        savedServices: savedServicesPrices,
+        savedSpareParts: savedSparePartsPrices,
+        savedCharges: savedAdditionalCharges
+      })
+    }
+  }, [savedServicesPrices, savedSparePartsPrices, savedAdditionalCharges, onPricingStatusChange])
 
   const handleGenerateInvoice = async () => {
     try {
@@ -270,6 +291,68 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef }) {
       const errorMsg = error.response?.data?.message || error.response?.data?.error || error.message
       alert('❌ Error: ' + errorMsg)
     }
+  }
+
+  // Handler to check for zero prices and confirm with user
+  const handleSaveServicesPrices = () => {
+    const hasZeroPrices = (jobCard.tasks || []).some(task => 
+      task.amount === 0 || task.cost_price === 0
+    )
+    
+    if (hasZeroPrices) {
+      const zeroItems = (jobCard.tasks || [])
+        .filter(task => task.amount === 0 || task.cost_price === 0)
+        .map(t => `"${t.description || t.name}"`)
+        .join(', ')
+      
+      if (!window.confirm(`⚠️  The following services have 0 price:\n\n${zeroItems}\n\nAre you sure you want to keep these 0 prices?`)) {
+        return
+      }
+    }
+    
+    setSavedServicesPrices(true)
+  }
+
+  const handleSaveSparePartsPrices = () => {
+    const hasZeroPrices = (jobCard.spare_parts_requests || []).some(part =>
+      (part.overall_status === 'delivered' || part.overall_status === 'installed') &&
+      (part.unit_cost === 0 || part.selling_price === 0)
+    )
+    
+    if (hasZeroPrices) {
+      const zeroItems = (jobCard.spare_parts_requests || [])
+        .filter(part => 
+          (part.overall_status === 'delivered' || part.overall_status === 'installed') &&
+          (part.unit_cost === 0 || part.selling_price === 0)
+        )
+        .map(p => `"${p.part_name}"`)
+        .join(', ')
+      
+      if (!window.confirm(`⚠️  The following spare parts have 0 price:\n\n${zeroItems}\n\nAre you sure you want to keep these 0 prices?`)) {
+        return
+      }
+    }
+    
+    setSavedSparePartsPrices(true)
+  }
+
+  const handleSaveAdditionalCharges = () => {
+    const hasZeroPrices = (jobCard.otherCharges || []).some(charge =>
+      charge.amount === 0
+    )
+    
+    if (hasZeroPrices) {
+      const zeroItems = (jobCard.otherCharges || [])
+        .filter(charge => charge.amount === 0)
+        .map(c => `"${c.description}"`)
+        .join(', ')
+      
+      if (!window.confirm(`⚠️  The following charges have 0 amount:\n\n${zeroItems}\n\nAre you sure you want to keep these 0 amounts?`)) {
+        return
+      }
+    }
+    
+    setSavedAdditionalCharges(true)
   }
 
   const formatCurrency = (amount) => new Intl.NumberFormat('en-LK', { style: 'currency', currency: 'LKR' }).format(amount)
@@ -444,6 +527,51 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef }) {
             icon={<svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>}
           />
         </div>
+
+        {/* Summary Boxes */}
+        <div className="grid grid-cols-4 gap-3 px-5 pt-3 pb-3 border-b border-gray-100">
+          {(() => {
+            const totalTasks = jobCard.tasks?.length || 0
+            const totalHours = (jobCard.tasks || []).reduce((sum, task) => {
+              if (task.time_tracking && task.time_tracking.length > 0) {
+                const minutes = task.time_tracking.filter(t => t.end_time).reduce((s, t) => s + (t.duration_minutes || 0), 0)
+                return sum + (minutes / 60)
+              }
+              return sum + (parseFloat(task.labor_hours) || 0)
+            }, 0)
+            const totalCost = (jobCard.tasks || []).reduce((sum, task) => sum + (parseFloat(task.cost_price) || 0), 0)
+            const totalRevenue = calculateTasksTotal()
+            const profit = totalRevenue - totalCost
+            
+            return [
+              { label: 'Total Services', value: totalTasks, icon: '🔧', color: 'blue' },
+              { label: 'Total Hours', value: totalHours.toFixed(2) + 'h', icon: '⏱️', color: 'purple' },
+              { label: 'Total Cost', value: formatCurrency(totalCost), icon: '💹', color: 'red' },
+              { label: 'Total Revenue', value: formatCurrency(totalRevenue), icon: '💰', color: 'green' },
+            ].map(s => (
+              <div key={s.label} className={`rounded-lg border px-3 py-2 text-center ${s.color === 'blue' ? 'bg-blue-50 border-blue-200 text-blue-600' : s.color === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600' : s.color === 'green' ? 'bg-green-50 border-green-200 text-green-600' : 'bg-red-50 border-red-200 text-red-600'}`}>
+                <p className="text-lg font-bold">{s.value}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide mt-0.5 opacity-80">{s.label}</p>
+              </div>
+            ))
+          })()}
+        </div>
+
+        {/* Profit Card */}
+        <div className="px-5 py-2 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100">
+          {(() => {
+            const totalCost = (jobCard.tasks || []).reduce((sum, task) => sum + (parseFloat(task.cost_price) || 0), 0)
+            const totalRevenue = calculateTasksTotal()
+            const profit = totalRevenue - totalCost
+            return (
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-semibold text-gray-700">Profit</span>
+                <span className={`text-base font-bold ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(profit)}</span>
+              </div>
+            )
+          })()}
+        </div>
+
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -519,11 +647,28 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef }) {
             </tbody>
           </table>
         </div>
-        {jobCard.tasks && jobCard.tasks.length > 0 && (
-          <div className="flex justify-between items-center px-5 py-4 border-t border-gray-100 bg-gray-50/50">
-            <span className="text-sm font-semibold text-gray-700">Total Services Cost</span>
-            <span className="text-lg font-bold text-primary">{formatCurrency(jobCard.tasks.reduce((sum, task) => sum + parseFloat(task.amount || task.cost_price || 0), 0))}</span>
-          </div>
+        {jobCard.tasks && jobCard.tasks.length > 0 && jobCard.status === 'completed' && (
+          <>
+            <div className="flex justify-between items-center px-5 py-4 border-t border-gray-100 bg-gray-50/50">
+              <span className="text-sm font-semibold text-gray-700">Total Services Cost</span>
+              <span className="text-lg font-bold text-primary">{formatCurrency(jobCard.tasks.reduce((sum, task) => sum + parseFloat(task.amount || task.cost_price || 0), 0))}</span>
+            </div>
+            <div className="px-5 py-4 border-t border-gray-100 bg-white">
+              <button
+                onClick={handleSaveServicesPrices}
+                className={`w-full py-2.5 rounded-lg font-semibold text-white transition-all flex items-center justify-center gap-2 ${
+                  savedServicesPrices
+                    ? 'bg-green-600 hover:bg-green-700'
+                    : 'bg-blue-600 hover:bg-blue-700'
+                }`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                {savedServicesPrices ? '✓ Services Prices Saved' : 'Save Services Prices'}
+              </button>
+            </div>
+          </>
         )}
       </div>
 
@@ -537,17 +682,39 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef }) {
         </div>
 
         {/* Summary Boxes */}
-        <div className="grid grid-cols-3 gap-4 px-5 pt-4">
-          {[
-            { label: 'Pending Pricing', count: jobCard.spare_parts_requests?.filter(p => p.status === 'pending').length || 0, cls: 'bg-orange-50 border-orange-200 text-orange-600' },
-            { label: 'Priced Parts', count: jobCard.spare_parts_requests?.filter(p => p.status === 'priced').length || 0, cls: 'bg-green-50 border-green-200 text-green-600' },
-            { label: 'Approved Parts', count: jobCard.spare_parts_requests?.filter(p => p.status === 'approved').length || 0, cls: 'bg-blue-50 border-blue-200 text-blue-600' },
-          ].map(s => (
-            <div key={s.label} className={`rounded-lg border px-4 py-3 text-center ${s.cls}`}>
-              <p className={`text-2xl font-bold`}>{s.count}</p>
-              <p className="text-xs font-semibold uppercase tracking-wide mt-0.5 opacity-80">{s.label}</p>
-            </div>
-          ))}
+        <div className="grid grid-cols-4 gap-4 px-5 pt-4 pb-4 border-b border-gray-100">
+          {(() => {
+            const totalParts = jobCard.spare_parts_requests?.length || 0
+            const totalCost = (jobCard.spare_parts_requests || []).reduce((sum, part) => sum + ((parseFloat(part.unit_cost) || parseFloat(part.cost_price) || 0) * (part.quantity || 1)), 0)
+            const totalRevenue = (jobCard.spare_parts_requests || []).reduce((sum, part) => sum + ((parseFloat(part.selling_price) || 0) * (part.quantity || 1)), 0)
+            const profit = totalRevenue - totalCost
+            
+            return [
+              { label: 'Total Parts', value: totalParts, icon: '📦', color: 'blue' },
+              { label: 'Total Cost', value: formatCurrency(totalCost), icon: '💹', color: 'red' },
+              { label: 'Total Revenue', value: formatCurrency(totalRevenue), icon: '💰', color: 'green' },
+              { label: 'Profit', value: formatCurrency(profit), icon: '📈', color: profit >= 0 ? 'green' : 'red' },
+            ].map(s => (
+              <div key={s.label} className={`rounded-lg border px-4 py-3 text-center ${s.color === 'blue' ? 'bg-blue-50 border-blue-200 text-blue-600' : s.color === 'green' ? 'bg-green-50 border-green-200 text-green-600' : 'bg-red-50 border-red-200 text-red-600'}`}>
+                <p className="text-2xl font-bold">{s.value}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide mt-0.5 opacity-80">{s.label}</p>
+              </div>
+            ))
+          })()}
+        </div>
+
+        <div className="px-5 py-3 bg-gradient-to-r from-orange-50 to-amber-50 border-b border-orange-100">
+          {(() => {
+            const totalCost = (jobCard.spare_parts_requests || []).reduce((sum, part) => sum + ((parseFloat(part.unit_cost) || parseFloat(part.cost_price) || 0) * (part.quantity || 1)), 0)
+            const totalRevenue = (jobCard.spare_parts_requests || []).reduce((sum, part) => sum + ((parseFloat(part.selling_price) || 0) * (part.quantity || 1)), 0)
+            const profit = totalRevenue - totalCost
+            return (
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-semibold text-gray-700">Profit</span>
+                <span className={`text-lg font-bold ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(profit)}</span>
+              </div>
+            )
+          })()}
         </div>
 
         <div className="overflow-x-auto mt-4">
@@ -615,11 +782,28 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef }) {
             </tbody>
           </table>
         </div>
-        {jobCard.spare_parts_requests && jobCard.spare_parts_requests.length > 0 && (
-          <div className="flex justify-between items-center px-5 py-4 border-t border-gray-100 bg-gray-50/50">
-            <span className="text-sm font-semibold text-gray-700">Total Spare Parts Cost</span>
-            <span className="text-lg font-bold text-primary">{formatCurrency(jobCard.spare_parts_requests.reduce((sum, part) => sum + parseFloat(part.selling_price || part.cost_price || 0), 0))}</span>
-          </div>
+        {jobCard.spare_parts_requests && jobCard.spare_parts_requests.length > 0 && jobCard.status === 'completed' && (
+          <>
+            <div className="flex justify-between items-center px-5 py-4 border-t border-gray-100 bg-gray-50/50">
+              <span className="text-sm font-semibold text-gray-700">Total Spare Parts Cost</span>
+              <span className="text-lg font-bold text-primary">{formatCurrency(jobCard.spare_parts_requests.reduce((sum, part) => sum + parseFloat(part.selling_price || part.cost_price || 0), 0))}</span>
+            </div>
+            <div className="px-5 py-4 border-t border-gray-100 bg-white">
+              <button
+                onClick={handleSaveSparePartsPrices}
+                className={`w-full py-2.5 rounded-lg font-semibold text-white transition-all flex items-center justify-center gap-2 ${
+                  savedSparePartsPrices
+                    ? 'bg-green-600 hover:bg-green-700'
+                    : 'bg-blue-600 hover:bg-blue-700'
+                }`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                {savedSparePartsPrices ? '✓ Spare Parts Prices Saved' : 'Save Spare Parts Prices'}
+              </button>
+            </div>
+          </>
         )}
       </div>
 
@@ -630,6 +814,28 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef }) {
           icon={<svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>}
         />
         <p className="text-xs text-gray-400 -mt-2 mb-4">Add any additional charges before finalizing</p>
+
+        {/* Summary Cards */}
+        <div className="grid grid-cols-2 gap-3 mb-4 px-4 py-3 bg-gray-50 rounded-lg border border-gray-200">
+          {(() => {
+            const totalCharges = jobCard.otherCharges?.length || 0
+            const totalCost = (jobCard.otherCharges || []).reduce((sum, charge) => sum + (parseFloat(charge.cost_price) || 0), 0)
+            const totalRevenue = calculateOtherChargesTotal()
+            const profit = totalRevenue - totalCost
+            
+            return [
+              { label: 'Total Charges', value: totalCharges, color: 'gray' },
+              { label: 'Total Revenue', value: formatCurrency(totalRevenue), color: 'green' },
+              { label: 'Total Cost', value: formatCurrency(totalCost), color: 'red' },
+              { label: 'Profit', value: formatCurrency(profit), color: profit >= 0 ? 'green' : 'red' },
+            ].map(s => (
+              <div key={s.label} className={`rounded-lg border px-2.5 py-1.5 text-center text-xs ${s.color === 'gray' ? 'bg-gray-100 border-gray-300 text-gray-700' : s.color === 'green' ? 'bg-green-50 border-green-200 text-green-600' : 'bg-red-50 border-red-200 text-red-600'}`}>
+                <p className="text-sm font-bold">{s.value}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide mt-0 opacity-80">{s.label}</p>
+              </div>
+            ))
+          })()}
+        </div>
 
         <div className="grid grid-cols-3 gap-4 mb-4">
           <div className="space-y-1.5">
@@ -722,6 +928,21 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef }) {
               <span className="text-xs text-gray-500">Total ({jobCard.otherCharges?.length || 0} charges)</span>
               <span className="font-semibold text-orange-600">{formatCurrency(jobCard.otherCharges?.reduce((sum, charge) => sum + parseFloat(charge.amount || 0), 0) || 0)}</span>
             </div>
+            {jobCard.status === 'completed' && (
+              <button
+                onClick={handleSaveAdditionalCharges}
+                className={`w-full mt-4 py-2.5 rounded-lg font-semibold text-white transition-all flex items-center justify-center gap-2 ${
+                  savedAdditionalCharges
+                    ? 'bg-green-600 hover:bg-green-700'
+                    : 'bg-blue-600 hover:bg-blue-700'
+                }`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                {savedAdditionalCharges ? '✓ Additional Charges Saved' : 'Save Additional Charges'}
+              </button>
+            )}
           </div>
         )}
       </div>

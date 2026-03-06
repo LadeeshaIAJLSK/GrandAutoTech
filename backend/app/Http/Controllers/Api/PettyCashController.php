@@ -288,6 +288,22 @@ class PettyCashController extends Controller
         ]);
 
         $user = $request->user();
+        $fund = PettyCashFund::find($validated['fund_id']);
+
+        // Check if replenishment would exceed the fixed amount
+        $newBalance = $fund->current_balance + $validated['amount'];
+        if ($newBalance > $fund->initial_amount) {
+            $availableToReplenish = $fund->initial_amount - $fund->current_balance;
+            return response()->json([
+                'message' => 'Replenishment amount exceeds the fixed amount limit',
+                'error' => 'REPLENISHMENT_EXCEEDS_LIMIT',
+                'current_balance' => $fund->current_balance,
+                'fixed_amount' => $fund->initial_amount,
+                'requested_amount' => $validated['amount'],
+                'available_to_replenish' => $availableToReplenish,
+                'max_allowed_amount' => $availableToReplenish
+            ], 400);
+        }
 
         $transaction = PettyCashTransaction::create([
             'transaction_number' => $this->generateTransactionNumber(),
@@ -304,7 +320,6 @@ class PettyCashController extends Controller
         ]);
 
         // Update balance immediately
-        $fund = PettyCashFund::find($validated['fund_id']);
         $fund->updateBalance($validated['amount'], 'replenishment');
 
         return response()->json([
@@ -312,6 +327,50 @@ class PettyCashController extends Controller
             'transaction' => $transaction->fresh(),
             'new_balance' => $fund->current_balance
         ], 201);
+    }
+
+    // Edit fixed amount (initial_amount) of a fund
+    public function editFixedAmount(Request $request, $fundId)
+    {
+        $user = $request->user();
+
+        // Check permission
+        if (!$user->hasPermission('edit_petty_cash_fund')) {
+            return response()->json(['message' => 'Unauthorized: You do not have permission to edit funds'], 403);
+        }
+
+        $fund = PettyCashFund::findOrFail($fundId);
+        $userRole = DB::table('roles')->where('id', $user->role_id)->first();
+
+        // Check branch authorization: branch_admin can only edit their own branch
+        if ($userRole->name === 'branch_admin' && $user->branch_id !== $fund->branch_id) {
+            return response()->json(['message' => 'Unauthorized: Branch admin can only edit funds for their branch'], 403);
+        }
+
+        $validated = $request->validate([
+            'initial_amount' => 'required|numeric|min:0.01',
+        ]);
+
+        // Ensure new fixed amount is not less than current balance
+        if ($validated['initial_amount'] < $fund->current_balance) {
+            return response()->json([
+                'message' => 'New fixed amount cannot be less than the current balance',
+                'error' => 'FIXED_AMOUNT_TOO_LOW',
+                'current_balance' => $fund->current_balance,
+                'requested_amount' => $validated['initial_amount'],
+                'minimum_allowed' => $fund->current_balance
+            ], 400);
+        }
+
+        $oldAmount = $fund->initial_amount;
+        $fund->update(['initial_amount' => $validated['initial_amount']]);
+
+        return response()->json([
+            'message' => 'Fixed amount updated successfully',
+            'fund' => $fund,
+            'previous_amount' => $oldAmount,
+            'new_amount' => $validated['initial_amount']
+        ]);
     }
 
     // Get categories
