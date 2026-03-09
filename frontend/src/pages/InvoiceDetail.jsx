@@ -19,6 +19,9 @@ function InvoiceDetail({ user }) {
   // Payment
   const [paymentAmount, setPaymentAmount] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('cash')
+  const [paymentType, setPaymentType] = useState('partial')
+  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0])
+  const [referenceNumber, setReferenceNumber] = useState('')
   const [submittingPayment, setSubmittingPayment] = useState(false)
 
   const token = localStorage.getItem('token')
@@ -152,14 +155,21 @@ function InvoiceDetail({ user }) {
         '/payments',
         {
           job_card_id: jobCardId,
+          invoice_id: invoice?.id,
           amount: parseFloat(paymentAmount),
           payment_method: paymentMethod,
-          payment_type: 'post_invoice',
+          payment_type: paymentType,
+          payment_date: paymentDate,
+          reference_number: referenceNumber || null,
+          notes: null,
         },
         { headers }
       )
-      setMessage({ text: 'Payment recorded!', type: 'success' })
+      setMessage({ text: 'Payment recorded successfully!', type: 'success' })
       setPaymentAmount('')
+      setReferenceNumber('')
+      setPaymentType('partial')
+      setPaymentDate(new Date().toISOString().split('T')[0])
       setTimeout(() => setMessage({ text: '', type: '' }), 3000)
       fetchAll()
     } catch (err) {
@@ -618,6 +628,20 @@ function InvoiceDetail({ user }) {
                   />
                 </div>
                 <div>
+                  <label className="block text-xs font-bold text-gray-600 uppercase mb-2">Payment Type</label>
+                  <select
+                    value={paymentType}
+                    onChange={e => setPaymentType(e.target.value)}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-purple-400 focus:outline-none"
+                  >
+                    <option value="partial">Partial Payment</option>
+                    <option value="full">Full Payment</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
                   <label className="block text-xs font-bold text-gray-600 uppercase mb-2">Payment Method</label>
                   <select
                     value={paymentMethod}
@@ -625,12 +649,35 @@ function InvoiceDetail({ user }) {
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-purple-400 focus:outline-none"
                   >
                     <option value="cash">Cash</option>
-                    <option value="bank_transfer">Bank Transfer</option>
                     <option value="card">Card</option>
-                    <option value="check">Check</option>
+                    <option value="bank_transfer">Bank Transfer</option>
+                    <option value="cheque">Cheque</option>
+                    <option value="mobile_payment">Mobile Payment</option>
+                    <option value="other">Other</option>
                   </select>
                 </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 uppercase mb-2">Payment Date</label>
+                  <input
+                    type="date"
+                    value={paymentDate}
+                    onChange={e => setPaymentDate(e.target.value)}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-purple-400 focus:outline-none"
+                  />
+                </div>
               </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-600 uppercase mb-2">Reference Number (Optional)</label>
+                <input
+                  type="text"
+                  value={referenceNumber}
+                  onChange={e => setReferenceNumber(e.target.value)}
+                  placeholder="e.g., Cheque #, Transaction ID..."
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-purple-400 focus:outline-none"
+                />
+              </div>
+
               <button
                 type="submit"
                 disabled={submittingPayment || !paymentAmount}

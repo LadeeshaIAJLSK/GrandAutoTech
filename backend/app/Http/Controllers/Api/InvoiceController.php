@@ -166,9 +166,9 @@ class InvoiceController extends Controller
             $totalAmount = max(0, $invoice->subtotal - $discount);
             $balanceDue = max(0, $totalAmount - $invoice->advance_paid);
 
-            // Recalculate paid amounts from payments
+            // Recalculate paid amounts from post-invoice payments
             $paidAmount = Payment::where('job_card_id', $invoice->job_card_id)
-                ->where('payment_type', 'post_invoice')
+                ->whereIn('payment_type', ['partial', 'full'])
                 ->sum('amount');
             $balanceDue = max(0, $balanceDue - $paidAmount);
 

@@ -67,38 +67,38 @@ class PaymentController extends Controller
 
         // Update job card based on payment type
         if ($validated['payment_type'] === 'advance') {
-            // Advance payment - add to advance_payment field
+            // Advance payment — record on job card only (before invoice exists)
             $jobCard->advance_payment += $validated['amount'];
         } else {
-            // Post-invoice payment (partial, full, refund) - reduce balance directly
+            // Post-invoice payment — reduce job card balance
             $jobCard->balance_amount = max(0, $jobCard->balance_amount - $validated['amount']);
         }
-        
-        // Update payment_status based on current state
+
+        // Update job card payment_status
         if ($jobCard->balance_amount <= 0) {
             $jobCard->payment_status = 'paid';
-        } elseif ($jobCard->advance_payment > 0) {
+        } elseif ($validated['payment_type'] === 'advance') {
             $jobCard->payment_status = 'advance_paid';
         } else {
-            $jobCard->payment_status = 'unpaid';
+            // partial or full payment made but balance still remains
+            $jobCard->payment_status = $jobCard->balance_amount <= 0 ? 'paid' : 'partially_paid';
         }
-        
+
         $jobCard->save();
 
-        // Update invoice if exists
+        // Update invoice if exists — only reduce balance_due, never touch advance_paid here
         if ($validated['invoice_id']) {
             $invoice = Invoice::find($validated['invoice_id']);
             if ($invoice) {
-                $totalPaid = $invoice->advance_paid + $validated['amount'];
-                $invoice->advance_paid = $totalPaid;
-                $invoice->balance_due = $invoice->total_amount - $totalPaid;
-                
+                // Subtract this payment from the current outstanding balance_due
+                $invoice->balance_due = max(0, $invoice->balance_due - $validated['amount']);
+
                 if ($invoice->balance_due <= 0) {
                     $invoice->status = 'paid';
-                } elseif ($totalPaid > 0) {
+                } else {
                     $invoice->status = 'partially_paid';
                 }
-                
+
                 $invoice->save();
             }
         }
