@@ -23,7 +23,7 @@ class JobCardController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        $query = JobCard::with(['customer', 'vehicle', 'creator', 'branch']);
+        $query = JobCard::with(['customer', 'vehicle', 'creator', 'branch', 'tasks', 'sparePartsRequests', 'payments']);
 
         // Branch filtering - non-super admins see only their branch job cards
         if ($user->role->name !== 'super_admin') {
@@ -55,7 +55,16 @@ class JobCardController extends Controller
             $query->where('status', $request->status);
         }
 
-        $jobCards = $query->orderBy('created_at', 'desc')->paginate(15);
+        $jobCards = $query->select('job_cards.*')->orderBy('created_at', 'desc')->paginate(15);
+
+        // Manually attach otherCharges and compute advance from payments (source of truth)
+        foreach ($jobCards as $jobCard) {
+            $jobCard->otherCharges = OtherCharge::where('job_card_id', $jobCard->id)->get()->toArray();
+            $advanceFromPayments = $jobCard->payments->where('payment_type', 'advance')->sum('amount');
+            if ($advanceFromPayments > 0) {
+                $jobCard->advance_payment = $advanceFromPayments;
+            }
+        }
 
         return response()->json($jobCards);
     }
@@ -103,6 +112,12 @@ class JobCardController extends Controller
 
         // Manually fetch and attach otherCharges
         $jobCard->otherCharges = OtherCharge::where('job_card_id', $jobCard->id)->get()->toArray();
+
+        // Sync advance_payment from payments table (source of truth)
+        $advanceFromPayments = $jobCard->payments->where('payment_type', 'advance')->sum('amount');
+        if ($advanceFromPayments > 0) {
+            $jobCard->advance_payment = $advanceFromPayments;
+        }
 
         // Ensure all tasks have their assigned employees loaded
         foreach ($jobCard->tasks as $task) {

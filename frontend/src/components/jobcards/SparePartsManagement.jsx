@@ -258,8 +258,8 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
       ) : (
         <div className="space-y-3">
           {parts.map((part) => {
-            const canApproveAdmin = ['super_admin', 'branch_admin'].includes(role) && part.admin_status === 'pending'
-            const canApproveCustomer = ['super_admin', 'branch_admin'].includes(role) && part.customer_status === 'pending' && part.admin_status === 'approved'
+            const canApproveAdmin = (user.role.name === 'super_admin' || user.permissions.includes('approve_spare_parts')) && part.admin_status === 'pending'
+            const canApproveCustomer = (user.role.name === 'super_admin' || user.permissions.includes('approve_spare_parts')) && part.customer_status === 'pending' && part.admin_status === 'approved'
             const adminStyle = getApprovalStyle(part.admin_status)
             const customerStyle = getApprovalStyle(part.customer_status)
 
@@ -312,7 +312,7 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
                 </div>
 
                 {/* Pricing Row - Only for Admins */}
-                {(canUpdate || ['super_admin', 'branch_admin'].includes(role)) && (
+                {(canUpdate || user.role.name === 'super_admin' || user.permissions.includes('update_spare_parts')) && (
                   <div className="grid grid-cols-3 gap-3 mb-4 pt-3 border-t border-gray-100">
                     {[
                       { label: 'Unit Cost', value: formatCurrency(part.unit_cost) },

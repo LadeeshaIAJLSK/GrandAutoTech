@@ -127,6 +127,7 @@ Route::patch('/spare-parts/{id}/status', [SparePartsRequestController::class, 'u
 
 
 // Invoice Management
+Route::get('/invoices', [InvoiceController::class, 'index']);//new added
 Route::post('/job-cards/{jobCardId}/invoice/generate', [InvoiceController::class, 'generateFromJobCard']);
 Route::get('/invoices/{id}', [InvoiceController::class, 'show']);
 Route::get('/job-cards/{jobCardId}/invoice', [InvoiceController::class, 'getByJobCard']);

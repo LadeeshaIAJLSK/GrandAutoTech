@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\TechnicianType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -61,6 +62,7 @@ class User extends Authenticatable
             'date_of_birth' => 'date',
             'join_date' => 'date',
             'left_date' => 'date',
+            'technician_type' => TechnicianType::class,
         ];
     }
 
@@ -122,7 +124,7 @@ public function receivedPayments()
 }
 
 /**
- * Check if user has a specific permission through their role
+ * Check if user has a specific permission through their role and technician_type
  */
 public function hasPermission($permissionName)
 {
@@ -130,6 +132,20 @@ public function hasPermission($permissionName)
         return false;
     }
     
+    // For technician role, check both role and technician_type
+    if ($this->role->name === 'technician') {
+        return $this->role->permissions()
+            ->where('permissions.name', $permissionName)
+            ->where(function ($query) {
+                // Permission is available if technician_type is null (for all technicians)
+                // or if it matches the user's technician_type
+                $query->whereNull('role_permissions.technician_type')
+                    ->orWhere('role_permissions.technician_type', $this->technician_type?->value);
+            })
+            ->exists();
+    }
+    
+    // For other roles, just check role permissions
     return $this->role->permissions()
         ->where('permissions.name', $permissionName)
         ->exists();

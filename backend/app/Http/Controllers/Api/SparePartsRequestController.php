@@ -30,13 +30,7 @@ class SparePartsRequestController extends Controller
     {
         $user = $request->user();
         
-        $permissions = DB::table('permissions')
-            ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
-            ->where('role_permissions.role_id', $user->role_id)
-            ->pluck('permissions.name')
-            ->toArray();
-        
-        if (!in_array('add_spare_parts', $permissions)) {
+        if (!$user->hasPermission('add_spare_parts')) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -89,17 +83,10 @@ class SparePartsRequestController extends Controller
         $user = $request->user();
         
         // Check if user is super admin
-        $isSuperAdmin = $user->role && ($user->role->name === 'super_admin' || $user->role_id === 1);
-        
-        // Get user permissions
-        $permissions = DB::table('permissions')
-            ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
-            ->where('role_permissions.role_id', $user->role_id)
-            ->pluck('permissions.name')
-            ->toArray();
+        $isSuperAdmin = $user->role && ($user->role->name === 'super_admin');
         
         // Check authorization: super admin OR has update_spare_parts permission
-        if (!$isSuperAdmin && !in_array('update_spare_parts', $permissions)) {
+        if (!$isSuperAdmin && !$user->hasPermission('update_spare_parts')) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -144,13 +131,7 @@ class SparePartsRequestController extends Controller
     {
         $user = $request->user();
         
-        $permissions = DB::table('permissions')
-            ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
-            ->where('role_permissions.role_id', $user->role_id)
-            ->pluck('permissions.name')
-            ->toArray();
-        
-        if (!in_array('delete_spare_parts', $permissions)) {
+        if (!$user->hasPermission('delete_spare_parts')) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -177,18 +158,16 @@ class SparePartsRequestController extends Controller
     {
         $user = $request->user();
         
+        if (!$user->hasPermission('approve_spare_parts')) {
+            return response()->json(['message' => 'You do not have permission to approve spare parts'], 403);
+        }
+
         $validated = $request->validate([
             'status' => 'required|in:approved,rejected',
             'notes' => 'nullable|string',
         ]);
 
         $part = SparePartsRequest::findOrFail($id);
-
-        // Check if user is employee/technician
-        $role = DB::table('roles')->where('id', $user->role_id)->first();
-        if (!in_array($role->name, ['employee', 'super_admin', 'branch_admin'])) {
-            return response()->json(['message' => 'Only employees can perform this action'], 403);
-        }
 
         if ($part->employee_status !== 'pending') {
             return response()->json(['message' => 'Already processed by employee'], 400);
@@ -219,18 +198,16 @@ class SparePartsRequestController extends Controller
     {
         $user = $request->user();
         
+        if (!$user->hasPermission('approve_spare_parts') && $user->role->name !== 'super_admin') {
+            return response()->json(['message' => 'You do not have permission to approve spare parts'], 403);
+        }
+
         $validated = $request->validate([
             'status' => 'required|in:approved,rejected',
             'notes' => 'nullable|string',
         ]);
 
         $part = SparePartsRequest::findOrFail($id);
-
-        // Check if user is admin
-        $role = DB::table('roles')->where('id', $user->role_id)->first();
-        if (!in_array($role->name, ['super_admin', 'branch_admin'])) {
-            return response()->json(['message' => 'Only admins can perform this action'], 403);
-        }
 
         if ($part->admin_status !== 'pending') {
             return response()->json(['message' => 'Already processed by admin'], 400);

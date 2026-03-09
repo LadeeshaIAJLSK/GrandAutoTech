@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
 import axiosClient from '../api/axios'
+import Notification from '../components/common/Notification'
 
 function BranchManagement({ user }) {
   const [branches, setBranches] = useState([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editingBranch, setEditingBranch] = useState(null)
+  const [notification, setNotification] = useState(null)
 
   const [formData, setFormData] = useState({
     name: '',
@@ -29,7 +31,7 @@ function BranchManagement({ user }) {
       setBranches(branchesData)
     } catch (error) {
       console.error('Error fetching branches:', error.response?.data || error.message)
-      alert('Error fetching branches: ' + (error.response?.data?.message || error.message))
+      setNotification({ type: 'error', title: 'Error', message: 'Error fetching branches: ' + (error.response?.data?.message || error.message) })
     } finally {
       setLoading(false)
     }
@@ -53,15 +55,15 @@ function BranchManagement({ user }) {
       const token = localStorage.getItem('token')
       if (editingBranch) {
         await axiosClient.put(`/branches/${editingBranch.id}`, formData, { headers: { Authorization: `Bearer ${token}` } })
-        alert('Branch updated successfully!')
+        setNotification({ type: 'success', title: 'Success', message: 'Branch updated successfully!' })
       } else {
         await axiosClient.post('/branches', formData, { headers: { Authorization: `Bearer ${token}` } })
-        alert('Branch created successfully!')
+        setNotification({ type: 'success', title: 'Success', message: 'Branch created successfully!' })
       }
       setShowModal(false)
       fetchBranches()
     } catch (error) {
-      alert(error.response?.data?.message || 'Error saving branch')
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error saving branch' })
     }
   }
 
@@ -71,7 +73,7 @@ function BranchManagement({ user }) {
       await axiosClient.patch(`/branches/${branchId}/toggle-status`, {}, { headers: { Authorization: `Bearer ${token}` } })
       fetchBranches()
     } catch (error) {
-      alert(error.response?.data?.message || 'Error toggling status')
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error toggling status' })
     }
   }
 
@@ -80,10 +82,10 @@ function BranchManagement({ user }) {
     try {
       const token = localStorage.getItem('token')
       await axiosClient.delete(`/branches/${branchId}`, { headers: { Authorization: `Bearer ${token}` } })
-      alert('Branch deleted successfully!')
+      setNotification({ type: 'success', title: 'Success', message: 'Branch deleted successfully!' })
       fetchBranches()
     } catch (error) {
-      alert(error.response?.data?.message || 'Error deleting branch')
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error deleting branch' })
     }
   }
 
@@ -331,6 +333,8 @@ function BranchManagement({ user }) {
           </div>
         </div>
       )}
+
+      <Notification notification={notification} onClose={() => setNotification(null)} />
     </div>
   )
 }

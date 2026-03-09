@@ -37,7 +37,7 @@ class UserController extends Controller
             ->where(function($query) use ($user) {
                 // Check if permission applies to this user's technician_type
                 $query->whereNull('role_permissions.technician_type')
-                      ->orWhere('role_permissions.technician_type', $user->technician_type);
+                      ->orWhere('role_permissions.technician_type', $user->technician_type?->value);
             })
             ->pluck('permissions.name')
             ->toArray();
@@ -73,7 +73,7 @@ class UserController extends Controller
             ->where(function($query) use ($user) {
                 // Check if permission applies to this user's technician_type
                 $query->whereNull('role_permissions.technician_type')
-                      ->orWhere('role_permissions.technician_type', $user->technician_type);
+                      ->orWhere('role_permissions.technician_type', $user->technician_type?->value);
             })
             ->pluck('permissions.name')
             ->toArray();
@@ -92,11 +92,11 @@ class UserController extends Controller
 
     /**
      * Get all users (with filters and pagination)
-     */
+     */                                                              
     public function index(Request $request)
     {
         try {
-            $user = $request->user();
+            $user = $request->user();                        
             
             // Check READ permission (no branch restriction)
             $check = $this->checkReadPermission($user, 'view_users');

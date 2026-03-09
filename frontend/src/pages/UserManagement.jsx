@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import axiosClient from '../api/axios'
+import Notification from '../components/common/Notification'
 
 function UserManagement({ user, roleFilter }) {
   const [users, setUsers] = useState([])
@@ -516,9 +517,10 @@ function UserManagement({ user, roleFilter }) {
         </div>
       </div>
 
-      {/* Table */}
+      {/* Table - Responsive */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
+        {/* Desktop View */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b-2 border-gray-100 bg-gradient-to-r from-gray-50 to-gray-50/60">
@@ -529,7 +531,7 @@ function UserManagement({ user, roleFilter }) {
                 {!roleFilter && (
                   <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Role</th>
                 )}
-                {roleFilter?.name === 'technician' && (
+                {roleFilter?.name === 'employee' && (
                   <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Position</th>
                 )}
                 <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Branch</th>
@@ -540,7 +542,7 @@ function UserManagement({ user, roleFilter }) {
             <tbody className="divide-y divide-gray-100">
               {users.length === 0 ? (
                 <tr>
-                  <td colSpan={!roleFilter ? 8 : roleFilter.name === 'technician' ? 8 : 7} className="px-5 py-16 text-center">
+                  <td colSpan={!roleFilter ? 8 : roleFilter.name === 'employee' ? 8 : 7} className="px-5 py-16 text-center">
                     <div className="flex flex-col items-center gap-2">
                       <svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -566,8 +568,8 @@ function UserManagement({ user, roleFilter }) {
                         )}
                       </div>
                     </td>
-                    <td className="px-5 py-4 text-gray-600">{u.email}</td>
-                    <td className="px-5 py-4 text-gray-600">{u.phone || <span className="text-gray-300">—</span>}</td>
+                    <td className="px-5 py-4 text-gray-600 text-sm">{u.email}</td>
+                    <td className="px-5 py-4 text-gray-600 text-sm">{u.phone || <span className="text-gray-300">—</span>}</td>
                     {!roleFilter && (
                       <td className="px-5 py-4">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${getRoleBadgeStyle(u.role?.name)}`}>
@@ -575,7 +577,7 @@ function UserManagement({ user, roleFilter }) {
                         </span>
                       </td>
                     )}
-                    {roleFilter?.name === 'technician' && (
+                    {roleFilter?.name === 'employee' && (
                       <td className="px-5 py-4">
                         {u.technician_type === 'employee' ? (
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-100">
@@ -590,7 +592,7 @@ function UserManagement({ user, roleFilter }) {
                         )}
                       </td>
                     )}
-                    <td className="px-5 py-4 text-gray-600">
+                    <td className="px-5 py-4 text-gray-600 text-sm">
                       {u.branch?.name || <span className="text-gray-300">—</span>}
                     </td>
                     <td className="px-5 py-4">
@@ -680,6 +682,132 @@ function UserManagement({ user, roleFilter }) {
             </tbody>
           </table>
         </div>
+
+        {/* Mobile View - Card Layout */}
+        <div className="md:hidden divide-y divide-gray-100">
+          {users.length === 0 ? (
+            <div className="px-4 py-16 text-center">
+              <div className="flex flex-col items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <p className="text-gray-400 font-medium text-sm">No users found</p>
+                <p className="text-gray-300 text-xs">Try adjusting your search or filters</p>
+              </div>
+            </div>
+          ) : (
+            users.map(u => (
+              <div key={u.id} className="p-4 space-y-3 hover:bg-gray-50/70 transition-colors">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-gray-900">{u.name}</p>
+                      {u.id === user.id && (
+                        <span className="text-xs px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 font-medium border border-blue-100">
+                          You
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-0.5">{u.employee_code || '—'}</p>
+                  </div>
+                  {(canUpdate || (canDelete && u.id !== user.id)) && (
+                    <div className="relative" ref={openMenuId === u.id ? menuRef : null}>
+                      <button
+                        ref={el => buttonRefs.current[u.id] = el}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setOpenMenuId(openMenuId === u.id ? null : u.id)
+                        }}
+                        className="p-1.5 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                        </svg>
+                      </button>
+                      {openMenuId === u.id && (
+                        <div className="absolute right-0 w-40 bg-white rounded-lg shadow-lg border border-gray-100 py-1 z-20 mt-1">
+                          <button
+                            onClick={() => {
+                              setViewingUser(u)
+                              setShowViewModal(true)
+                              setOpenMenuId(null)
+                            }}
+                            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLineCap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                            View
+                          </button>
+                          {canUpdate && (
+                            <button
+                              onClick={() => openEditModal(u)}
+                              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                              Edit
+                            </button>
+                          )}
+                          {canDelete && u.id !== user.id && (
+                            <button
+                              onClick={() => {
+                                setDeleteConfirm(u.id)
+                                setOpenMenuId(null)
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                              Delete
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-500">Email:</span>
+                    <span className="text-gray-700 font-medium truncate ml-2">{u.email}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-500">Phone:</span>
+                    <span className="text-gray-700 font-medium">{u.phone || '—'}</span>
+                  </div>
+                  {!roleFilter && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500">Role:</span>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${getRoleBadgeStyle(u.role?.name)}`}>
+                        {u.role?.display_name}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-500">Branch:</span>
+                    <span className="text-gray-700 font-medium">{u.branch?.name || '—'}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-500">Status:</span>
+                    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold border ${
+                      u.is_active
+                        ? 'bg-green-50 text-green-700 border-green-100'
+                        : 'bg-red-50 text-red-600 border-red-100'
+                    }`}>
+                      <span className={`w-1 h-1 rounded-full flex-shrink-0 ${u.is_active ? 'bg-green-500' : 'bg-red-400'}`} />
+                      {u.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
 
       {/* Modal */}
@@ -693,8 +821,8 @@ function UserManagement({ user, roleFilter }) {
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="flex justify-between items-center px-7 py-5 border-b border-gray-100">
-              <div>
+            <div className="flex justify-between items-center px-4 sm:px-7 py-5 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl">
+              <div className="flex-1">
                 <h3 className="text-lg font-bold text-gray-900">
                   {editingUser ? 'Edit User' : addButtonText}
                 </h3>
@@ -704,7 +832,7 @@ function UserManagement({ user, roleFilter }) {
               </div>
               <button
                 onClick={() => setShowModal(false)}
-                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors flex-shrink-0 ml-2"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -713,12 +841,12 @@ function UserManagement({ user, roleFilter }) {
             </div>
 
             {/* Modal Body */}
-            <form onSubmit={handleSubmit} className="px-7 py-6 space-y-5">
+            <form onSubmit={handleSubmit} className="px-4 sm:px-7 py-6 space-y-5">
               {/* Main Form Fields Grid */}
-              <div className="grid grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
 
                 {/* Full Name */}
-                <div className="col-span-2 space-y-1.5">
+                <div className="col-span-1 sm:col-span-2 space-y-1.5">
                   <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Full Name <span className="text-red-400">*</span></label>
                   <input
                     type="text"
@@ -731,7 +859,7 @@ function UserManagement({ user, roleFilter }) {
                 </div>
 
                 {/* First Name */}
-                <div className="space-y-1.5">
+                <div className="col-span-1 space-y-1.5">
                   <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">First Name</label>
                   <input
                     type="text"
@@ -743,7 +871,7 @@ function UserManagement({ user, roleFilter }) {
                 </div>
 
                 {/* Email */}
-                <div className="space-y-1.5">
+                <div className="col-span-1 space-y-1.5">
                   <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Email <span className="text-red-400">*</span></label>
                   <input
                     type="email"
@@ -756,7 +884,7 @@ function UserManagement({ user, roleFilter }) {
                 </div>
 
                 {/* Phone */}
-                <div className="space-y-1.5">
+                <div className="col-span-1 space-y-1.5">
                   <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Phone <span className="text-red-400">*</span></label>
                   <input
                     type="text"
@@ -769,7 +897,7 @@ function UserManagement({ user, roleFilter }) {
                 </div>
 
                 {/* Employee Code */}
-                <div className="space-y-1.5">
+                <div className="col-span-1 space-y-1.5">
                   <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Employee Code <span className="text-red-400">*</span></label>
                   <input
                     type="text"
@@ -1249,82 +1377,7 @@ function UserManagement({ user, roleFilter }) {
       )}
 
       {/* Notification Modal - More Noticeable */}
-      {notification && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
-          <div className={`rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden ${
-            notification.type === 'success'
-              ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-300'
-              : notification.type === 'error'
-              ? 'bg-gradient-to-br from-red-50 to-rose-50 border-2 border-red-300'
-              : 'bg-gradient-to-br from-blue-50 to-cyan-50 border-2 border-blue-300'
-          }`}>
-            <div className="p-8 space-y-5">
-              {/* Icon */}
-              <div className="flex justify-center">
-                <div className={`flex items-center justify-center w-16 h-16 rounded-full ${
-                  notification.type === 'success'
-                    ? 'bg-green-100'
-                    : notification.type === 'error'
-                    ? 'bg-red-100'
-                    : 'bg-blue-100'
-                }`}>
-                  {notification.type === 'success' && (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                  {notification.type === 'error' && (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 text-red-600" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                  {notification.type === 'info' && (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                </div>
-              </div>
-
-              {/* Text Content */}
-              <div className="text-center space-y-2">
-                <h3 className={`text-lg font-bold ${
-                  notification.type === 'success'
-                    ? 'text-green-900'
-                    : notification.type === 'error'
-                    ? 'text-red-900'
-                    : 'text-blue-900'
-                }`}>
-                  {notification.title}
-                </h3>
-                <p className={`text-sm leading-relaxed ${
-                  notification.type === 'success'
-                    ? 'text-green-700'
-                    : notification.type === 'error'
-                    ? 'text-red-700'
-                    : 'text-blue-700'
-                }`}>
-                  {notification.message}
-                </p>
-              </div>
-
-              {/* Button */}
-              <button
-                onClick={() => setNotification(null)}
-                className={`w-full py-3 rounded-lg font-bold text-white transition-all ${
-                  notification.type === 'success'
-                    ? 'bg-green-600 hover:bg-green-700 active:scale-95'
-                    : notification.type === 'error'
-                    ? 'bg-red-600 hover:bg-red-700 active:scale-95'
-                    : 'bg-blue-600 hover:bg-blue-700 active:scale-95'
-                }`}
-              >
-                OK
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Notification notification={notification} onClose={() => setNotification(null)} />
     </div>
   )
 }

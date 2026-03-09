@@ -18,6 +18,7 @@ function JobCardManagement({ user, selectedBranchId }) {
   const [pendingPartsCounts, setPendingPartsCounts] = useState({})
   const [openMenuId, setOpenMenuId] = useState(null)
   const [menuPos, setMenuPos] = useState({ top: 0, right: 0 })
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
   const buttonRefs = useRef({})
   const branchDropdownRef = useRef(null)
 
@@ -51,7 +52,17 @@ function JobCardManagement({ user, selectedBranchId }) {
       setOpenMenuId(null)
     }
     document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
+
+    // Handle responsive breakpoint
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    window.addEventListener('resize', handleResize)
+
+    return () => {
+      document.removeEventListener('mousedown', handleClick)
+      window.removeEventListener('resize', handleResize)
+    }
   }, [])
 
   const fetchPendingPartsCounts = async (cards) => {
@@ -193,61 +204,149 @@ function JobCardManagement({ user, selectedBranchId }) {
 
   const toggleMenu = (e, id) => {
     e.stopPropagation()
-    if (openMenuId === id) { setOpenMenuId(null); return }
+    if (openMenuId === id) { 
+      setOpenMenuId(null)
+      return 
+    }
+    
     const btn = buttonRefs.current[id]
-    if (btn) {
+    if (btn && !isMobile) {
       const rect = btn.getBoundingClientRect()
+      const menuHeight = 160 // approximate height of menu
       const spaceBelow = window.innerHeight - rect.bottom
-      if (spaceBelow < 120) {
-        setMenuPos({ bottom: window.innerHeight - rect.top + 4, right: window.innerWidth - rect.right, top: undefined })
-      } else {
-        setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right, bottom: undefined })
+      
+      // Calculate position to keep menu visible
+      let topPos = rect.bottom + 8
+      let bottomPos = undefined
+      
+      if (spaceBelow < menuHeight + 20) {
+        // Not enough space below, position above
+        topPos = undefined
+        bottomPos = window.innerHeight - rect.top + 8
       }
+      
+      // Right align the menu with slight offset
+      const rightPos = window.innerWidth - rect.right
+      
+      setMenuPos({ 
+        top: topPos, 
+        bottom: bottomPos, 
+        right: rightPos
+      })
     }
     setOpenMenuId(id)
   }
 
-  const DropdownMenu = ({ jobCard }) => createPortal(
-    <div
-      onMouseDown={(e) => e.stopPropagation()}
-      style={{ position: 'fixed', top: menuPos.top ?? 'auto', bottom: menuPos.bottom ?? 'auto', right: menuPos.right, zIndex: 9999, width: '160px' }}
-      className="bg-white rounded-lg shadow-lg border border-gray-100 py-1"
-    >
-      <button
-        onClick={() => { navigate(`/job-cards/${jobCard.id}`); setOpenMenuId(null) }}
-        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-        </svg>
-        View
-      </button>
-      {canUpdate && (
-        <button
-          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+  const DropdownMenu = ({ jobCard }) => {
+    if (isMobile) {
+      // Mobile: bottom sheet menu
+      return createPortal(
+        <div
+          onMouseDown={(e) => e.stopPropagation()}
+          className="fixed inset-0 z-50 flex items-end"
           onClick={() => setOpenMenuId(null)}
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-          </svg>
-          Edit
-        </button>
-      )}
-      {canDelete && (jobCard.status === 'pending' || jobCard.status === 'cancelled') && (
+          <div
+            className="w-full bg-white rounded-t-2xl shadow-2xl p-4 space-y-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-center mb-3">
+              <div className="w-10 h-1 bg-gray-300 rounded-full" />
+            </div>
+            <button
+              onClick={() => { navigate(`/job-cards/${jobCard.id}`); setOpenMenuId(null) }}
+              className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              <span className="font-medium">View</span>
+            </button>
+            {canUpdate && (
+              <button
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+                onClick={() => setOpenMenuId(null)}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                <span className="font-medium">Edit</span>
+              </button>
+            )}
+            {canDelete && (jobCard.status === 'pending' || jobCard.status === 'cancelled') && (
+              <button
+                onClick={() => { handleDelete(jobCard.id); setOpenMenuId(null) }}
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                <span className="font-medium">Delete</span>
+              </button>
+            )}
+            <button
+              onClick={() => setOpenMenuId(null)}
+              className="w-full px-4 py-3 text-center text-sm font-medium text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>,
+        document.body
+      )
+    }
+
+    // Desktop: fixed positioning menu
+    return createPortal(
+      <div
+        className="fixed bg-white rounded-lg shadow-xl border border-gray-200 py-1 z-[9999] min-w-[180px]"
+        style={{ 
+          position: 'fixed',
+          top: menuPos.top !== undefined ? `${menuPos.top}px` : 'auto',
+          bottom: menuPos.bottom !== undefined ? `${menuPos.bottom}px` : 'auto',
+          right: menuPos.right !== undefined ? `${menuPos.right}px` : 'auto',
+          left: 'auto'
+        }}
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
+      >
         <button
-          onClick={() => { handleDelete(jobCard.id); setOpenMenuId(null) }}
-          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+          onClick={() => { navigate(`/job-cards/${jobCard.id}`); setOpenMenuId(null) }}
+          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 transition-colors text-left"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-blue-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
           </svg>
-          Delete
+          <span className="font-medium">View</span>
         </button>
-      )}
-    </div>,
-    document.body
-  )
+        {canUpdate && (
+          <button
+            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 transition-colors text-left"
+            onClick={() => { navigate(`/job-cards/${jobCard.id}`); setOpenMenuId(null) }}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-blue-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            <span className="font-medium">Edit</span>
+          </button>
+        )}
+        {canDelete && (jobCard.status === 'pending' || jobCard.status === 'cancelled') && (
+          <button
+            onClick={() => { handleDelete(jobCard.id); setOpenMenuId(null) }}
+            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors text-left"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            <span className="font-medium">Delete</span>
+          </button>
+        )}
+      </div>,
+      document.body
+    )
+  }
 
   if (loading) {
     return (
@@ -400,15 +499,15 @@ function JobCardManagement({ user, selectedBranchId }) {
         )}
       </div>
 
-      {/* Filters */}
-      <div className="flex gap-3 items-center">
-        <div className="relative flex-1 max-w-sm">
+      {/* Filters - Responsive */}
+      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+        <div className="relative flex-1 min-w-0 sm:max-w-sm">
           <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
           <input
             type="text"
-            placeholder="Search by job card #, customer, license plate..."
+            placeholder="Search job cards..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-lg bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all shadow-sm"
@@ -434,8 +533,8 @@ function JobCardManagement({ user, selectedBranchId }) {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+      {/* DESKTOP VIEW - Table */}
+      <div className="hidden md:block bg-white rounded-xl border border-gray-200 shadow-sm">
         <div className="overflow-x-auto rounded-xl">
           <table className="w-full text-sm">
             <thead>
@@ -531,19 +630,23 @@ function JobCardManagement({ user, selectedBranchId }) {
                         {new Date(jobCard.created_at).toLocaleTimeString()}
                       </div>
                     </td>
-                    <td className="px-5 py-4 text-right">
-                      <>
-                        <button
-                          ref={el => buttonRefs.current[jobCard.id] = el}
-                          onClick={(e) => toggleMenu(e, jobCard.id)}
-                          className="p-1.5 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                          </svg>
-                        </button>
-                        {openMenuId === jobCard.id && <DropdownMenu jobCard={jobCard} />}
-                      </>
+                    <td className="px-5 py-4 text-right relative">
+                      <button
+                        ref={el => buttonRefs.current[jobCard.id] = el}
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          toggleMenu(e, jobCard.id)
+                        }}
+                        className="inline-flex items-center justify-center p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 active:bg-gray-200 transition-all duration-150"
+                        type="button"
+                        aria-label="Actions menu"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                        </svg>
+                      </button>
+                      {openMenuId === jobCard.id && <DropdownMenu jobCard={jobCard} />}
                     </td>
                   </tr>
                 ))
@@ -551,6 +654,101 @@ function JobCardManagement({ user, selectedBranchId }) {
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* MOBILE VIEW - Cards */}
+      <div className="md:hidden space-y-3">
+        {jobCards.length === 0 ? (
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 text-center">
+            <div className="flex flex-col items-center gap-3">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <p className="text-gray-400 font-medium">No job cards found</p>
+              <p className="text-gray-300 text-xs">
+                {canAdd ? 'Create your first job card to get started' : 'No job cards available'}
+              </p>
+            </div>
+          </div>
+        ) : (
+          jobCards.map(jobCard => (
+            <div
+              key={jobCard.id}
+              className={`bg-white rounded-lg border shadow-sm p-4 transition-colors ${
+                pendingPartsCounts[jobCard.id] ? 'border-red-200 bg-red-50/50' : 'border-gray-200'
+              }`}
+            >
+              {/* Header */}
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    {pendingPartsCounts[jobCard.id] > 0 && (
+                      <span
+                        title={`${pendingPartsCounts[jobCard.id]} parts pending approval`}
+                        className="flex items-center justify-center w-4 h-4 rounded-full bg-red-100 flex-shrink-0"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                      </span>
+                    )}
+                    <h3 className="font-bold text-primary text-base">{jobCard.job_card_number}</h3>
+                  </div>
+                  <p className="text-xs text-gray-500">{new Date(jobCard.created_at).toLocaleDateString()}</p>
+                </div>
+                <button
+                  ref={el => buttonRefs.current[jobCard.id] = el}
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    toggleMenu(e, jobCard.id)
+                  }}
+                  className="inline-flex items-center justify-center p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 active:bg-gray-200 transition-all duration-150 flex-shrink-0"
+                  type="button"
+                  aria-label="Actions menu"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                  </svg>
+                </button>
+              </div>
+              {openMenuId === jobCard.id && <DropdownMenu jobCard={jobCard} />}
+
+              {/* Info Grid */}
+              <div className="grid grid-cols-2 gap-2 mb-3 text-sm">
+                <div className="bg-gray-50 p-2.5 rounded">
+                  <p className="text-xs text-gray-500 font-semibold mb-0.5">Customer</p>
+                  <p className="font-semibold text-gray-900 truncate">{jobCard.customer?.name}</p>
+                  <p className="text-xs text-gray-500 truncate">{jobCard.customer?.phone}</p>
+                </div>
+                <div className="bg-gray-50 p-2.5 rounded">
+                  <p className="text-xs text-gray-500 font-semibold mb-0.5">Vehicle</p>
+                  <p className="font-mono text-xs font-bold bg-gray-200 px-2 py-1 rounded inline-block">{jobCard.vehicle?.license_plate}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{jobCard.vehicle?.make} {jobCard.vehicle?.model}</p>
+                </div>
+              </div>
+
+              {/* Status and Amount Row */}
+              <div className="flex gap-2 mb-3">
+                <span className={`flex-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border text-center ${getStatusStyle(jobCard.status)}`}>
+                  {jobCard.status.charAt(0).toUpperCase() + jobCard.status.slice(1)}
+                </span>
+                <div className="flex-1 bg-gray-50 p-2.5 rounded text-right">
+                  <p className="text-xs text-gray-500 font-semibold mb-0.5">Amount</p>
+                  <p className="font-bold text-gray-900">{formatCurrency(jobCard.total_amount)}</p>
+                  {jobCard.balance_amount > 0 && (
+                    <p className="text-xs text-red-500 mt-0.5">Balance: {formatCurrency(jobCard.balance_amount)}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Creator */}
+              <div className="text-xs text-gray-500 border-t pt-2">
+                <p>By {jobCard.creator?.name} • {new Date(jobCard.created_at).toLocaleTimeString()}</p>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       {showCreateWizard && createPortal(

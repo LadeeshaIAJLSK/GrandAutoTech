@@ -26,9 +26,9 @@ class RoleSeeder extends Seeder
                 'description' => 'Financial modules only, invoicing, payments, reports',
             ],
             [
-                'name' => 'employee',
-                'display_name' => 'Employee (Technician)',
-                'description' => 'Task-specific access, view assigned tasks, log time, request parts',
+                'name' => 'technician',
+                'display_name' => 'Technician',
+                'description' => 'Task-specific access with employee/supervisor subtypes via technician_type field',
             ],
             [
                 'name' => 'support_staff',
@@ -43,13 +43,15 @@ class RoleSeeder extends Seeder
         ];
 
         foreach ($roles as $role) {
-            DB::table('roles')->insert([
-                'name' => $role['name'],
-                'display_name' => $role['display_name'],
-                'description' => $role['description'],
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            DB::table('roles')->updateOrInsert(
+                ['name' => $role['name']],
+                [
+                    'display_name' => $role['display_name'],
+                    'description' => $role['description'],
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]
+            );
         }
     }
 }

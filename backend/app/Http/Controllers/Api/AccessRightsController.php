@@ -83,19 +83,32 @@ class AccessRightsController extends Controller
         // Validation differs for technician role
         if ($targetRoleDB->name === 'technician') {
             $validated = $request->validate([
-                'employee_permissions' => 'required|array',
+                'employee_permissions' => 'nullable|array',
                 'employee_permissions.*' => 'exists:permissions,id',
-                'supervisor_permissions' => 'required|array',
+                'supervisor_permissions' => 'nullable|array',
                 'supervisor_permissions.*' => 'exists:permissions,id',
             ]);
 
-            // Delete existing technician permissions
-            DB::table('role_permissions')->where('role_id', $roleId)->where(function($query) {
-                $query->whereNotNull('technician_type');
-            })->delete();
+            // Delete all existing technician permissions (both with and without technician_type)
+            DB::table('role_permissions')->where('role_id', $roleId)->delete();
 
-            // Add employee permissions
-            foreach ($validated['employee_permissions'] as $permissionId) {
+            $employeePerms = collect($validated['employee_permissions'] ?? []);
+            $supervisorPerms = collect($validated['supervisor_permissions'] ?? []);
+
+            // Permissions in BOTH arrays apply to all technicians → insert once with null type
+            $sharedPerms = $employeePerms->intersect($supervisorPerms);
+            foreach ($sharedPerms as $permissionId) {
+                DB::table('role_permissions')->insert([
+                    'role_id' => $roleId,
+                    'permission_id' => $permissionId,
+                    'technician_type' => null,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+
+            // Permissions exclusive to employees
+            foreach ($employeePerms->diff($supervisorPerms) as $permissionId) {
                 DB::table('role_permissions')->insert([
                     'role_id' => $roleId,
                     'permission_id' => $permissionId,
@@ -105,8 +118,8 @@ class AccessRightsController extends Controller
                 ]);
             }
 
-            // Add supervisor permissions
-            foreach ($validated['supervisor_permissions'] as $permissionId) {
+            // Permissions exclusive to supervisors
+            foreach ($supervisorPerms->diff($employeePerms) as $permissionId) {
                 DB::table('role_permissions')->insert([
                     'role_id' => $roleId,
                     'permission_id' => $permissionId,

@@ -10,6 +10,7 @@ function Layout({ user, onLogout, children }) {
   const navigate = useNavigate()
   const location = useLocation()
   const [usersMenuOpen, setUsersMenuOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0)
   const [selectedBranchId, setSelectedBranchId] = useState('all')
 
@@ -126,35 +127,49 @@ function Layout({ user, onLogout, children }) {
 
       {/* Top Header */}
       <header className="bg-white border-b border-gray-200 shadow-sm z-20 sticky top-0">
-        <div className="px-6 h-16 flex justify-between items-center">
-          {/* Brand */}
+        <div className="px-4 sm:px-6 h-16 flex justify-between items-center">
+          {/* Left side - Mobile Menu + Brand */}
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm">
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            {/* Mobile hamburger menu */}
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="md:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              aria-label="Toggle menu"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
+            </button>
+
+            {/* Brand */}
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm flex-shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
+              <span className="text-lg font-bold text-gray-900 tracking-tight hidden sm:inline">Grand Auto Tech</span>
             </div>
-            <span className="text-lg font-bold text-gray-900 tracking-tight">Grand Auto Tech</span>
           </div>
 
           {/* Right side */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             {/* User info */}
-            <div className="flex items-center gap-2.5 pl-4 border-l border-gray-200">
-              <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+            <div className="flex items-center gap-2.5 pl-2 sm:pl-4 border-l border-gray-200">
+              <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
               </div>
-              <div className="hidden sm:block">
-                <p className="text-sm font-semibold text-gray-800 leading-tight">{user.name}</p>
-                <p className="text-xs text-gray-400 leading-tight">{user.role.display_name}</p>
+              <div className="hidden sm:block min-w-0">
+                <p className="text-sm font-semibold text-gray-800 leading-tight truncate">{user.name}</p>
+                <p className="text-xs text-gray-400 leading-tight truncate">{user.role.display_name}</p>
               </div>
             </div>
 
             <button
               onClick={handleLogout}
-              className="flex items-center gap-2 px-3.5 py-2 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors border border-gray-200 hover:border-red-200"
+              className="flex items-center gap-2 px-3 sm:px-3.5 py-2 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors border border-gray-200 hover:border-red-200"
             >
               {icons.logout}
               <span className="hidden sm:inline">Logout</span>
@@ -165,8 +180,8 @@ function Layout({ user, onLogout, children }) {
 
       <div className="flex flex-1">
 
-        {/* Sidebar - Fixed */}
-        <aside className="fixed left-0 top-16 w-60 h-[calc(100vh-64px)] bg-sidebar flex flex-col z-40 border-r border-white/10">
+        {/* Sidebar - Desktop fixed, Mobile toggle */}
+        <aside className="hidden md:block md:fixed md:left-0 md:top-16 md:w-60 md:h-[calc(100vh-64px)] bg-orange-700 md:flex md:flex-col z-40 md:border-r md:border-white/10">
 
           {/* Nav - Scrollable */}
           <nav className="flex-1 py-4 space-y-0.5 overflow-y-auto sidebar-scroll">
@@ -219,7 +234,7 @@ function Layout({ user, onLogout, children }) {
             )}
 
             {/* My Tasks */}
-            {['employee', 'super_admin'].includes(user.role.name) && (
+            {(user.role.name === 'super_admin' || user.permissions.includes('own_tasks')) && (
               <NavItem path="/my-tasks" icon={icons.tasks} label="My Tasks" />
             )}
 
@@ -304,8 +319,8 @@ function Layout({ user, onLogout, children }) {
           </div>
         </aside>
 
-        {/* Main Content */}
-        <main className="ml-60 flex-1 p-7 overflow-y-auto bg-gray-50">
+        {/* Main Content - Responsive */}
+        <main className="w-full md:ml-60 flex-1 p-4 sm:p-6 lg:p-7 overflow-y-auto bg-gray-50">
           {React.cloneElement(children, { selectedBranchId })}
         </main>
       </div>

@@ -159,13 +159,7 @@ class TaskController extends Controller
     {
         $user = $request->user();
         
-        $permissions = DB::table('permissions')
-            ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
-            ->where('role_permissions.role_id', $user->role_id)
-            ->pluck('permissions.name')
-            ->toArray();
-        
-        if (!in_array('approve_tasks', $permissions) && !in_array($user->role->name, ['super_admin', 'branch_admin'])) {
+        if (!$user->hasPermission('approve_tasks') && !in_array($user->role->name, ['super_admin', 'branch_admin'])) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -209,13 +203,7 @@ class TaskController extends Controller
     {
         $user = $request->user();
         
-        $permissions = DB::table('permissions')
-            ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
-            ->where('role_permissions.role_id', $user->role_id)
-            ->pluck('permissions.name')
-            ->toArray();
-        
-        if (!in_array('approve_tasks', $permissions) && !in_array($user->role->name, ['super_admin', 'branch_admin'])) {
+        if (!$user->hasPermission('approve_tasks') && !in_array($user->role->name, ['super_admin', 'branch_admin'])) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -264,13 +252,7 @@ class TaskController extends Controller
     {
         $user = $request->user();
         
-        $permissions = DB::table('permissions')
-            ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
-            ->where('role_permissions.role_id', $user->role_id)
-            ->pluck('permissions.name')
-            ->toArray();
-        
-        if (!in_array('approve_tasks', $permissions) && !in_array($user->role->name, ['super_admin', 'branch_admin'])) {
+        if (!$user->hasPermission('approve_tasks') && !in_array($user->role->name, ['super_admin', 'branch_admin'])) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -309,13 +291,7 @@ class TaskController extends Controller
     {
         $user = $request->user();
         
-        $permissions = DB::table('permissions')
-            ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
-            ->where('role_permissions.role_id', $user->role_id)
-            ->pluck('permissions.name')
-            ->toArray();
-        
-        if (!in_array('approve_tasks', $permissions) && !in_array($user->role->name, ['super_admin', 'branch_admin'])) {
+        if (!$user->hasPermission('approve_tasks') && !in_array($user->role->name, ['super_admin', 'branch_admin'])) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -351,13 +327,7 @@ class TaskController extends Controller
     {
         $user = $request->user();
         
-        $permissions = DB::table('permissions')
-            ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
-            ->where('role_permissions.role_id', $user->role_id)
-            ->pluck('permissions.name')
-            ->toArray();
-        
-        if (!in_array('approve_tasks', $permissions) && !in_array($user->role->name, ['super_admin', 'branch_admin'])) {
+        if (!$user->hasPermission('approve_tasks') && !in_array($user->role->name, ['super_admin', 'branch_admin'])) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -418,13 +388,7 @@ class TaskController extends Controller
     {
         $user = $request->user();
         
-        $permissions = DB::table('permissions')
-            ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
-            ->where('role_permissions.role_id', $user->role_id)
-            ->pluck('permissions.name')
-            ->toArray();
-        
-        if (!in_array('update_tasks', $permissions)) {
+        if (!$user->hasPermission('update_tasks')) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -466,13 +430,7 @@ class TaskController extends Controller
     {
         $user = $request->user();
         
-        $permissions = DB::table('permissions')
-            ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
-            ->where('role_permissions.role_id', $user->role_id)
-            ->pluck('permissions.name')
-            ->toArray();
-        
-        if (!in_array('delete_tasks', $permissions)) {
+        if (!$user->hasPermission('delete_tasks')) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -498,13 +456,7 @@ class TaskController extends Controller
     {
         $user = $request->user();
         
-        $permissions = DB::table('permissions')
-            ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
-            ->where('role_permissions.role_id', $user->role_id)
-            ->pluck('permissions.name')
-            ->toArray();
-        
-        if (!in_array('update_tasks', $permissions)) {
+        if (!$user->hasPermission('update_tasks')) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -578,13 +530,7 @@ class TaskController extends Controller
             ->where('user_id', $user->id)
             ->first();
 
-        $permissions = DB::table('permissions')
-            ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
-            ->where('role_permissions.role_id', $user->role_id)
-            ->pluck('permissions.name')
-            ->toArray();
-
-        if (!$assignment && !in_array('update_tasks', $permissions) && $user->role->name !== 'super_admin') {
+        if (!$assignment && !$user->hasPermission('update_tasks') && $user->role->name !== 'super_admin') {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -623,6 +569,7 @@ class TaskController extends Controller
 
     /**
      * Get available employees for assignment
+     * Returns all technicians (both employee and supervisor types)
      */
     public function getAvailableEmployees(Request $request)
     {
@@ -630,7 +577,7 @@ class TaskController extends Controller
         $taskId = $request->query('task_id');
         
         $query = User::whereHas('role', function($query) {
-            $query->where('name', 'employee');
+            $query->where('name', 'technician');
         })
         ->where('is_active', true);
         
@@ -642,8 +589,19 @@ class TaskController extends Controller
             }
         }
         
-        $employees = $query->select('id', 'name', 'email', 'employee_code', 'branch_id')
-            ->get();
+        $employees = $query->select('id', 'name', 'email', 'employee_code', 'branch_id', 'technician_type')
+            ->get()
+            ->map(function($employee) {
+                return [
+                    'id' => $employee->id,
+                    'name' => $employee->name,
+                    'email' => $employee->email,
+                    'employee_code' => $employee->employee_code,
+                    'branch_id' => $employee->branch_id,
+                    'technician_type' => $employee->technician_type,
+                    'position' => ucfirst($employee->technician_type?->value ?? '') // Display 'Employee' or 'Supervisor'
+                ];
+            });
 
         return response()->json($employees);
     }

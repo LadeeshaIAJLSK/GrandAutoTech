@@ -16,21 +16,21 @@ class RolePermissionSeeder extends Seeder
         $superAdmin = DB::table('roles')->where('name', 'super_admin')->first()->id;
         $branchAdmin = DB::table('roles')->where('name', 'branch_admin')->first()->id;
         $accountant = DB::table('roles')->where('name', 'accountant')->first()->id;
-        $employee = DB::table('roles')->where('name', 'employee')->first()->id;
+        $technician = DB::table('roles')->where('name', 'technician')->first()->id;
         $supportStaff = DB::table('roles')->where('name', 'support_staff')->first()->id;
         $customer = DB::table('roles')->where('name', 'customer')->first()->id;
         
         // Super Admin - ALL permissions
         $allPermissions = DB::table('permissions')->pluck('id');
         foreach ($allPermissions as $permissionId) {
-            DB::table('role_permissions')->insert([
-                'role_id' => $superAdmin,
-                'permission_id' => $permissionId,
-                'branch_id' => null,
-                'granted' => true,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            DB::table('role_permissions')->updateOrInsert(
+                ['role_id' => $superAdmin, 'permission_id' => $permissionId],
+                [
+                    'branch_id' => null,
+                    'granted' => true,
+                    'updated_at' => now(),
+                ]
+            );
         }
         
         // Branch Admin - Most permissions
@@ -38,14 +38,14 @@ class RolePermissionSeeder extends Seeder
             ->whereNotIn('name', ['update_settings']) // Can't modify system settings
             ->pluck('id');
         foreach ($branchAdminPermissions as $permissionId) {
-            DB::table('role_permissions')->insert([
-                'role_id' => $branchAdmin,
-                'permission_id' => $permissionId,
-                'branch_id' => null,
-                'granted' => true,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            DB::table('role_permissions')->updateOrInsert(
+                ['role_id' => $branchAdmin, 'permission_id' => $permissionId],
+                [
+                    'branch_id' => null,
+                    'granted' => true,
+                    'updated_at' => now(),
+                ]
+            );
         }
         
         // Accountant - Financial only
@@ -53,18 +53,18 @@ class RolePermissionSeeder extends Seeder
             ->whereIn('module', ['dashboard', 'invoices', 'payments', 'financial_reports'])
             ->pluck('id');
         foreach ($accountantPermissions as $permissionId) {
-            DB::table('role_permissions')->insert([
-                'role_id' => $accountant,
-                'permission_id' => $permissionId,
-                'branch_id' => null,
-                'granted' => true,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            DB::table('role_permissions')->updateOrInsert(
+                ['role_id' => $accountant, 'permission_id' => $permissionId],
+                [
+                    'branch_id' => null,
+                    'granted' => true,
+                    'updated_at' => now(),
+                ]
+            );
         }
         
-        // Employee - Task specific
-        $employeePermissions = DB::table('permissions')
+        // Technician - Task specific (both employee and supervisor)
+        $technicianPermissions = DB::table('permissions')
             ->whereIn('name', [
                 'view_dashboard',
                 'own_tasks',
@@ -73,15 +73,16 @@ class RolePermissionSeeder extends Seeder
                 'view_spare_parts',
             ])
             ->pluck('id');
-        foreach ($employeePermissions as $permissionId) {
-            DB::table('role_permissions')->insert([
-                'role_id' => $employee,
-                'permission_id' => $permissionId,
-                'branch_id' => null,
-                'granted' => true,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+        foreach ($technicianPermissions as $permissionId) {
+            DB::table('role_permissions')->updateOrInsert(
+                ['role_id' => $technician, 'permission_id' => $permissionId],
+                [
+                    'technician_type' => null, // Applies to all technicians
+                    'branch_id' => null,
+                    'granted' => true,
+                    'updated_at' => now(),
+                ]
+            );
         }
         
         // Support Staff - Customer service
@@ -99,14 +100,14 @@ class RolePermissionSeeder extends Seeder
             ])
             ->pluck('id');
         foreach ($supportStaffPermissions as $permissionId) {
-            DB::table('role_permissions')->insert([
-                'role_id' => $supportStaff,
-                'permission_id' => $permissionId,
-                'branch_id' => null,
-                'granted' => true,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            DB::table('role_permissions')->updateOrInsert(
+                ['role_id' => $supportStaff, 'permission_id' => $permissionId],
+                [
+                    'branch_id' => null,
+                    'granted' => true,
+                    'updated_at' => now(),
+                ]
+            );
         }
         
         // Customer - View own data only
@@ -118,14 +119,14 @@ class RolePermissionSeeder extends Seeder
             ])
             ->pluck('id');
         foreach ($customerPermissions as $permissionId) {
-            DB::table('role_permissions')->insert([
-                'role_id' => $customer,
-                'permission_id' => $permissionId,
-                'branch_id' => null,
-                'granted' => true,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            DB::table('role_permissions')->updateOrInsert(
+                ['role_id' => $customer, 'permission_id' => $permissionId],
+                [
+                    'branch_id' => null,
+                    'granted' => true,
+                    'updated_at' => now(),
+                ]
+            );
         }
     }
 }

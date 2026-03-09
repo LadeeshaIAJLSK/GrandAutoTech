@@ -48,6 +48,11 @@ class AuthController extends Controller
                 $query->whereNull('role_permissions.branch_id')
                       ->orWhere('role_permissions.branch_id', $user->branch_id);
             })
+            ->where(function($query) use ($user) {
+                // Check if permission applies to this user's technician_type
+                $query->whereNull('role_permissions.technician_type')
+                      ->orWhere('role_permissions.technician_type', $user->technician_type?->value);
+            })
             ->pluck('permissions.name')
             ->toArray();
 
@@ -113,6 +118,11 @@ class AuthController extends Controller
             ->where(function($query) use ($user) {
                 $query->whereNull('role_permissions.branch_id')
                       ->orWhere('role_permissions.branch_id', $user->branch_id);
+            })
+            ->where(function($query) use ($user) {
+                // Check if permission applies to this user's technician_type
+                $query->whereNull('role_permissions.technician_type')
+                      ->orWhere('role_permissions.technician_type', $user->technician_type?->value);
             })
             ->pluck('permissions.name')
             ->toArray();

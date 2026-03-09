@@ -161,7 +161,7 @@ const JobCardPrint = forwardRef(({ jobCard }, ref) => {
           {/* ── Work Performed ── */}
           {jobCard.tasks && jobCard.tasks.length > 0 && (
             <div style={{ marginBottom: '12px' }}>
-              <div className="section-title">WORK PERFORMED</div>
+              <div className="section-title">SERVICES PRICING</div>
               <div style={{ border: '1px solid #000', borderRadius: '4px', overflow: 'hidden' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
@@ -247,40 +247,7 @@ const JobCardPrint = forwardRef(({ jobCard }, ref) => {
             </div>
           )}
 
-          {/* ── Services Pricing ── */}
-          {jobCard.tasks && jobCard.tasks.length > 0 && (
-            <div style={{ marginBottom: '12px' }}>
-              <div className="section-title">SERVICES PRICING</div>
-              <div style={{ border: '1px solid #000', borderRadius: '4px', overflow: 'hidden' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr>
-                      {['#', 'Service', 'Hours', 'Cost', 'Revenue'].map((h, i) => (
-                        <th key={i} className="table-th" style={{ padding: '4px 6px', textAlign: i > 1 ? 'right' : 'left', fontSize: '8px' }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {jobCard.tasks.map((task, index) => (
-                      <tr key={task.id} style={{ background: index % 2 === 0 ? '#fff' : '#f9f9f9' }}>
-                        <td className="table-td" style={{ padding: '3px 6px', width: '20px' }}>{index + 1}</td>
-                        <td className="table-td" style={{ padding: '3px 6px', fontSize: '9px' }}>{task.task_name}</td>
-                        <td className="table-td" style={{ padding: '3px 6px', textAlign: 'right', fontSize: '9px' }}>{task.labor_hours || '—'}</td>
-                        <td className="table-td" style={{ padding: '3px 6px', textAlign: 'right', fontSize: '9px', fontWeight: '600' }}>{formatCurrency(task.cost_price || 0)}</td>
-                        <td className="table-td" style={{ padding: '3px 6px', textAlign: 'right', fontSize: '9px', fontWeight: '600' }}>{formatCurrency(task.amount || 0)}</td>
-                      </tr>
-                    ))}
-                    <tr style={{ background: '#f9f9f9', borderTop: '2px solid #000' }}>
-                      <td colSpan="3" style={{ fontSize: '9px', fontWeight: '700', color: '#000', padding: '3px 6px', textAlign: 'right' }}>SUBTOTAL</td>
-                      <td style={{ fontSize: '9px', fontWeight: '700', color: '#000', padding: '3px 6px', textAlign: 'right' }}>{formatCurrency(jobCard.tasks.reduce((sum, t) => sum + (t.cost_price || 0), 0))}</td>
-                      <td style={{ fontSize: '9px', fontWeight: '700', color: '#000', padding: '3px 6px', textAlign: 'right' }}>{formatCurrency(jobCard.tasks.reduce((sum, t) => sum + (t.amount || 0), 0))}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
+          
           {/* ── Spare Parts Pricing ── */}
           {jobCard.spare_parts_requests && jobCard.spare_parts_requests.length > 0 && (
             <div style={{ marginBottom: '12px' }}>

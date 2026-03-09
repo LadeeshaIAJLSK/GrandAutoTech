@@ -582,7 +582,18 @@ function TaskManagement({ jobCard, onUpdate, user }) {
                         className="w-4 h-4 text-primary rounded"
                       />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-gray-800">{employee.name}</p>
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-sm font-semibold text-gray-800">{employee.name}</p>
+                          {employee.position && (
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${
+                              employee.technician_type === 'supervisor'
+                                ? 'bg-purple-100 text-purple-700'
+                                : 'bg-blue-100 text-blue-700'
+                            }`}>
+                              {employee.position}
+                            </span>
+                          )}
+                        </div>
                         <p className="text-xs text-gray-400 truncate">{employee.email}</p>
                       </div>
                       {selectedEmployees.includes(employee.id) && (

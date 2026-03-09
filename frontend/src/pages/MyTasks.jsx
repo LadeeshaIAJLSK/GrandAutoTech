@@ -10,6 +10,7 @@ function MyTasks({ user }) {
   const [taskParts, setTaskParts] = useState({})
   const [taskStatusFilter, setTaskStatusFilter] = useState('all')
   const [timerUpdate, setTimerUpdate] = useState(0) // For live timer updates
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
 
   const [partsRequest, setPartsRequest] = useState({
     part_name: '',
@@ -29,6 +30,15 @@ function MyTasks({ user }) {
       setTimerUpdate(prev => prev + 1)
     }, 1000)
     return () => clearInterval(interval)
+  }, [])
+
+  // Handle responsive breakpoint
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
   }, [])
 
   useEffect(() => {
@@ -325,20 +335,20 @@ function MyTasks({ user }) {
         </div>
       )}
 
-      {/* Status Filter Tabs */}
-      <div className="flex flex-wrap gap-1.5 bg-white border border-gray-200 rounded-xl p-2 shadow-sm">
+      {/* Status Filter Tabs - Responsive */}
+      <div className="flex flex-wrap gap-1 sm:gap-1.5 bg-white border border-gray-200 rounded-xl p-2 shadow-sm overflow-x-auto">
         {filterTabs.map(f => (
           <button
             key={f.id}
             onClick={() => setTaskStatusFilter(f.id)}
-            className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+            className={`inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
               taskStatusFilter === f.id
                 ? 'bg-primary text-white shadow-sm'
                 : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
             }`}
           >
             {f.icon}
-            {f.label}
+            <span className="hidden sm:inline">{f.label}</span>
             <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
               taskStatusFilter === f.id ? 'bg-white/25 text-white' : 'bg-gray-100 text-gray-600'
             }`}>
@@ -353,24 +363,24 @@ function MyTasks({ user }) {
         <div className="space-y-4">
           {jobCardGroups.map(group => (
             <div key={group.jobCard.id} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-              {/* Job Card Header */}
-              <div className="flex justify-between items-center px-5 py-3.5 bg-gradient-to-r from-blue-600 to-blue-700">
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center justify-center w-8 h-8 bg-white/20 rounded-lg">
+              {/* Job Card Header - Responsive */}
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 px-4 py-3 sm:px-5 sm:py-3.5 bg-gradient-to-r from-blue-600 to-blue-700">
+                <div className="flex items-start gap-3 flex-1 min-w-0">
+                  <div className="flex items-center justify-center w-8 h-8 bg-white/20 rounded-lg flex-shrink-0">
                     <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                     </svg>
                   </div>
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <p className="font-bold text-white text-sm">{group.jobCard.job_card_number}</p>
-                    <div className="flex items-center gap-3 text-blue-200 text-xs mt-0.5">
-                      <span>{group.jobCard.customer?.name}</span>
-                      <span className="font-mono font-semibold tracking-wide">{group.jobCard.vehicle?.license_plate}</span>
-                      {group.jobCard.branch?.name && <span>{group.jobCard.branch.name}</span>}
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:gap-3 text-blue-200 text-xs mt-0.5 gap-0.5">
+                      <span className="truncate">{group.jobCard.customer?.name}</span>
+                      <span className="font-mono font-semibold tracking-wide truncate">{group.jobCard.vehicle?.license_plate}</span>
+                      {group.jobCard.branch?.name && <span className="hidden lg:inline">{group.jobCard.branch.name}</span>}
                     </div>
                   </div>
                 </div>
-                <span className="text-xs font-semibold text-blue-100 bg-white/15 px-2.5 py-1 rounded-full">
+                <span className="text-xs font-semibold text-blue-100 bg-white/15 px-2.5 py-1 rounded-full whitespace-nowrap flex-shrink-0">
                   {formatJobCardStatus(group.jobCard.status)}
                 </span>
               </div>
@@ -425,8 +435,8 @@ function MyTasks({ user }) {
                         }
                       </div>
 
-                      {/* Action Buttons */}
-                      <div className="flex gap-2 pt-2.5 border-t border-gray-200">
+                      {/* Action Buttons - Responsive */}
+                      <div className="flex flex-wrap gap-2 pt-2.5 border-t border-gray-200">
                         {task.status === 'assigned' && (
                           <button
                             onClick={() => handleStartTask(task.id)}
@@ -435,7 +445,7 @@ function MyTasks({ user }) {
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
                               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
                             </svg>
-                            Start
+                            <span className="hidden sm:inline">Start</span>
                           </button>
                         )}
                         {task.status === 'in_progress' && (
@@ -448,7 +458,7 @@ function MyTasks({ user }) {
                                 <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
                                   <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
                                 </svg>
-                                Pause
+                                <span className="hidden sm:inline">Pause</span>
                               </button>
                             ) : (
                               <button
@@ -458,7 +468,7 @@ function MyTasks({ user }) {
                                 <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
                                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
                                 </svg>
-                                Resume
+                                <span className="hidden sm:inline">Resume</span>
                               </button>
                             )}
                             {(() => {
@@ -478,7 +488,7 @@ function MyTasks({ user }) {
                                   <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
                                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                   </svg>
-                                  Complete
+                                  <span className="hidden sm:inline">Complete</span>
                                   {hasUndeliveredParts && <span className="ml-1 text-xs">⚠</span>}
                                 </button>
                               )
@@ -499,17 +509,17 @@ function MyTasks({ user }) {
                                 setShowRequestPartsModal(true)
                               }}
                               disabled={!canRequestParts}
-                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ml-auto ${
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
                                 canRequestParts
                                   ? 'bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200'
                                   : 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200'
-                              }`}
+                              } ${isMobile ? '' : 'ml-auto'}`}
                               title={!canRequestParts ? 'Cannot request parts once task is submitted or completed' : ''}
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
                               </svg>
-                              Parts
+                              <span className="hidden sm:inline">Parts</span>
                             </button>
                           )
                         })()}
@@ -587,41 +597,43 @@ function MyTasks({ user }) {
         </div>
       )}
 
-      {/* Request Parts Modal */}
+      {/* Request Parts Modal - Responsive */}
       {showRequestPartsModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-start px-7 py-5 border-b border-gray-100 bg-blue-50/50">
-              <div>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 sm:p-6">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-start px-4 sm:px-7 py-4 sm:py-5 border-b border-gray-100 bg-blue-50/50">
+              <div className="min-w-0 flex-1">
                 <h3 className="text-lg font-bold text-gray-900">Request Spare Parts</h3>
-                <p className="text-sm text-gray-400 mt-0.5">For: {selectedTask?.task_name}</p>
+                <p className="text-sm text-gray-400 mt-0.5 truncate">For: {selectedTask?.task_name}</p>
               </div>
-              <button onClick={() => setShowRequestPartsModal(false)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+              <button onClick={() => setShowRequestPartsModal(false)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors flex-shrink-0 ml-2">
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
-            <form onSubmit={handleRequestParts} className="px-7 py-6 space-y-4">
+            <form onSubmit={handleRequestParts} className="px-4 sm:px-7 py-5 sm:py-6 space-y-4">
               <div className="space-y-1.5">
                 <label className={labelCls}>Part Name <span className="text-red-400">*</span></label>
                 <input type="text" value={partsRequest.part_name} onChange={(e) => setPartsRequest({...partsRequest, part_name: e.target.value})} required placeholder="e.g., Brake Pads Front" className={inputCls} />
               </div>
-              <div className="space-y-1.5">
-                <label className={labelCls}>Part Number</label>
-                <input type="text" value={partsRequest.part_number} onChange={(e) => setPartsRequest({...partsRequest, part_number: e.target.value})} placeholder="e.g., BP-12345" className={inputCls} />
-              </div>
-              <div className="space-y-1.5">
-                <label className={labelCls}>Quantity <span className="text-red-400">*</span></label>
-                <input type="number" value={partsRequest.quantity} onChange={(e) => setPartsRequest({...partsRequest, quantity: e.target.value})} required placeholder="e.g., 4" min="1" className={inputCls} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div className="space-y-1.5">
+                  <label className={labelCls}>Part Number</label>
+                  <input type="text" value={partsRequest.part_number} onChange={(e) => setPartsRequest({...partsRequest, part_number: e.target.value})} placeholder="e.g., BP-12345" className={inputCls} />
+                </div>
+                <div className="space-y-1.5">
+                  <label className={labelCls}>Quantity <span className="text-red-400">*</span></label>
+                  <input type="number" value={partsRequest.quantity} onChange={(e) => setPartsRequest({...partsRequest, quantity: e.target.value})} required placeholder="e.g., 4" min="1" className={inputCls} />
+                </div>
               </div>
               <div className="space-y-1.5">
                 <label className={labelCls}>Description</label>
                 <textarea value={partsRequest.description} onChange={(e) => setPartsRequest({...partsRequest, description: e.target.value})} placeholder="Additional details..." rows="2" className={`${inputCls} resize-none`} />
               </div>
-              <div className="flex justify-end gap-3 pt-5 border-t border-gray-100">
-                <button type="button" onClick={() => setShowRequestPartsModal(false)} className="px-5 py-2.5 text-sm bg-white hover:bg-gray-50 text-gray-700 rounded-lg font-semibold border border-gray-300 shadow-sm transition-colors">Cancel</button>
-                <button type="submit" className="px-5 py-2.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-px" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>Request Parts</button>
+              <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-5 border-t border-gray-100">
+                <button type="button" onClick={() => setShowRequestPartsModal(false)} className="px-5 py-2.5 text-sm bg-white hover:bg-gray-50 text-gray-700 rounded-lg font-semibold border border-gray-300 shadow-sm transition-colors order-2 sm:order-1">Cancel</button>
+                <button type="submit" className="px-5 py-2.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-px order-1 sm:order-2" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>Request Parts</button>
               </div>
             </form>
           </div>

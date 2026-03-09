@@ -5,210 +5,197 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Invoice;
 use App\Models\JobCard;
+use App\Models\OtherCharge;
+use App\Models\Payment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class InvoiceController extends Controller
 {
     /**
+     * List all invoices (for invoice management table)
+     */
+    public function index(Request $request)
+    {
+        $user = $request->user();
+        $query = Invoice::with(['jobCard.customer', 'jobCard.vehicle', 'jobCard.branch']);
+
+        if ($user->role->name !== 'super_admin') {
+            $query->whereHas('jobCard', fn($q) => $q->where('branch_id', $user->branch_id));
+        }
+
+        if ($request->branch_id && $user->role->name === 'super_admin') {
+            $query->whereHas('jobCard', fn($q) => $q->where('branch_id', $request->branch_id));
+        }
+
+        $invoices = $query->orderBy('created_at', 'desc')->get();
+        return response()->json($invoices);
+    }
+
+    /**
      * Generate invoice from job card
      */
     public function generateFromJobCard(Request $request, $jobCardId)
     {
-        $user = $request->user();
-        
-        $permissions = DB::table('permissions')
-            ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
-            ->where('role_permissions.role_id', $user->role_id)
-            ->pluck('permissions.name')
-            ->toArray();
-        
-        if (!in_array('add_invoices', $permissions)) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
-
-        $jobCard = JobCard::with(['tasks', 'sparePartsRequests', 'customer'])->findOrFail($jobCardId);
-
-        // Check if job card is inspected
-        if ($jobCard->status !== 'inspected') {
-            return response()->json([
-                'message' => 'Job card must be marked as inspected before generating invoice',
-                'current_status' => $jobCard->status
-            ], 400);
-        }
-
-        // Validate spare parts pricing
-        $sparePartsWithoutPricing = $jobCard->sparePartsRequests
-            ->whereIn('overall_status', ['delivered', 'installed'])
-            ->filter(function($part) {
-                return $part->unit_cost == 0 || $part->selling_price == 0;
-            });
-        
-        if ($sparePartsWithoutPricing->count() > 0) {
-            $partNames = $sparePartsWithoutPricing->pluck('part_name')->toArray();
-            return response()->json([
-                'message' => 'Cannot generate invoice. The following spare parts have missing or zero pricing (cost price and/or selling price must be greater than 0):',
-                'incomplete_parts' => $partNames
-            ], 422);
-        }
-
-        // Validate services (tasks) pricing
-        $tasksWithoutPricing = $jobCard->tasks
-            ->where('status', 'completed')
-            ->filter(function($task) {
-                return $task->cost_price == 0 || $task->amount == 0;
-            });
-        
-        if ($tasksWithoutPricing->count() > 0) {
-            $taskNames = $tasksWithoutPricing->pluck('task_name')->toArray();
-            return response()->json([
-                'message' => 'Cannot generate invoice. The following services have missing or zero pricing (cost price and/or amount must be greater than 0):',
-                'incomplete_tasks' => $taskNames
-            ], 422);
-        }
-
-        // Check if invoice already exists
-        $existingInvoice = Invoice::where('job_card_id', $jobCard->id)->first();
-        if ($existingInvoice) {
-            return response()->json([
-                'message' => 'Invoice already exists for this job card',
-                'invoice' => $existingInvoice
-            ], 400);
-        }
-
-        // Calculate totals
-        $laborCharges = $jobCard->tasks->sum('labor_cost');
-        $partsCharges = $jobCard->sparePartsRequests
-            ->where('overall_status', 'installed')
-            ->sum('total_cost');
-        $otherCharges = $jobCard->other_charges ?? 0;
-        $discountAmount = $jobCard->discount ?? 0;
-
-        $subtotal = $laborCharges + $partsCharges + $otherCharges;
-        $totalAmount = $subtotal - $discountAmount;
-        $advancePaid = $jobCard->advance_payment ?? 0;
-        $balanceDue = $totalAmount - $advancePaid;
-
-        // Generate invoice number
-        $invoiceNumber = $this->generateInvoiceNumber();
-
-        $invoice = Invoice::create([
-            'invoice_number' => $invoiceNumber,
-            'job_card_id' => $jobCard->id,
-            'customer_id' => $jobCard->customer_id,
-            'created_by' => $user->id,
-            'labor_charges' => $laborCharges,
-            'parts_charges' => $partsCharges,
-            'other_charges' => $otherCharges,
-            'subtotal' => $subtotal,
-            'discount_amount' => $discountAmount,
-            'tax_amount' => 0, // Can add tax calculation if needed
-            'total_amount' => $totalAmount,
-            'advance_paid' => $advancePaid,
-            'balance_due' => $balanceDue,
-            'status' => $balanceDue > 0 ? 'sent' : 'sent',
-            'invoice_date' => now(),
-            'due_date' => now()->addDays(7),
+        $request->validate([
+            'discount_amount' => 'nullable|numeric|min:0',
         ]);
 
-        // Update job card status
-        $jobCard->update([
-            'status' => 'sent',
-            'total_amount' => $totalAmount,
-            'balance_amount' => $balanceDue
-        ]);
-
-        return response()->json([
-            'message' => 'Invoice generated successfully',
-            'invoice' => $invoice->load(['jobCard', 'customer'])
-        ], 201);
-    }
-
-    /**
-     * Get invoice by ID
-     */
-    public function show($id)
-    {
-        $invoice = Invoice::with([
-            'jobCard.tasks',
-            'jobCard.sparePartsRequests',
-            'jobCard.vehicle',
+        $jobCard = JobCard::with([
             'customer',
-            'payments'
-        ])->findOrFail($id);
+            'tasks',
+            'sparePartsRequests',
+        ])->findOrFail($jobCardId);
 
-        return response()->json($invoice);
+        // Prevent duplicate invoices
+        $existing = Invoice::where('job_card_id', $jobCardId)->first();
+        if ($existing) {
+            return response()->json(['message' => 'Invoice already exists for this job card', 'invoice' => $existing], 422);
+        }
+
+        DB::beginTransaction();
+        try {
+            // Labor from completed tasks
+            $laborCharges = $jobCard->tasks
+                ->where('status', 'completed')
+                ->sum('amount');
+
+            // Parts from spare parts with selling price
+            $partsCharges = $jobCard->sparePartsRequests
+                ->sum('selling_price');
+
+            // Other charges
+            $otherChargesTotal = OtherCharge::where('job_card_id', $jobCardId)->sum('amount');
+
+            $subtotal = $laborCharges + $partsCharges + $otherChargesTotal;
+            $discountAmount = $request->discount_amount ?? 0;
+            $totalAmount = max(0, $subtotal - $discountAmount);
+
+            // Advance payment from payments table (source of truth), fallback to job card field
+            $advancePaid = Payment::where('job_card_id', $jobCardId)
+                ->where('payment_type', 'advance')
+                ->sum('amount');
+            if ($advancePaid == 0) {
+                $advancePaid = $jobCard->advance_payment ?? 0;
+            }
+            $balanceDue = max(0, $totalAmount - $advancePaid);
+
+            // Determine status
+            if ($balanceDue <= 0) {
+                $status = 'paid';
+            } elseif ($advancePaid > 0) {
+                $status = 'partially_paid';
+            } else {
+                $status = 'sent';
+            }
+
+            // Generate invoice number
+            $year = now()->year;
+            $month = now()->format('m');
+            $count = Invoice::whereYear('created_at', $year)->whereMonth('created_at', $month)->count() + 1;
+            $invoiceNumber = 'INV' . $year . $month . str_pad($count, 5, '0', STR_PAD_LEFT);
+
+            $invoice = Invoice::create([
+                'invoice_number'  => $invoiceNumber,
+                'job_card_id'     => $jobCardId,
+                'customer_id'     => $jobCard->customer_id,
+                'created_by'      => $request->user()->id,
+                'labor_charges'   => $laborCharges,
+                'parts_charges'   => $partsCharges,
+                'other_charges'   => $otherChargesTotal,
+                'subtotal'        => $subtotal,
+                'discount_amount' => $discountAmount,
+                'tax_amount'      => 0,
+                'total_amount'    => $totalAmount,
+                'advance_paid'    => $advancePaid,
+                'balance_due'     => $balanceDue,
+                'status'          => $status,
+                'invoice_date'    => now()->toDateString(),
+                'due_date'        => now()->addDays(30)->toDateString(),
+            ]);
+
+            DB::commit();
+
+            return response()->json($invoice->load('jobCard.customer', 'jobCard.vehicle'), 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Failed to generate invoice: ' . $e->getMessage()], 500);
+        }
     }
 
     /**
-     * Get invoice by job card
+     * Get invoice by job card ID
      */
     public function getByJobCard($jobCardId)
     {
-        $invoice = Invoice::with(['payments'])
-            ->where('job_card_id', $jobCardId)
+        $invoice = Invoice::where('job_card_id', $jobCardId)
+            ->with(['jobCard.customer', 'jobCard.vehicle'])
             ->first();
 
         if (!$invoice) {
-            return response()->json(['message' => 'No invoice found'], 404);
+            return response()->json(null, 404);
         }
 
         return response()->json($invoice);
     }
 
     /**
-     * Update invoice
+     * Get single invoice
      */
-    public function update(Request $request, $id)
+    public function show($id)
     {
-        $user = $request->user();
-        
-        $permissions = DB::table('permissions')
-            ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
-            ->where('role_permissions.role_id', $user->role_id)
-            ->pluck('permissions.name')
-            ->toArray();
-        
-        if (!in_array('update_invoices', $permissions)) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
-
-        $invoice = Invoice::findOrFail($id);
-
-        $validated = $request->validate([
-            'discount_amount' => 'nullable|numeric|min:0',
-            'notes' => 'nullable|string',
-            'due_date' => 'nullable|date',
-        ]);
-
-        $invoice->update($validated);
-        $invoice->calculateTotals();
-
-        return response()->json([
-            'message' => 'Invoice updated successfully',
-            'invoice' => $invoice->fresh()
-        ]);
+        $invoice = Invoice::with(['jobCard.customer', 'jobCard.vehicle'])->findOrFail($id);
+        return response()->json($invoice);
     }
 
     /**
-     * Generate unique invoice number
+     * Update invoice (apply discount, update status)
      */
-    private function generateInvoiceNumber()
+    public function update(Request $request, $id)
     {
-        $year = date('Y');
-        $prefix = "INV-{$year}-";
-        
-        $lastInvoice = Invoice::where('invoice_number', 'like', "{$prefix}%")
-            ->orderBy('id', 'desc')
-            ->first();
+        $request->validate([
+            'discount_amount' => 'nullable|numeric|min:0',
+            'status'          => 'nullable|in:draft,sent,paid,partially_paid,overdue,cancelled',
+            'notes'           => 'nullable|string',
+        ]);
 
-        if ($lastInvoice) {
-            $lastNumber = intval(substr($lastInvoice->invoice_number, -4));
-            $newNumber = $lastNumber + 1;
-        } else {
-            $newNumber = 1;
+        $invoice = Invoice::findOrFail($id);
+
+        if ($request->has('discount_amount')) {
+            $discount = $request->discount_amount;
+            $totalAmount = max(0, $invoice->subtotal - $discount);
+            $balanceDue = max(0, $totalAmount - $invoice->advance_paid);
+
+            // Recalculate paid amounts from payments
+            $paidAmount = Payment::where('job_card_id', $invoice->job_card_id)
+                ->where('payment_type', 'post_invoice')
+                ->sum('amount');
+            $balanceDue = max(0, $balanceDue - $paidAmount);
+
+            if ($balanceDue <= 0) {
+                $status = 'paid';
+            } elseif ($invoice->advance_paid > 0 || $paidAmount > 0) {
+                $status = 'partially_paid';
+            } else {
+                $status = 'sent';
+            }
+
+            $invoice->update([
+                'discount_amount' => $discount,
+                'total_amount'    => $totalAmount,
+                'balance_due'     => $balanceDue,
+                'status'          => $status,
+            ]);
         }
 
-        return $prefix . str_pad($newNumber, 4, '0', STR_PAD_LEFT);
+        if ($request->has('status')) {
+            $invoice->update(['status' => $request->status]);
+        }
+
+        if ($request->has('notes')) {
+            $invoice->update(['notes' => $request->notes]);
+        }
+
+        return response()->json($invoice->fresh());
     }
 }

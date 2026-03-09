@@ -9,7 +9,7 @@ function PartsApprovalPanel({ jobCard, user, onUpdate }) {
   const [showCustomerModal, setShowCustomerModal] = useState(false)
 
   useEffect(() => {
-    if (['super_admin', 'branch_admin'].includes(user.role.name)) {
+    if (user.role.name === 'super_admin' || user.permissions.includes('approve_spare_parts')) {
       fetchPendingParts()
     }
   }, [jobCard.id])
@@ -59,7 +59,7 @@ function PartsApprovalPanel({ jobCard, user, onUpdate }) {
     }
   }
 
-  if (!['super_admin', 'branch_admin'].includes(user.role.name)) return null
+  if (user.role.name !== 'super_admin' && !user.permissions.includes('approve_spare_parts')) return null
   if (loading) return null
   if (adminPendingParts.length === 0 && customerPendingParts.length === 0) return null
 

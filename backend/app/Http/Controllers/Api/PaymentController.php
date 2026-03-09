@@ -65,13 +65,22 @@ class PaymentController extends Controller
             'notes' => $validated['notes'] ?? null,
         ]);
 
-        // Update job card balance
-        $jobCard->advance_payment += $validated['amount'];
-        $jobCard->balance_amount = $jobCard->total_amount - $jobCard->advance_payment;
+        // Update job card based on payment type
+        if ($validated['payment_type'] === 'advance') {
+            // Advance payment - add to advance_payment field
+            $jobCard->advance_payment += $validated['amount'];
+        } else {
+            // Post-invoice payment (partial, full, refund) - reduce balance directly
+            $jobCard->balance_amount = max(0, $jobCard->balance_amount - $validated['amount']);
+        }
         
-        // Update status if fully paid
+        // Update payment_status based on current state
         if ($jobCard->balance_amount <= 0) {
-            $jobCard->status = 'paid';
+            $jobCard->payment_status = 'paid';
+        } elseif ($jobCard->advance_payment > 0) {
+            $jobCard->payment_status = 'advance_paid';
+        } else {
+            $jobCard->payment_status = 'unpaid';
         }
         
         $jobCard->save();
@@ -144,15 +153,10 @@ class PaymentController extends Controller
 
         $payment = Payment::findOrFail($id);
 
-        // Reverse the payment from job card
+        // Reverse the payment from job card (do NOT change job_card status)
         $jobCard = $payment->jobCard;
         $jobCard->advance_payment -= $payment->amount;
         $jobCard->balance_amount = $jobCard->total_amount - $jobCard->advance_payment;
-        
-        if ($jobCard->status === 'paid' && $jobCard->balance_amount > 0) {
-            $jobCard->status = 'invoiced';
-        }
-        
         $jobCard->save();
 
         // Reverse from invoice if exists

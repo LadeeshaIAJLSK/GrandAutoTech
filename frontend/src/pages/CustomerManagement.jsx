@@ -3,6 +3,7 @@ import axiosClient from '../api/axios'
 import CustomerTable from '../components/customers/CustomerTable'
 import CustomerModal from '../components/customers/CustomerModal'
 import VehicleModal from '../components/customers/VehicleModal'
+import Notification from '../components/common/Notification'
 
 function CustomerManagement({ user }) {
   const [customers, setCustomers] = useState([])
@@ -15,6 +16,7 @@ function CustomerManagement({ user }) {
   const [search, setSearch] = useState('')
   const [filterBranch, setFilterBranch] = useState('')
   const [branchDropdownOpen, setBranchDropdownOpen] = useState(false)
+  const [notification, setNotification] = useState(null)
   const branchDropdownRef = useRef(null)
 
   const [customerForm, setCustomerForm] = useState({
@@ -192,20 +194,20 @@ function CustomerManagement({ user }) {
         await axiosClient.put(`/customers/${editingCustomer.id}`, customerForm, {
           headers: { Authorization: `Bearer ${token}` }
         })
-        alert('Customer updated successfully!')
+        setNotification({ type: 'success', title: 'Success', message: 'Customer updated successfully!' })
       } else {
         const response = await axiosClient.post('/customers', customerForm, {
           headers: { Authorization: `Bearer ${token}` }
         })
         console.log('Customer created response:', response.data)
-        alert('Customer created successfully!')
+        setNotification({ type: 'success', title: 'Success', message: 'Customer created successfully!' })
       }
 
       setShowCustomerModal(false)
       fetchCustomers()
     } catch (error) {
       console.error('Error saving customer:', error.response?.data)
-      alert(error.response?.data?.message || 'Error saving customer')
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error saving customer' })
     }
   }
 
@@ -217,10 +219,10 @@ function CustomerManagement({ user }) {
       await axiosClient.delete(`/customers/${customerId}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      alert('Customer deleted successfully!')
+      setNotification({ type: 'success', title: 'Success', message: 'Customer deleted successfully!' })
       fetchCustomers()
     } catch (error) {
-      alert(error.response?.data?.message || 'Error deleting customer')
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error deleting customer' })
     }
   }
   // Vehicle Actions
@@ -306,18 +308,18 @@ function CustomerManagement({ user }) {
         await axiosClient.put(`/vehicles/${editingVehicle.id}`, vehicleForm, {
           headers: { Authorization: `Bearer ${token}` }
         })
-        alert('Vehicle updated successfully!')
+        setNotification({ type: 'success', title: 'Success', message: 'Vehicle updated successfully!' })
       } else {
         await axiosClient.post('/vehicles', vehicleForm, {
           headers: { Authorization: `Bearer ${token}` }
         })
-        alert('Vehicle registered successfully!')
+        setNotification({ type: 'success', title: 'Success', message: 'Vehicle registered successfully!' })
       }
 
       setShowVehicleModal(false)
       fetchCustomers()
     } catch (error) {
-      alert(error.response?.data?.message || 'Error saving vehicle')
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error saving vehicle' })
     }
   }
 
@@ -329,10 +331,10 @@ function CustomerManagement({ user }) {
       await axiosClient.delete(`/vehicles/${vehicleId}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      alert('Vehicle deleted successfully!')
+      setNotification({ type: 'success', title: 'Success', message: 'Vehicle deleted successfully!' })
       fetchCustomers()
     } catch (error) {
-      alert(error.response?.data?.message || 'Error deleting vehicle')
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error deleting vehicle' })
     }
   }
 
@@ -492,6 +494,8 @@ function CustomerManagement({ user }) {
         branches={branches}
         filterBranch={filterBranch}
       />
+
+      <Notification notification={notification} onClose={() => setNotification(null)} />
     </div>
   )
 }

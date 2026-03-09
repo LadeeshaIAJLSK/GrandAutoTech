@@ -122,24 +122,24 @@ function App() {
           element={user ? <Layout user={user} onLogout={handleLogout}><PettyCashManagement user={user} /></Layout> : <Navigate to="/login" />} 
         />
 
-        {/* My Tasks (Employee & Super Admin) */}
+        {/* My Tasks (Super Admin & Technicians with own_tasks permission) */}
         <Route
           path="/my-tasks"
-          element={user && ['employee', 'super_admin'].includes(user.role.name) ? (
+          element={user && (user.role.name === 'super_admin' || user.permissions.includes('own_tasks')) ? (
             <Layout user={user} onLogout={handleLogout}>
               <MyTasks user={user} />
             </Layout>
-          ) : <Navigate to="/login" />}
+          ) : <Navigate to="/dashboard" />}
         />
 
-        {/* Task Approval (Admin/Supervisor) */}
+        {/* Task Approval (Super Admin, Branch Admin & users with approve_tasks permission) */}
         <Route
           path="/task-approval"
-          element={user && ['super_admin', 'branch_admin'].includes(user.role.name) ? (
+          element={user && (user.role.name === 'super_admin' || user.role.name === 'branch_admin' || user.permissions.includes('approve_tasks')) ? (
             <Layout user={user} onLogout={handleLogout}>
               <TaskApproval user={user} />
             </Layout>
-          ) : <Navigate to="/login" />}
+          ) : <Navigate to="/dashboard" />}
         />
 
         <Route 

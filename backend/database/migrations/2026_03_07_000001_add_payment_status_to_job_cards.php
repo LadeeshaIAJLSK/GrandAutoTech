@@ -11,8 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            //
+        Schema::table('job_cards', function (Blueprint $table) {
+            $table->enum('payment_status', ['unpaid', 'advance_paid', 'partially_paid', 'paid'])
+                ->default('unpaid')
+                ->after('status');
         });
     }
 
@@ -21,8 +23,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            //
+        Schema::table('job_cards', function (Blueprint $table) {
+            $table->dropColumn('payment_status');
         });
     }
 };
