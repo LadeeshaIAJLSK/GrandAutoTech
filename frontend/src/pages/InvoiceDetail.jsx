@@ -149,6 +149,12 @@ function InvoiceDetail({ user }) {
   const handlePayment = async (e) => {
     e.preventDefault()
     if (!paymentAmount || parseFloat(paymentAmount) <= 0) return
+    
+    // Auto-determine payment type: full if amount covers balance, otherwise partial
+    const amount = parseFloat(paymentAmount)
+    const balance = calcBalanceDue()
+    const type = amount >= balance ? 'full' : 'partial'
+    
     try {
       setSubmittingPayment(true)
       await axiosClient.post(
@@ -156,9 +162,9 @@ function InvoiceDetail({ user }) {
         {
           job_card_id: jobCardId,
           invoice_id: invoice?.id,
-          amount: parseFloat(paymentAmount),
+          amount: amount,
           payment_method: paymentMethod,
-          payment_type: paymentType,
+          payment_type: type,
           payment_date: paymentDate,
           reference_number: referenceNumber || null,
           notes: null,
@@ -616,28 +622,15 @@ function InvoiceDetail({ user }) {
               Outstanding Balance: {fmt(calcBalanceDue())}
             </p>
             <form onSubmit={handlePayment} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-600 uppercase mb-2">Amount</label>
-                  <input
-                    type="number" min="0.01" step="0.01"
-                    value={paymentAmount}
-                    onChange={e => setPaymentAmount(e.target.value)}
-                    placeholder="0.00"
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-purple-400 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-600 uppercase mb-2">Payment Type</label>
-                  <select
-                    value={paymentType}
-                    onChange={e => setPaymentType(e.target.value)}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-purple-400 focus:outline-none"
-                  >
-                    <option value="partial">Partial Payment</option>
-                    <option value="full">Full Payment</option>
-                  </select>
-                </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-600 uppercase mb-2">Amount</label>
+                <input
+                  type="number" min="0.01" step="0.01"
+                  value={paymentAmount}
+                  onChange={e => setPaymentAmount(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-purple-400 focus:outline-none"
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
