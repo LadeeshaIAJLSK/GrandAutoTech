@@ -142,7 +142,13 @@ function InvoiceManagement({ user, selectedBranchId }) {
             </div>
             <div>
               <p className="text-xs text-gray-500 font-semibold uppercase">Today's Invoices</p>
-              <p className="text-2xl font-bold text-gray-900">0</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {jobCards.filter(jc => {
+                  const invoiceDate = new Date(jc.invoice?.invoice_date).toLocaleDateString()
+                  const today = new Date().toLocaleDateString()
+                  return jc.invoice && invoiceDate === today
+                }).length}
+              </p>
             </div>
           </div>
         </div>
@@ -156,7 +162,7 @@ function InvoiceManagement({ user, selectedBranchId }) {
             </div>
             <div>
               <p className="text-xs text-gray-500 font-semibold uppercase">This Month</p>
-              <p className="text-2xl font-bold text-gray-900">{jobCards.length}</p>
+              <p className="text-2xl font-bold text-gray-900">{jobCards.filter(jc => jc.invoice).length}</p>
             </div>
           </div>
         </div>
@@ -170,7 +176,13 @@ function InvoiceManagement({ user, selectedBranchId }) {
             </div>
             <div>
               <p className="text-xs text-gray-500 font-semibold uppercase">Total Revenue</p>
-              <p className="text-2xl font-bold text-purple-600">Rs. 814,681.50</p>
+              <p className="text-2xl font-bold text-purple-600">
+                {formatCurrency(
+                  jobCards
+                    .filter(jc => jc.invoice)
+                    .reduce((sum, jc) => sum + parseFloat(jc.invoice.total_amount || 0), 0)
+                )}
+              </p>
             </div>
           </div>
         </div>
