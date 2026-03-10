@@ -160,6 +160,8 @@ Route::get('/reports/financial-summary', [ReportController::class, 'financialSum
 Route::get('/reports/payment-methods', [ReportController::class, 'paymentMethodBreakdown']);
 Route::get('/reports/outstanding-dues', [ReportController::class, 'outstandingDuesReport']);
 Route::get('/reports/daily-revenue', [ReportController::class, 'dailyRevenue']);
+Route::get('/reports/bank-breakdown', [ReportController::class, 'bankBreakdown']);
+Route::get('/reports/payment-transactions', [ReportController::class, 'paymentTransactions']);
 
 Route::get('/petty-cash/funds', [PettyCashController::class, 'getFunds']);
 Route::post('/petty-cash/funds', [PettyCashController::class, 'createFund']);

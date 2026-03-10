@@ -400,8 +400,12 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef, onPric
       {['card', 'bank_transfer'].includes(form.payment_method) && (
         <div>
           <label className={labelCls}>Bank Name {form.payment_method === 'card' ? '(Card Issuing Bank)' : '(Transfer Bank)'} <span className="text-red-400">*</span></label>
-          <input type="text" value={form.bank_name} onChange={(e) => setForm({...form, bank_name: e.target.value})}
-            placeholder="e.g., Sampath Bank, Commercial Bank" required className={inputCls} />
+          <select value={form.bank_name} onChange={(e) => setForm({...form, bank_name: e.target.value})}
+            required className={inputCls}>
+            {bankOptions.map(option => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
         </div>
       )}
       <div>
@@ -412,6 +416,20 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef, onPric
       </div>
     </>
   )
+
+  const bankOptions = [
+    { value: '', label: 'Select a Bank' },
+    { value: 'Commercial Bank of Ceylon', label: 'Commercial Bank of Ceylon' },
+    { value: 'Hatton National Bank', label: 'Hatton National Bank' },
+    { value: 'Sampath Bank', label: 'Sampath Bank' },
+    { value: "People's Bank", label: "People's Bank" },
+    { value: 'Bank of Ceylon', label: 'Bank of Ceylon' },
+    { value: 'National Savings Bank', label: 'National Savings Bank' },
+    { value: 'SANASA Development Bank', label: 'SANASA Development Bank' },
+    { value: 'Regional Development Bank', label: 'Regional Development Bank' },
+    { value: 'Sri Lanka Savings Bank', label: 'Sri Lanka Savings Bank' },
+    { value: 'HDFC Bank of Sri Lanka', label: 'HDFC Bank of Sri Lanka' },
+  ]
 
   const paymentMethodOptions = [
     { value: 'cash', label: 'Cash' },

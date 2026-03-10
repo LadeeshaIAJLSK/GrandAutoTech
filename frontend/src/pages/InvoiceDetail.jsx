@@ -20,6 +20,7 @@ function InvoiceDetail({ user }) {
   const [paymentType, setPaymentType] = useState('partial')
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0])
   const [referenceNumber, setReferenceNumber] = useState('')
+  const [bankName, setBankName] = useState('')
   const [submittingPayment, setSubmittingPayment] = useState(false)
 
   const token = localStorage.getItem('token')
@@ -108,10 +109,10 @@ function InvoiceDetail({ user }) {
       await axiosClient.post('/payments', {
         job_card_id: jobCardId, invoice_id: invoice?.id, amount,
         payment_method: paymentMethod, payment_type: type,
-        payment_date: paymentDate, reference_number: referenceNumber || null, notes: null,
+        payment_date: paymentDate, reference_number: referenceNumber || null, bank_name: bankName || null, notes: null,
       }, { headers })
       setMessage({ text: 'Payment recorded successfully!', type: 'success' })
-      setPaymentAmount(''); setReferenceNumber(''); setPaymentType('partial')
+      setPaymentAmount(''); setReferenceNumber(''); setBankName(''); setPaymentType('partial')
       setPaymentDate(new Date().toISOString().split('T')[0])
       setTimeout(() => setMessage({ text: '', type: '' }), 3000)
       fetchAll()
@@ -144,6 +145,20 @@ function InvoiceDetail({ user }) {
 
   const inputCls = "w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all"
   const labelCls = "block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
+
+  const bankOptions = [
+    { value: '', label: 'Select a Bank' },
+    { value: 'Commercial Bank of Ceylon', label: 'Commercial Bank of Ceylon' },
+    { value: 'Hatton National Bank', label: 'Hatton National Bank' },
+    { value: 'Sampath Bank', label: 'Sampath Bank' },
+    { value: "People's Bank", label: "People's Bank" },
+    { value: 'Bank of Ceylon', label: 'Bank of Ceylon' },
+    { value: 'National Savings Bank', label: 'National Savings Bank' },
+    { value: 'SANASA Development Bank', label: 'SANASA Development Bank' },
+    { value: 'Regional Development Bank', label: 'Regional Development Bank' },
+    { value: 'Sri Lanka Savings Bank', label: 'Sri Lanka Savings Bank' },
+    { value: 'HDFC Bank of Sri Lanka', label: 'HDFC Bank of Sri Lanka' },
+  ]
 
   const SectionTable = ({ accentFrom, accentTo, headers: ths, rows, footerLabel, footerValue }) => (
     <div className="rounded-xl overflow-hidden border border-gray-100 shadow-sm">
@@ -506,6 +521,17 @@ function InvoiceDetail({ user }) {
               <input type="text" value={referenceNumber} onChange={e => setReferenceNumber(e.target.value)}
                 placeholder="e.g., Cheque #, Transaction ID..." className={inputCls} />
             </div>
+            {['card', 'bank_transfer'].includes(paymentMethod) && (
+              <div>
+                <label className={labelCls}>Bank Name {['bank_transfer', 'card'].includes(paymentMethod) && <span className="text-red-400">*</span>}</label>
+                <select value={bankName} onChange={(e) => setBankName(e.target.value)}
+                  required className={inputCls}>
+                  {bankOptions.map(option => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <button type="submit" disabled={submittingPayment || !paymentAmount}
               className="w-full py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-lg disabled:opacity-50 transition-colors shadow-sm">
               {submittingPayment ? 'Recording...' : 'Record Payment'}
