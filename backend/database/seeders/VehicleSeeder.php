@@ -1,0 +1,133 @@
+<?php
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Seeder;
+use App\Models\Vehicle;
+
+class VehicleSeeder extends Seeder
+{
+    public function run(): void
+    {
+        $vehicles = [
+            [
+                'customer_id' => 1,
+                'license_plate' => 'WP-ABC-1234',
+                'make' => 'Toyota',
+                'model' => 'Corolla',
+                'year' => 2020,
+                'color' => 'Silver',
+                'vin' => 'JTDKN3AU1L0000001',
+                'engine_number' => 'ENG12345',
+                'chassis_number' => 'CHS12345',
+                'mileage' => 45000,
+                'fuel_type' => 'Petrol',
+                'transmission' => 'Manual',
+                'branch_id' => 1,
+                'is_active' => true,
+                'notes' => 'Regular maintenance',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'customer_id' => 2,
+                'license_plate' => 'WP-XYZ-5678',
+                'make' => 'Honda',
+                'model' => 'Civic',
+                'year' => 2021,
+                'color' => 'Blue',
+                'vin' => 'JHMES04301L000001',
+                'engine_number' => 'ENG54321',
+                'chassis_number' => 'CHS54321',
+                'mileage' => 32000,
+                'fuel_type' => 'Petrol',
+                'transmission' => 'Automatic',
+                'branch_id' => 2,
+                'is_active' => true,
+                'notes' => 'Premium care',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'customer_id' => 3,
+                'license_plate' => 'WP-DEF-9012',
+                'make' => 'Hyundai',
+                'model' => 'Elantra',
+                'year' => 2019,
+                'color' => 'Red',
+                'vin' => 'KMHEC6A45CU000001',
+                'engine_number' => 'ENG99999',
+                'chassis_number' => 'CHS99999',
+                'mileage' => 58000,
+                'fuel_type' => 'Diesel',
+                'transmission' => 'Manual',
+                'branch_id' => 1,
+                'is_active' => true,
+                'notes' => 'Commercial vehicle',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'customer_id' => 1,
+                'license_plate' => 'WP-GHI-3456',
+                'make' => 'Nissan',
+                'model' => 'Altima',
+                'year' => 2022,
+                'color' => 'White',
+                'vin' => 'NV1GE00K7R0000001',
+                'engine_number' => 'ENG11111',
+                'chassis_number' => 'CHS11111',
+                'mileage' => 18000,
+                'fuel_type' => 'Petrol',
+                'transmission' => 'Automatic',
+                'branch_id' => 1,
+                'is_active' => true,
+                'notes' => 'New vehicle',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'customer_id' => 4,
+                'license_plate' => 'WP-JKL-7890',
+                'make' => 'Mazda',
+                'model' => 'CX-5',
+                'year' => 2021,
+                'color' => 'Black',
+                'vin' => 'JM1BLMAE5LY000001',
+                'engine_number' => 'ENG22222',
+                'chassis_number' => 'CHS22222',
+                'mileage' => 35000,
+                'fuel_type' => 'Petrol',
+                'transmission' => 'Automatic',
+                'branch_id' => 2,
+                'is_active' => true,
+                'notes' => 'SUV model',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'customer_id' => 5,
+                'license_plate' => 'WP-MNO-2345',
+                'make' => 'Suzuki',
+                'model' => 'Swift',
+                'year' => 2020,
+                'color' => 'Green',
+                'vin' => 'JSAECF10L0L000001',
+                'engine_number' => 'ENG33333',
+                'chassis_number' => 'CHS33333',
+                'mileage' => 52000,
+                'fuel_type' => 'Petrol',
+                'transmission' => 'Manual',
+                'branch_id' => 1,
+                'is_active' => true,
+                'notes' => 'Hatchback',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ];
+
+        foreach ($vehicles as $vehicle) {
+            Vehicle::create($vehicle);
+        }
+    }
+}
