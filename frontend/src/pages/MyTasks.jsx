@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import axiosClient from '../api/axios'
 
-function MyTasks({ user }) {
+function MyTasks({ user, selectedBranchId, onBranchChange }) {
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(true)
   const [showRequestPartsModal, setShowRequestPartsModal] = useState(false)
@@ -9,8 +9,13 @@ function MyTasks({ user }) {
   const [employeeFilter, setEmployeeFilter] = useState('')
   const [taskParts, setTaskParts] = useState({})
   const [taskStatusFilter, setTaskStatusFilter] = useState('all')
-  const [timerUpdate, setTimerUpdate] = useState(0) // For live timer updates
+  const [timerUpdate, setTimerUpdate] = useState(0)
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
+  const [branches, setBranches] = useState([])
+  const [branchDropdownOpen, setBranchDropdownOpen] = useState(false)
+  const [branchSearchInput, setBranchSearchInput] = useState('')
+  const branchDropdownRef = useRef(null)
+  const [filterBranchId, setFilterBranchId] = useState(localStorage.getItem('selectedBranchId') || '')
 
   const [partsRequest, setPartsRequest] = useState({
     part_name: '',
@@ -22,6 +27,26 @@ function MyTasks({ user }) {
 
   useEffect(() => {
     fetchMyTasks()
+  }, [filterBranchId])
+
+  // Fetch branches for super admin
+  useEffect(() => {
+    if (user.role.name === 'super_admin') {
+      const token = localStorage.getItem('token')
+      axiosClient.get('/branches', { headers: { Authorization: `Bearer ${token}` } })
+        .then(res => setBranches(res.data.data || res.data))
+        .catch(err => console.error('Error fetching branches:', err))
+    }
+  }, [user.role.name])
+
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (branchDropdownRef.current && !branchDropdownRef.current.contains(e.target)) {
+        setBranchDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
   // Live timer update every second
@@ -51,7 +76,11 @@ function MyTasks({ user }) {
     try {
       const token = localStorage.getItem('token')
       const endpoint = user.role.name === 'super_admin' ? '/all-tasks' : '/my-tasks'
-      const response = await axiosClient.get(endpoint, { headers: { Authorization: `Bearer ${token}` } })
+      const params = filterBranchId ? { branch_id: filterBranchId } : {}
+      const response = await axiosClient.get(endpoint, { 
+        headers: { Authorization: `Bearer ${token}` },
+        params
+      })
       setTasks(response.data)
     } catch (error) {
       console.error('Error:', error)
@@ -297,6 +326,86 @@ function MyTasks({ user }) {
 
   return (
     <div className="space-y-5">
+
+      {/* Branch Filter - Only for Super Admin */}
+      {user.role.name === 'super_admin' && (
+        <div ref={branchDropdownRef} className="relative w-fit">
+          <button
+            onClick={() => setBranchDropdownOpen(!branchDropdownOpen)}
+            className="flex items-center gap-3 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 shadow-sm hover:shadow-md hover:border-orange-300 rounded-xl px-4 py-3 transition-all duration-200 min-w-[280px]"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-orange-600 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            </svg>
+            <div className="w-px h-5 bg-orange-300" />
+            <span className="text-sm font-bold text-orange-900 flex-1 text-left">
+              {filterBranchId ? branches.find(b => b.id === parseInt(filterBranchId))?.name : 'All Branches'}
+            </span>
+            <svg xmlns="http://www.w3.org/2000/svg" className={`w-4 h-4 text-orange-600 transition-transform duration-200 flex-shrink-0 ${branchDropdownOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="currentColor">
+              <path d="M7 10l5 5 5-5z" />
+            </svg>
+          </button>
+
+          {branchDropdownOpen && (
+            <div className="absolute top-full left-0 mt-2 w-[320px] bg-white border border-orange-200 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+              <div className="p-3 border-b border-orange-100 bg-gradient-to-r from-orange-50/50 to-amber-50/50">
+                <input
+                  type="text"
+                  placeholder="Search branches..."
+                  value={branchSearchInput}
+                  onChange={(e) => setBranchSearchInput(e.target.value)}
+                  className="w-full px-3.5 py-2.5 text-sm border border-orange-200 rounded-lg focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 transition-all"
+                />
+              </div>
+
+              <div className="max-h-72 overflow-y-auto">
+                <button
+                  onClick={() => {
+                    setFilterBranchId('')
+                    localStorage.setItem('selectedBranchId', '')
+                    setBranchDropdownOpen(false)
+                    setBranchSearchInput('')
+                  }}
+                  className={`w-full text-left px-4 py-3.5 text-sm font-semibold transition-all ${
+                    filterBranchId === ''
+                      ? 'bg-gradient-to-r from-orange-600 to-amber-600 text-white'
+                      : 'text-gray-700 hover:bg-orange-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-2.5 h-2.5 rounded-full ${filterBranchId === '' ? 'bg-white' : 'bg-orange-300'}`} />
+                    All Branches
+                  </div>
+                </button>
+
+                {branches
+                  .filter(b => b.name.toLowerCase().includes(branchSearchInput.toLowerCase()))
+                  .map(branch => (
+                    <button
+                      key={branch.id}
+                      onClick={() => {
+                        setFilterBranchId(String(branch.id))
+                        localStorage.setItem('selectedBranchId', String(branch.id))
+                        setBranchDropdownOpen(false)
+                        setBranchSearchInput('')
+                      }}
+                      className={`w-full text-left px-4 py-3.5 text-sm font-semibold transition-all ${
+                        filterBranchId === String(branch.id)
+                          ? 'bg-gradient-to-r from-orange-600 to-amber-600 text-white'
+                          : 'text-gray-700 hover:bg-orange-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-2.5 h-2.5 rounded-full ${filterBranchId === String(branch.id) ? 'bg-white' : 'bg-orange-300'}`} />
+                        {branch.name}
+                      </div>
+                    </button>
+                  ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Header */}
       <div className="flex justify-between items-start">
