@@ -20,7 +20,7 @@ class Vehicle extends Model
         'vin',
         'engine_number',
         'chassis_number',
-        'mileage',
+        'odometer_reading',
         'fuel_type',
         'transmission',
         'notes',
@@ -29,7 +29,7 @@ class Vehicle extends Model
 
     protected $casts = [
         'is_active' => 'boolean',
-        'mileage' => 'integer',
+        'odometer_reading' => 'integer',
     ];
 
     // Relationships

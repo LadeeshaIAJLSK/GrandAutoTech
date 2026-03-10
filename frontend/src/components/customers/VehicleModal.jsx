@@ -129,8 +129,8 @@ function VehicleModal({ show, onClose, onSubmit, formData, setFormData, isEditin
               </div>
 
               <div>
-                <label className={labelCls}>Mileage (km)</label>
-                <input type="number" value={formData.mileage} onChange={e => setFormData({...formData, mileage: e.target.value})} placeholder="50000" min="0" className={inputCls} />
+                <label className={labelCls}>Odometer Reading (km) <span className="text-red-400">*</span></label>
+                <input type="number" value={formData.odometer_reading} onChange={e => setFormData({...formData, odometer_reading: e.target.value})} placeholder="50000" min="0" required className={inputCls} />
               </div>
 
               <div>
