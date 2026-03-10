@@ -685,8 +685,8 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef, onPric
         <div className="grid grid-cols-4 gap-4 px-5 pt-4 pb-4 border-b border-gray-100">
           {(() => {
             const totalParts = jobCard.spare_parts_requests?.length || 0
-            const totalCost = (jobCard.spare_parts_requests || []).reduce((sum, part) => sum + ((parseFloat(part.unit_cost) || parseFloat(part.cost_price) || 0) * (part.quantity || 1)), 0)
-            const totalRevenue = (jobCard.spare_parts_requests || []).reduce((sum, part) => sum + ((parseFloat(part.selling_price) || 0) * (part.quantity || 1)), 0)
+            const totalCost = (jobCard.spare_parts_requests || []).reduce((sum, part) => sum + (parseFloat(part.cost_price) || 0), 0)
+            const totalRevenue = (jobCard.spare_parts_requests || []).reduce((sum, part) => sum + (parseFloat(part.selling_price) || 0), 0)
             const profit = totalRevenue - totalCost
             
             return [
@@ -705,8 +705,8 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef, onPric
 
         <div className="px-5 py-3 bg-gradient-to-r from-orange-50 to-amber-50 border-b border-orange-100">
           {(() => {
-            const totalCost = (jobCard.spare_parts_requests || []).reduce((sum, part) => sum + ((parseFloat(part.unit_cost) || parseFloat(part.cost_price) || 0) * (part.quantity || 1)), 0)
-            const totalRevenue = (jobCard.spare_parts_requests || []).reduce((sum, part) => sum + ((parseFloat(part.selling_price) || 0) * (part.quantity || 1)), 0)
+            const totalCost = (jobCard.spare_parts_requests || []).reduce((sum, part) => sum + (parseFloat(part.cost_price) || 0), 0)
+            const totalRevenue = (jobCard.spare_parts_requests || []).reduce((sum, part) => sum + (parseFloat(part.selling_price) || 0), 0)
             const profit = totalRevenue - totalCost
             return (
               <div className="flex justify-between items-center">
@@ -1084,7 +1084,76 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef, onPric
         </div>
       </div>
 
+      {/* Payment Summary */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+        <div className="px-6 py-4 border-b border-gray-100">
+          <SectionHeader
+            title="Payment Summary"
+            icon={<svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+          />
+        </div>
+        
+        <div className="p-6">
+          <div className="space-y-3 text-sm">
+            {/* Services */}
+            <div className="flex justify-between items-center pb-3 border-b border-gray-100">
+              <div>
+                <p className="text-gray-600">Services</p>
+                <p className="text-xs text-gray-400">{(jobCard.tasks || []).length} task(s)</p>
+              </div>
+              <p className="font-semibold text-gray-900">{formatCurrency(calculateTasksTotal())}</p>
+            </div>
 
+            {/* Spare Parts */}
+            <div className="flex justify-between items-center pb-3 border-b border-gray-100">
+              <div>
+                <p className="text-gray-600">Spare Parts</p>
+                <p className="text-xs text-gray-400">{(jobCard.spare_parts_requests || []).length} part(s)</p>
+              </div>
+              <p className="font-semibold text-gray-900">{formatCurrency(calculatePartsTotal())}</p>
+            </div>
+
+            {/* Additional Charges */}
+            <div className="flex justify-between items-center pb-3 border-b border-gray-100">
+              <div>
+                <p className="text-gray-600">Additional Charges</p>
+                <p className="text-xs text-gray-400">{(jobCard.otherCharges || []).length} charge(s)</p>
+              </div>
+              <p className="font-semibold text-gray-900">{formatCurrency(calculateOtherChargesTotal())}</p>
+            </div>
+
+            {/* Total */}
+            <div className="flex justify-between items-center bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200 mb-2">
+              <p className="text-gray-800 font-bold">Total Amount Due</p>
+              <p className="text-2xl font-bold text-primary">{formatCurrency(calculateTasksTotal() + calculatePartsTotal() + calculateOtherChargesTotal())}</p>
+            </div>
+
+            {/* Advance Payment & Amount Due */}
+            {payments.filter(p => p.payment_type === 'advance').length > 0 && (
+              <>
+                <div className="flex justify-between items-center pb-3 border-t border-gray-100 pt-3">
+                  <p className="text-gray-600">Advance Payment</p>
+                  <p className="font-semibold text-gray-900">{formatCurrency(payments.filter(p => p.payment_type === 'advance').reduce((sum, p) => sum + parseFloat(p.amount || 0), 0))}</p>
+                </div>
+
+                <div className="flex justify-between items-center bg-gradient-to-r from-orange-50 to-amber-50 p-4 rounded-lg border border-orange-200">
+                  <p className="text-gray-800 font-bold">Amount Due Before getting inspected</p>
+                  <p className={`text-2xl font-bold ${(calculateTasksTotal() + calculatePartsTotal() + calculateOtherChargesTotal() - payments.filter(p => p.payment_type === 'advance').reduce((sum, p) => sum + parseFloat(p.amount || 0), 0)) > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    {formatCurrency(calculateTasksTotal() + calculatePartsTotal() + calculateOtherChargesTotal() - payments.filter(p => p.payment_type === 'advance').reduce((sum, p) => sum + parseFloat(p.amount || 0), 0))}
+                  </p>
+                </div>
+
+                {jobCard.inspection_status === 'inspected' && (
+                  <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700">
+                    <p className="font-semibold">✓ Job Card Inspected</p>
+                    <p className="text-blue-600">Payment amounts are locked and cannot be changed</p>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* Payment History */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
