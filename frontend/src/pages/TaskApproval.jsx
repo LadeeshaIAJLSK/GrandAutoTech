@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axiosClient from '../api/axios'
 
@@ -9,19 +9,53 @@ function TaskApproval({ user }) {
   const [jobCardTasks, setJobCardTasks] = useState({})
   const [loading, setLoading] = useState(true)
   const [inspectionLoading, setInspectionLoading] = useState({})
+  const [activeTab, setActiveTab] = useState('tasks')
+  const [branches, setBranches] = useState([])
+  const [selectedBranch, setSelectedBranch] = useState(user?.branch_id || '')
+  const [branchDropdownOpen, setBranchDropdownOpen] = useState(false)
+  const branchDropdownRef = useRef(null)
 
   useEffect(() => {
+    fetchBranches()
     fetchPendingTasks()
     fetchCompleteJobCards()
+  }, [selectedBranch])
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (branchDropdownRef.current && !branchDropdownRef.current.contains(e.target)) {
+        setBranchDropdownOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
+
+  const fetchBranches = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await axiosClient.get('/branches', {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      setBranches(response.data.data || response.data || [])
+    } catch (error) {
+      console.error('Error fetching branches:', error)
+    }
+  }
 
   const fetchPendingTasks = async () => {
     try {
       const token = localStorage.getItem('token')
+      const params = {}
+      if (selectedBranch) {
+        params.branch_id = selectedBranch
+      }
       const response = await axiosClient.get('/all-tasks', {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
+        params
       })
-      const pendingTasks = response.data.filter(t => t.status === 'awaiting_approval')
+      let pendingTasks = response.data.filter(t => t.status === 'awaiting_approval')
       setTasks(pendingTasks)
     } catch (error) {
       console.error('Error:', error)
@@ -42,6 +76,7 @@ function TaskApproval({ user }) {
       const tasksMap = {}
       
       for (const jobCard of allJobCards) {
+        
         if (['inspected'].includes(jobCard.status)) {
           continue
         }
@@ -136,19 +171,119 @@ function TaskApproval({ user }) {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
 
-      {/* Task Approval Section */}
+      {/* Branch Filter */}
+      {!user?.branch_id ? (
+        <div ref={branchDropdownRef} className="relative w-fit">
+          <button
+            onClick={() => setBranchDropdownOpen(!branchDropdownOpen)}
+            className="flex items-center gap-3 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 shadow-sm hover:shadow-md hover:border-orange-300 rounded-xl px-4 py-3 transition-all duration-200 min-w-[280px]"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-orange-600 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            </svg>
+            <div className="w-px h-5 bg-orange-300" />
+            <span className="text-sm font-bold text-orange-900 flex-1 text-left">
+              {selectedBranch ? branches.find(b => b.id === parseInt(selectedBranch))?.name : 'All Branches'}
+            </span>
+            <svg xmlns="http://www.w3.org/2000/svg" className={`w-4 h-4 text-orange-600 transition-transform duration-200 flex-shrink-0 ${branchDropdownOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="currentColor">
+              <path d="M7 10l5 5 5-5z" />
+            </svg>
+          </button>
+
+          {branchDropdownOpen && (
+            <div className="absolute top-full left-0 mt-2 w-[320px] bg-white border border-orange-200 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+              {/* Dropdown options */}
+              <div className="max-h-72 overflow-y-auto">
+                <button
+                  onClick={() => {
+                    setSelectedBranch('')
+                    setBranchDropdownOpen(false)
+                  }}
+                  className={`w-full text-left px-4 py-3.5 text-sm font-semibold transition-all ${
+                    selectedBranch === ''
+                      ? 'bg-gradient-to-r from-orange-600 to-amber-600 text-white'
+                      : 'text-gray-700 hover:bg-orange-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-2.5 h-2.5 rounded-full ${selectedBranch === '' ? 'bg-white' : 'bg-orange-300'}`} />
+                    All Branches
+                  </div>
+                </button>
+
+                {branches.map(branch => (
+                  <button
+                    key={branch.id}
+                    onClick={() => {
+                      setSelectedBranch(String(branch.id))
+                      setBranchDropdownOpen(false)
+                    }}
+                    className={`w-full text-left px-4 py-3.5 text-sm font-semibold transition-all ${
+                      selectedBranch === String(branch.id)
+                        ? 'bg-gradient-to-r from-orange-600 to-amber-600 text-white'
+                        : 'text-gray-700 hover:bg-orange-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-2.5 h-2.5 rounded-full ${selectedBranch === String(branch.id) ? 'bg-white' : 'bg-orange-300'}`} />
+                      <div>
+                        <p className="font-bold">{branch.name}</p>
+                        {branch.city && <p className="text-xs opacity-75">{branch.city}</p>}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      ) : null}
+
+      {/* Tabs */}
+      <div className="flex gap-3 border-b border-gray-200">
+        <button
+          onClick={() => setActiveTab('tasks')}
+          className={`px-6 py-3 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ${ 
+            activeTab === 'tasks' 
+              ? 'border-primary text-primary' 
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <span className="inline-flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Task Approval
+            {tasks.length > 0 && <span className="ml-2 px-2.5 py-0.5 rounded-full bg-primary/20 text-primary text-xs font-semibold">{tasks.length}</span>}
+          </span>
+        </button>
+        <button
+          onClick={() => setActiveTab('completed')}
+          className={`px-6 py-3 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ${
+            activeTab === 'completed' 
+              ? 'border-amber-500 text-amber-600' 
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <span className="inline-flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            Work Completed
+            {jobCards.length > 0 && <span className="ml-2 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-600 text-xs font-semibold">{jobCards.length}</span>}
+          </span>
+        </button>
+      </div>
+
+      {/* Task Approval Tab */}
+      {activeTab === 'tasks' && (
       <div className="space-y-4">
         {/* Header */}
         <div className="flex justify-between items-start">
           <div>
-            <h2 className="text-base font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2">
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              Task Approval
-            </h2>
+           
             <p className="text-sm text-gray-400 mt-0.5">Review and approve completed tasks</p>
           </div>
           <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3.5 py-2 shadow-sm">
@@ -241,26 +376,11 @@ function TaskApproval({ user }) {
           </div>
         )}
       </div>
+      )}
 
-      {/* Inspection Section */}
-      <div className="space-y-4 border-t border-gray-200 pt-8">
-        {/* Header */}
-        <div className="flex justify-between items-start">
-          <div>
-            <h2 className="text-base font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2">
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              WORK COMPLETED
-            </h2>
-            <p className="text-sm text-gray-400 mt-0.5">Job cards with all tasks completed, pending closure</p>
-          </div>
-          <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3.5 py-2 shadow-sm">
-            <span className="w-2 h-2 rounded-full bg-amber-500 opacity-80" />
-            <span className="text-sm font-bold text-gray-700">{jobCards.length}</span>
-            <span className="text-xs text-gray-400">ready</span>
-          </div>
-        </div>
+      {/* Work Completed Tab */}
+      {activeTab === 'completed' && (
+      <div className="space-y-4">
 
         {jobCards.length === 0 ? (
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 text-center">
@@ -354,6 +474,7 @@ function TaskApproval({ user }) {
           </div>
         )}
       </div>
+      )}
 
     </div>
   )

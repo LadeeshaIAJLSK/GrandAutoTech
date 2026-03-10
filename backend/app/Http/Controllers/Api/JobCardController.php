@@ -209,7 +209,7 @@ class JobCardController extends Controller
             'vehicle_id' => $validated['vehicle_id'],
             'branch_id' => $branchId,
             'created_by' => $user->id,
-            'expected_completion_date' => $validated['expected_completion_date'] ?? null,
+            'estimated_completion_date' => $validated['expected_completion_date'] ?? null,
             'customer_complaint' => $validated['details'] ?? '',
             'current_mileage' => $validated['current_mileage'] ?? null,
             'status' => 'pending', // Automatically set status to pending

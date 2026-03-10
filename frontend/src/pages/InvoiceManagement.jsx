@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axiosClient from '../api/axios'
 
@@ -11,18 +11,49 @@ function InvoiceManagement({ user, selectedBranchId }) {
   const [statusFilter, setStatusFilter] = useState('')
   const [resultsPerPage, setResultsPerPage] = useState(10)
   const [currentPage, setCurrentPage] = useState(1)
+  const [branches, setBranches] = useState([])
+  const [branchFilter, setBranchFilter] = useState(user?.branch_id || '')
+  const [branchDropdownOpen, setBranchDropdownOpen] = useState(false)
+  const branchDropdownRef = useRef(null)
 
   useEffect(() => {
+    fetchBranches()
     fetchInvoiceData()
-  }, [search, customerFilter, statusFilter, selectedBranchId])
+  }, [search, customerFilter, statusFilter, branchFilter])
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (branchDropdownRef.current && !branchDropdownRef.current.contains(e.target)) {
+        setBranchDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const fetchBranches = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await axiosClient.get('/branches', {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      setBranches(response.data.data || response.data || [])
+    } catch (error) {
+      console.error('Error fetching branches:', error)
+    }
+  }
 
   const fetchInvoiceData = async () => {
     try {
       setLoading(true)
       const token = localStorage.getItem('token')
+      const params = { status: 'inspected' }
+      if (branchFilter) {
+        params.branch_id = branchFilter
+      }
       const response = await axiosClient.get('/job-cards', {
         headers: { Authorization: `Bearer ${token}` },
-        params: { status: 'inspected', branch_id: selectedBranchId }
+        params
       })
       let data = response.data.data || response.data || []
       data = Array.isArray(data) ? data : []
@@ -88,6 +119,48 @@ function InvoiceManagement({ user, selectedBranchId }) {
 
   return (
     <div className="space-y-5">
+
+      {/* Branch Filter */}
+      {!user?.branch_id ? (
+        <div ref={branchDropdownRef} className="relative w-fit">
+          <button
+            onClick={() => setBranchDropdownOpen(!branchDropdownOpen)}
+            className="flex items-center gap-3 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 shadow-sm hover:shadow-md hover:border-orange-300 rounded-xl px-4 py-3 transition-all duration-200 min-w-[280px]"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-orange-600 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            </svg>
+            <div className="w-px h-5 bg-orange-300" />
+            <span className="text-sm font-bold text-orange-900 flex-1 text-left">
+              {branchFilter ? branches.find(b => b.id === parseInt(branchFilter))?.name : 'All Branches'}
+            </span>
+            <svg xmlns="http://www.w3.org/2000/svg" className={`w-4 h-4 text-orange-600 transition-transform duration-200 flex-shrink-0 ${branchDropdownOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="currentColor">
+              <path d="M7 10l5 5 5-5z" />
+            </svg>
+          </button>
+
+          {branchDropdownOpen && (
+            <div className="absolute top-full mt-2 w-full bg-white border border-orange-200 rounded-xl shadow-lg z-50 overflow-hidden">
+              <button
+                onClick={() => { setBranchFilter(''); setBranchDropdownOpen(false) }}
+                className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-orange-50 border-b border-orange-100 font-medium"
+              >
+                All Branches
+              </button>
+              {branches.map(branch => (
+                <button
+                  key={branch.id}
+                  onClick={() => { setBranchFilter(branch.id); setBranchDropdownOpen(false) }}
+                  className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-orange-50 flex items-center justify-between"
+                >
+                  <span className="font-medium">{branch.name}</span>
+                  <span className="text-xs text-gray-400">{branch.city}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : null}
 
       {/* Header */}
       <div className="flex items-center justify-between">

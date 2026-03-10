@@ -267,47 +267,42 @@ function AnalyticsDashboard({ user }) {
         </div>
       )}
 
-      {/* Status Breakdown + Calendar */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      {/* Status Breakdown */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5 mb-3">
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+          Job Card Status
+        </h3>
+        <div className="space-y-2.5">
+          {[
+            { label: 'Completed',      count: stats?.completed      || 0, cls: 'bg-green-500'  },
+            { label: 'Inspected',     count: stats?.inspected      || 0, cls: 'bg-indigo-500' },
 
-        {/* Status breakdown */}
-        <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5 mb-4">
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-            Job Card Status Breakdown
-          </h3>
-          <div className="space-y-3">
-            {[
-              { label: 'Completed',      count: stats?.completed      || 0, cls: 'bg-green-500'  },
-              { label: 'Inspected',     count: stats?.inspected      || 0, cls: 'bg-indigo-500' },
-
-            ].map(item => {
-              const pct = stats?.total > 0 ? (item.count / stats.total) * 100 : 0
-              return (
-                <div key={item.label} className="flex items-center gap-3">
-                  <span className="w-28 text-xs font-semibold text-gray-600 flex-shrink-0">{item.label}</span>
-                  <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div
-                      className={`${item.cls} h-full rounded-full transition-all duration-700`}
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                  <div className="flex items-center gap-1.5 w-16 justify-end flex-shrink-0">
-                    <span className="text-xs font-bold text-gray-700">{item.count}</span>
-                    <span className="text-xs text-gray-400">{Math.round(pct)}%</span>
-                  </div>
+          ].map(item => {
+            const pct = stats?.total > 0 ? (item.count / stats.total) * 100 : 0
+            return (
+              <div key={item.label} className="flex items-center gap-2">
+                <span className="w-24 text-xs font-semibold text-gray-600 flex-shrink-0">{item.label}</span>
+                <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    className={`${item.cls} h-full rounded-full transition-all duration-700`}
+                    style={{ width: `${pct}%` }}
+                  />
                 </div>
-              )
-            })}
-          </div>
+                <div className="flex items-center gap-1 w-14 justify-end flex-shrink-0">
+                  <span className="text-xs font-bold text-gray-700">{item.count}</span>
+                </div>
+              </div>
+            )
+          })}
         </div>
+      </div>
 
-        {/* Mini Calendar */}
-        <div className="flex justify-center lg:justify-start">
-          <MiniCalendar jobCards={calendarJobCards} />
-        </div>
+      {/* Mini Calendar */}
+      <div className="w-full">
+        <MiniCalendar jobCards={calendarJobCards} />
       </div>
 
       {/* Recent Job Cards + Approvals / Quick Stats */}
