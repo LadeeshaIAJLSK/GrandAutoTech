@@ -15,6 +15,7 @@ function UserManagement({ user, roleFilter }) {
   const [filterBranch, setFilterBranch] = useState('')
   const [openMenuId, setOpenMenuId] = useState(null)
   const [menuDropup, setMenuDropup] = useState(false)
+  const [menuButtonPosition, setMenuButtonPosition] = useState(null)
   const [branchDropdownOpen, setBranchDropdownOpen] = useState(false)
   const [notification, setNotification] = useState(null)
   const [deleteConfirm, setDeleteConfirm] = useState(null)
@@ -517,10 +518,10 @@ function UserManagement({ user, roleFilter }) {
         </div>
       </div>
 
-      {/* Table - Responsive */}
+      {/* Table */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
         {/* Desktop View */}
-        <div className="hidden md:block overflow-x-auto">
+        <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b-2 border-gray-100 bg-gradient-to-r from-gray-50 to-gray-50/60">
@@ -607,73 +608,34 @@ function UserManagement({ user, roleFilter }) {
                     </td>
                     <td className="px-5 py-4 text-right">
                       {(canUpdate || (canDelete && u.id !== user.id)) && (
-                        <div className="relative inline-block" ref={openMenuId === u.id ? menuRef : null}>
-                          <button
-                            ref={el => buttonRefs.current[u.id] = el}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              if (openMenuId === u.id) {
-                                setOpenMenuId(null)
-                              } else {
-                                const btn = buttonRefs.current[u.id]
-                                if (btn) {
-                                  const rect = btn.getBoundingClientRect()
-                                  const spaceBelow = window.innerHeight - rect.bottom
-                                  setMenuDropup(spaceBelow < 120)
-                                }
-                                setOpenMenuId(u.id)
+                        <button
+                          ref={el => buttonRefs.current[u.id] = el}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            if (openMenuId === u.id) {
+                              setOpenMenuId(null)
+                              setMenuButtonPosition(null)
+                            } else {
+                              const btn = buttonRefs.current[u.id]
+                              if (btn) {
+                                const rect = btn.getBoundingClientRect()
+                                const spaceBelow = window.innerHeight - rect.bottom
+                                setMenuDropup(spaceBelow < 120)
+                                setMenuButtonPosition({
+                                  top: rect.top,
+                                  right: window.innerWidth - rect.right,
+                                  bottom: rect.bottom
+                                })
                               }
-                            }}
-                            className="p-1.5 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                              <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                            </svg>
-                          </button>
-                          {openMenuId === u.id && (
-                            <div className={`absolute right-0 w-40 bg-white rounded-lg shadow-lg border border-gray-100 py-1 z-20 ${menuDropup ? 'bottom-full mb-1' : 'mt-1'}`}>
-                              <button
-                                onClick={() => {
-                                  setViewingUser(u)
-                                  setShowViewModal(true)
-                                  setOpenMenuId(null)
-                                }}
-                                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                </svg>
-                                View Details
-                              </button>
-                              {canUpdate && (
-                                <button
-                                  onClick={() => openEditModal(u)}
-                                  className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                  </svg>
-                                  Edit User
-                                </button>
-                              )}
-                              {canDelete && u.id !== user.id && (
-                                <button
-                                  onClick={() => {
-                                    setDeleteConfirm(u.id)
-                                    setOpenMenuId(null)
-                                  }}
-                                  className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                  </svg>
-                                  Delete User
-                                </button>
-                              )}
-                            </div>
-                          )}
-                        </div>
+                              setOpenMenuId(u.id)
+                            }
+                          }}
+                          className="p-1.5 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                          </svg>
+                        </button>
                       )}
                     </td>
                   </tr>
@@ -682,133 +644,82 @@ function UserManagement({ user, roleFilter }) {
             </tbody>
           </table>
         </div>
-
-        {/* Mobile View - Card Layout */}
-        <div className="md:hidden divide-y divide-gray-100">
-          {users.length === 0 ? (
-            <div className="px-4 py-16 text-center">
-              <div className="flex flex-col items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                <p className="text-gray-400 font-medium text-sm">No users found</p>
-                <p className="text-gray-300 text-xs">Try adjusting your search or filters</p>
-              </div>
-            </div>
-          ) : (
-            users.map(u => (
-              <div key={u.id} className="p-4 space-y-3 hover:bg-gray-50/70 transition-colors">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="font-semibold text-gray-900">{u.name}</p>
-                      {u.id === user.id && (
-                        <span className="text-xs px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 font-medium border border-blue-100">
-                          You
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-gray-500 mt-0.5">{u.employee_code || '—'}</p>
-                  </div>
-                  {(canUpdate || (canDelete && u.id !== user.id)) && (
-                    <div className="relative" ref={openMenuId === u.id ? menuRef : null}>
-                      <button
-                        ref={el => buttonRefs.current[u.id] = el}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setOpenMenuId(openMenuId === u.id ? null : u.id)
-                        }}
-                        className="p-1.5 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                        </svg>
-                      </button>
-                      {openMenuId === u.id && (
-                        <div className="absolute right-0 w-40 bg-white rounded-lg shadow-lg border border-gray-100 py-1 z-20 mt-1">
-                          <button
-                            onClick={() => {
-                              setViewingUser(u)
-                              setShowViewModal(true)
-                              setOpenMenuId(null)
-                            }}
-                            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLineCap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                            View
-                          </button>
-                          {canUpdate && (
-                            <button
-                              onClick={() => openEditModal(u)}
-                              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                              </svg>
-                              Edit
-                            </button>
-                          )}
-                          {canDelete && u.id !== user.id && (
-                            <button
-                              onClick={() => {
-                                setDeleteConfirm(u.id)
-                                setOpenMenuId(null)
-                              }}
-                              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                              Delete
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-1.5 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-500">Email:</span>
-                    <span className="text-gray-700 font-medium truncate ml-2">{u.email}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-500">Phone:</span>
-                    <span className="text-gray-700 font-medium">{u.phone || '—'}</span>
-                  </div>
-                  {!roleFilter && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-500">Role:</span>
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${getRoleBadgeStyle(u.role?.name)}`}>
-                        {u.role?.display_name}
-                      </span>
-                    </div>
-                  )}
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-500">Branch:</span>
-                    <span className="text-gray-700 font-medium">{u.branch?.name || '—'}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-500">Status:</span>
-                    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold border ${
-                      u.is_active
-                        ? 'bg-green-50 text-green-700 border-green-100'
-                        : 'bg-red-50 text-red-600 border-red-100'
-                    }`}>
-                      <span className={`w-1 h-1 rounded-full flex-shrink-0 ${u.is_active ? 'bg-green-500' : 'bg-red-400'}`} />
-                      {u.is_active ? 'Active' : 'Inactive'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
       </div>
+
+      {/* Action Menu Portal */}
+      {openMenuId && menuButtonPosition && (
+        <>
+          <div 
+            className="fixed inset-0 z-10" 
+            onClick={() => {
+              setOpenMenuId(null)
+              setMenuButtonPosition(null)
+            }} 
+          />
+          <div
+            className="fixed w-40 bg-white rounded-lg shadow-lg border border-gray-100 py-1 z-20"
+            style={{
+              top: menuDropup ? `${menuButtonPosition.top - 160}px` : `${menuButtonPosition.bottom + 4}px`,
+              right: `${menuButtonPosition.right}px`
+            }}
+          >
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                const currentUser = users.find(u => u.id === openMenuId)
+                if (currentUser) {
+                  setViewingUser(currentUser)
+                  setShowViewModal(true)
+                }
+                setOpenMenuId(null)
+                setMenuButtonPosition(null)
+              }}
+              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              View Details
+            </button>
+            {canUpdate && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  const currentUser = users.find(u => u.id === openMenuId)
+                  if (currentUser) {
+                    openEditModal(currentUser)
+                  }
+                  setOpenMenuId(null)
+                  setMenuButtonPosition(null)
+                }}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                Edit User
+              </button>
+            )}
+            {canDelete && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setDeleteConfirm(openMenuId)
+                  setOpenMenuId(null)
+                  setMenuButtonPosition(null)
+                }}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Delete User
+              </button>
+            )}
+          </div>
+        </>
+      )}
 
       {/* Modal */}
       {showModal && (

@@ -161,30 +161,30 @@ function AnalyticsDashboard({ user }) {
         <div ref={branchDropdownRef} className="relative w-fit">
           <button
             onClick={() => setBranchDropdownOpen(!branchDropdownOpen)}
-            className="flex items-center gap-3 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 shadow-sm hover:shadow-md hover:border-orange-300 rounded-xl px-4 py-3 transition-all duration-200 min-w-[280px]"
+            className="flex items-center gap-3 bg-gradient-to-r from-[#2563A8]/10 to-[#2563A8]/30 border border-[#2563A8]/50 shadow-sm hover:shadow-md hover:border-[#2563A8]/70 rounded-xl px-4 py-3 transition-all duration-200 min-w-[280px]"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-orange-600 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-[#2563A8] flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
               <path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
             </svg>
-            <div className="w-px h-5 bg-orange-300" />
-            <span className="text-sm font-bold text-orange-900 flex-1 text-left">
+            <div className="w-px h-5 bg-[#2563A8]/50" />
+            <span className="text-sm font-bold text-[#2563A8] flex-1 text-left">
               {filterBranch ? branches.find(b => b.id === parseInt(filterBranch))?.name : 'All Branches'}
             </span>
-            <svg xmlns="http://www.w3.org/2000/svg" className={`w-4 h-4 text-orange-600 transition-transform duration-200 flex-shrink-0 ${branchDropdownOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className={`w-4 h-4 text-[#2563A8] transition-transform duration-200 flex-shrink-0 ${branchDropdownOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="currentColor">
               <path d="M7 10l5 5 5-5z" />
             </svg>
           </button>
 
           {branchDropdownOpen && (
-            <div className="absolute top-full left-0 mt-2 w-[320px] bg-white border border-orange-200 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+            <div className="absolute top-full left-0 mt-2 w-[320px] bg-white border border-[#2563A8]/50 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
               {/* Search in dropdown */}
-              <div className="p-3 border-b border-orange-100 bg-gradient-to-r from-orange-50/50 to-amber-50/50">
+              <div className="p-3 border-b border-[#2563A8]/30 bg-gradient-to-r from-[#2563A8]/10 to-[#2563A8]/20">
                 <input
                   type="text"
                   placeholder="Search branches..."
                   value={searchBranch}
                   onChange={(e) => setSearchBranch(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-sm border border-orange-200 rounded-lg focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 transition-all"
+                  className="w-full px-3.5 py-2.5 text-sm border border-[#2563A8]/200 rounded-lg focus:border-[#2563A8]/500 focus:outline-none focus:ring-2 focus:ring-[#2563A8]/500/20 transition-all"
                 />
               </div>
 
@@ -198,12 +198,12 @@ function AnalyticsDashboard({ user }) {
                   }}
                   className={`w-full text-left px-4 py-3.5 text-sm font-semibold transition-all ${
                     filterBranch === ''
-                      ? 'bg-gradient-to-r from-orange-600 to-amber-600 text-white'
-                      : 'text-gray-700 hover:bg-orange-50'
+                      ? 'bg-gradient-to-r from-[#2563A8] to-[#2563A8]/80 text-white'
+                      : 'text-gray-700 hover:bg-[#2563A8]/10'
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`w-2.5 h-2.5 rounded-full ${filterBranch === '' ? 'bg-white' : 'bg-orange-300'}`} />
+                    <div className={`w-2.5 h-2.5 rounded-full ${filterBranch === '' ? 'bg-white' : 'bg-[#2563A8]/30'}`} />
                     All Branches
                   </div>
                 </button>
@@ -220,12 +220,12 @@ function AnalyticsDashboard({ user }) {
                       }}
                       className={`w-full text-left px-4 py-3.5 text-sm font-semibold transition-all ${
                         filterBranch === String(branch.id)
-                          ? 'bg-gradient-to-r from-orange-600 to-amber-600 text-white'
-                          : 'text-gray-700 hover:bg-orange-50'
+                          ? 'bg-gradient-to-r from-[#2563A8] to-[#2563A8]/80 text-white'
+                          : 'text-gray-700 hover:bg-[#2563A8]/10'
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className={`w-2.5 h-2.5 rounded-full ${filterBranch === String(branch.id) ? 'bg-white' : 'bg-orange-300'}`} />
+                        <div className={`w-2.5 h-2.5 rounded-full ${filterBranch === String(branch.id) ? 'bg-white' : 'bg-[#2563A8]/30'}`} />
                         {branch.name}
                       </div>
                     </button>
@@ -277,9 +277,8 @@ function AnalyticsDashboard({ user }) {
         </h3>
         <div className="space-y-2.5">
           {[
-            { label: 'Completed',      count: stats?.completed      || 0, cls: 'bg-green-500'  },
-            { label: 'Inspected',     count: stats?.inspected      || 0, cls: 'bg-indigo-500' },
-
+            { label: 'Completed',      count: stats?.completed      || 0, cls: 'bg-[#2563A8]'  },
+            { label: 'Inspected',     count: stats?.inspected      || 0, cls: 'bg-[#2563A8]' },
           ].map(item => {
             const pct = stats?.total > 0 ? (item.count / stats.total) * 100 : 0
             return (
@@ -404,31 +403,6 @@ function AnalyticsDashboard({ user }) {
             </div>
           </div>
         )}
-      </div>
-
-      {/* Permissions */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5 mb-3">
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-          </svg>
-          Your Permissions
-        </h3>
-        <div className="flex flex-wrap gap-1.5">
-          {user.permissions.slice(0, 12).map((permission, index) => (
-            <span key={index} className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-50 text-green-700 border border-green-200 rounded-full text-xs font-medium">
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-              </svg>
-              {permission.replace(/_/g, ' ')}
-            </span>
-          ))}
-          {user.permissions.length > 12 && (
-            <span className="inline-flex items-center px-2.5 py-1 bg-gray-50 text-gray-500 border border-gray-200 rounded-full text-xs font-medium">
-              +{user.permissions.length - 12} more
-            </span>
-          )}
-        </div>
       </div>
 
     </div>
