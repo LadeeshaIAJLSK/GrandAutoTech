@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import axiosClient from '../api/axios'
+import QuotationPrint from '../components/QuotationPrint'
 
 function QuotationManagement({ user }) {
   const [quotations, setQuotations] = useState([])
@@ -9,6 +10,7 @@ function QuotationManagement({ user }) {
   const [loading, setLoading] = useState(true)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showDetailModal, setShowDetailModal] = useState(false)
+  const [isDetailModalEditMode, setIsDetailModalEditMode] = useState(false)
   const [showPrintPreview, setShowPrintPreview] = useState(false)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
@@ -18,6 +20,8 @@ function QuotationManagement({ user }) {
   const [currentQuotation, setCurrentQuotation] = useState(null)
   const [quotationItems, setQuotationItems] = useState([])
   const [editingItemId, setEditingItemId] = useState(null)
+  
+  const categories = ['Mechanical', 'Electrical', 'Bodywork', 'Painting', 'Diagnostic', 'Maintenance', 'Other']
 
   const [formData, setFormData] = useState({
     customer_id: '',
@@ -26,12 +30,13 @@ function QuotationManagement({ user }) {
     branch_id: '',
     valid_until: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
     notes: '',
-  })
+  }) 
 
   const [newItem, setNewItem] = useState({
     item_type: 'task',
     task_id: '',
     description: '',
+    category: '',
     quantity_or_hours: '',
     unit_price: '',
     notes: '',
@@ -99,12 +104,13 @@ function QuotationManagement({ user }) {
     }
   }
 
-  const fetchQuotationDetail = async (id) => {
+  const fetchQuotationDetail = async (id, editMode = false) => {
     try {
       const token = localStorage.getItem('token')
       const response = await axiosClient.get(`/quotations/${id}`, { headers: { Authorization: `Bearer ${token}` } })
       setCurrentQuotation(response.data)
       setQuotationItems(response.data.items || [])
+      setIsDetailModalEditMode(editMode)
       setShowDetailModal(true)
     } catch (error) {
       alert(error.response?.data?.message || 'Error fetching quotation')
@@ -129,10 +135,10 @@ function QuotationManagement({ user }) {
         branch_id: '',
         valid_until: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
         notes: '',
-      })
+      }) 
       fetchQuotations()
       // Open detail modal for new quotation
-      fetchQuotationDetail(response.data.quotation.id)
+      fetchQuotationDetail(response.data.quotation.id, true)
     } catch (error) {
       alert(error.response?.data?.message || 'Error creating quotation')
     }
@@ -156,12 +162,13 @@ function QuotationManagement({ user }) {
         item_type: 'task',
         task_id: '',
         description: '',
+        category: '',
         quantity_or_hours: '',
         unit_price: '',
         notes: '',
       })
       // Refresh quotation to get updated total
-      fetchQuotationDetail(currentQuotation.id)
+      fetchQuotationDetail(currentQuotation.id, isDetailModalEditMode)
     } catch (error) {
       alert(error.response?.data?.message || 'Error adding item')
     }
@@ -177,7 +184,7 @@ function QuotationManagement({ user }) {
         { headers: { Authorization: `Bearer ${token}` } }
       )
       setEditingItemId(null)
-      fetchQuotationDetail(currentQuotation.id)
+      fetchQuotationDetail(currentQuotation.id, isDetailModalEditMode)
     } catch (error) {
       alert(error.response?.data?.message || 'Error updating item')
     }
@@ -192,7 +199,7 @@ function QuotationManagement({ user }) {
         { headers: { Authorization: `Bearer ${token}` } }
       )
       setQuotationItems(quotationItems.filter(i => i.id !== itemId))
-      fetchQuotationDetail(currentQuotation.id)
+      fetchQuotationDetail(currentQuotation.id, isDetailModalEditMode)
     } catch (error) {
       alert(error.response?.data?.message || 'Error deleting item')
     }
@@ -203,7 +210,7 @@ function QuotationManagement({ user }) {
       const token = localStorage.getItem('token')
       await axiosClient.put(`/quotations/${currentQuotation.id}`, currentQuotation, { headers: { Authorization: `Bearer ${token}` } })
       alert('Quotation saved!')
-      fetchQuotationDetail(currentQuotation.id)
+      fetchQuotationDetail(currentQuotation.id, isDetailModalEditMode)
       fetchQuotations()
     } catch (error) {
       alert(error.response?.data?.message || 'Error saving quotation')
@@ -216,7 +223,7 @@ function QuotationManagement({ user }) {
       await axiosClient.post(`/quotations/${id}/approve`, {}, { headers: { Authorization: `Bearer ${token}` } })
       alert('Quotation approved!')
       fetchQuotations()
-      if (currentQuotation?.id === id) fetchQuotationDetail(id)
+      if (currentQuotation?.id === id) fetchQuotationDetail(id, false)
     } catch (error) {
       alert(error.response?.data?.message || 'Error approving quotation')
     }
@@ -252,14 +259,26 @@ function QuotationManagement({ user }) {
     return new Intl.NumberFormat('en-LK', { style: 'currency', currency: 'LKR' }).format(num)
   }
 
-  const calculateTotal = (items, otherCharges = 0, discount = 0) => {
-    const itemsTotal = items.reduce((sum, item) => sum + (item.amount || 0), 0)
-    return itemsTotal + (otherCharges || 0) - (discount || 0)
+  const calculatePriceByType = () => {
+    if (!quotationItems || quotationItems.length === 0) {
+      return { task: 0, spare_part: 0, other_charges: 0, subtotal: 0 }
+    }
+    
+    let task = 0, spare_part = 0, other_charges = 0
+    
+    quotationItems.forEach(item => {
+      const amount = parseFloat(item.amount) || (parseFloat(item.quantity_or_hours) || 0) * (parseFloat(item.unit_price) || 0)
+      if (item.item_type === 'task') task += amount
+      else if (item.item_type === 'spare_part') spare_part += amount
+      else if (item.item_type === 'other_charges') other_charges += amount
+    })
+    
+    return { task, spare_part, other_charges, subtotal: task + spare_part + other_charges }
   }
 
   const calculateCurrentTotal = () => {
-    if (!currentQuotation) return 0
-    return calculateTotal(quotationItems, currentQuotation.other_charges, currentQuotation.discount)
+    const prices = calculatePriceByType()
+    return prices.subtotal
   }
 
   const inputCls = "w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all"
@@ -387,9 +406,7 @@ function QuotationManagement({ user }) {
         >
           <option value="">All Status</option>
           <option value="draft">Draft</option>
-          <option value="sent">Sent</option>
           <option value="approved">Approved</option>
-          <option value="rejected">Rejected</option>
           <option value="converted">Converted</option>
         </select>
       </div>
@@ -424,7 +441,7 @@ function QuotationManagement({ user }) {
                   const statusStyle = getStatusStyle(quot.status)
                   return (
                     <tr key={quot.id} className="hover:bg-gray-50/70 transition-colors">
-                      <td className="px-5 py-4 font-bold text-primary cursor-pointer hover:underline" onClick={() => fetchQuotationDetail(quot.id)}>
+                      <td className="px-5 py-4 font-bold text-primary cursor-pointer hover:underline" onClick={() => fetchQuotationDetail(quot.id, false)}>
                         {quot.quotation_number}
                       </td>
                       <td className="px-5 py-4 text-gray-700">{quot.customer?.name}</td>
@@ -446,7 +463,7 @@ function QuotationManagement({ user }) {
                       <td className="px-5 py-4">
                         <div className="flex gap-2">
                           <button
-                            onClick={() => fetchQuotationDetail(quot.id)}
+                            onClick={() => fetchQuotationDetail(quot.id, false)}
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 rounded-lg text-xs font-semibold transition-colors"
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -455,11 +472,29 @@ function QuotationManagement({ user }) {
                             </svg>
                             View
                           </button>
+                          {(quot.status === 'draft' || quot.status === 'approved') && (
+                            <button
+                              onClick={() => fetchQuotationDetail(quot.id, true)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-xs font-semibold transition-colors"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                            {quot.status === 'draft' ? 'Edit' : 'Edit Details'}
+                            </button>
+                          )}
                           <button
-                            onClick={() => {
-                              setCurrentQuotation(quot);
-                              setShowDetailModal(true);
-                              setShowPrintPreview(true);
+                            onClick={async () => {
+                              const token = localStorage.getItem('token')
+                              try {
+                                const response = await axiosClient.get(`/quotations/${quot.id}`, { headers: { Authorization: `Bearer ${token}` } })
+                                setCurrentQuotation(response.data)
+                                setQuotationItems(response.data.items || [])
+                                setShowPrintPreview(true)
+                                
+                              } catch (error) {
+                                alert(error.response?.data?.message || 'Error fetching quotation')
+                              }
                             }}
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg text-xs font-semibold transition-colors"
                             title="Print Quotation"
@@ -477,7 +512,7 @@ function QuotationManagement({ user }) {
                               <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
                                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                               </svg>
-                              Save & Approve
+                              Approve
                             </button>
                           )}
                           {quot.status === 'approved' && !quot.job_card_id && (
@@ -634,6 +669,7 @@ function QuotationManagement({ user }) {
                         <tr className="bg-gray-50 border-b border-gray-200">
                           <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Type</th>
                           <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Description</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Category</th>
                           <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Qty/Hours</th>
                           <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Unit Price</th>
                           <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Amount</th>
@@ -641,29 +677,39 @@ function QuotationManagement({ user }) {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                        {quotationItems.map((item) => (
-                          <tr key={item.id} className="hover:bg-gray-50">
-                            <td className="px-4 py-3 text-sm font-semibold">
-                              <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-bold ${item.item_type === 'task' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>
-                                {item.item_type === 'task' ? 'Task (Hours)' : 'Spare Part (Qty)'}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-gray-900 font-medium">{item.description}</td>
-                            <td className="px-4 py-3 text-right text-gray-900 font-medium">{parseFloat(item.quantity_or_hours).toFixed(2)}</td>
-                            <td className="px-4 py-3 text-right text-gray-900 font-medium">{formatCurrency(item.unit_price)}</td>
-                            <td className="px-4 py-3 text-right text-gray-900 font-bold">{formatCurrency(item.amount)}</td>
-                            <td className="px-4 py-3 text-center">
-                              <button
-                                onClick={() => handleDeleteItem(item.id)}
-                                className="inline-flex items-center px-2 py-1 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
+                        {quotationItems.map((item) => {
+                          const amount = item.amount || (parseFloat(item.quantity_or_hours) || 0) * (parseFloat(item.unit_price) || 0)
+                          return (
+                            <tr key={item.id} className="hover:bg-gray-50">
+                              <td className="px-4 py-3 text-sm font-semibold">
+                                <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-bold ${
+                                  item.item_type === 'task' ? 'bg-blue-100 text-blue-700' : 
+                                  item.item_type === 'spare_part' ? 'bg-orange-100 text-orange-700' : 
+                                  'bg-amber-100 text-amber-700'
+                                }`}>
+                                  {item.item_type === 'task' ? 'Task' : item.item_type === 'spare_part' ? 'Part' : 'Other Charge'}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-gray-900 font-medium">{item.description}</td>
+                              <td className="px-4 py-3 text-gray-700 capitalize">{item.category || '—'}</td>
+                              <td className="px-4 py-3 text-right text-gray-900 font-medium">{parseFloat(item.quantity_or_hours).toFixed(2)}</td>
+                              <td className="px-4 py-3 text-right text-gray-900 font-medium">{formatCurrency(item.unit_price)}</td>
+                              <td className="px-4 py-3 text-right text-gray-900 font-bold">{formatCurrency(amount)}</td>
+                              <td className="px-4 py-3 text-center">
+                                {isDetailModalEditMode && (
+                                  <button
+                                    onClick={() => handleDeleteItem(item.id)}
+                                    className="inline-flex items-center px-2 py-1 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          )
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -674,7 +720,7 @@ function QuotationManagement({ user }) {
                 )}
 
                 {/* Add Item Form */}
-                {currentQuotation.status !== 'converted' && (
+                {isDetailModalEditMode && currentQuotation.status !== 'converted' && (
                   <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-4">
                     <h5 className="text-sm font-bold text-gray-700">Add Item</h5>
                     <div className="grid grid-cols-2 gap-3">
@@ -682,11 +728,12 @@ function QuotationManagement({ user }) {
                         <label className="text-xs font-semibold text-gray-600">Type</label>
                         <select
                           value={newItem.item_type}
-                          onChange={(e) => setNewItem({...newItem, item_type: e.target.value})}
+                          onChange={(e) => setNewItem({...newItem, item_type: e.target.value, category: ''})}
                           className="w-full px-3 py-2 text-sm border border-white rounded bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
                         >
                           <option value="task">Task (Hours)</option>
                           <option value="spare_part">Spare Part (Qty)</option>
+                          <option value="other_charges">Other Charges</option>
                         </select>
                       </div>
                       <div className="space-y-1">
@@ -699,6 +746,19 @@ function QuotationManagement({ user }) {
                           className="w-full px-3 py-2 text-sm border border-white rounded bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
                         />
                       </div>
+                      {newItem.item_type === 'task' && (
+                        <div className="space-y-1">
+                          <label className="text-xs font-semibold text-gray-600">Category</label>
+                          <select
+                            value={newItem.category}
+                            onChange={(e) => setNewItem({...newItem, category: e.target.value})}
+                            className="w-full px-3 py-2 text-sm border border-white rounded bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+                          >
+                            <option value="">Select Category</option>
+                            {categories.map(cat => <option key={cat} value={cat.toLowerCase()}>{cat}</option>)}
+                          </select>
+                        </div>
+                      )}
                       <div className="space-y-1">
                         <label className="text-xs font-semibold text-gray-600">Qty/Hours <span className="text-red-500">*</span></label>
                         <input
@@ -744,41 +804,34 @@ function QuotationManagement({ user }) {
               </div>
 
               {/* Total Summary */}
-              <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
-                <div className="flex justify-between items-center mb-3">
-                  <span className="text-sm text-gray-600">Subtotal (Items):</span>
-                  <span className="text-sm font-bold text-gray-900">{formatCurrency(quotationItems.reduce((sum, item) => sum + (item.amount || 0), 0))}</span>
-                </div>
-                {currentQuotation.other_charges > 0 && (
-                  <div className="flex justify-between items-center mb-3">
-                    <span className="text-sm text-gray-600">Other Charges:</span>
-                    <span className="text-sm font-bold text-gray-900">{formatCurrency(currentQuotation.other_charges)}</span>
+              <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg space-y-3">
+                {calculatePriceByType().task > 0 && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Task Price:</span>
+                    <span className="text-sm font-bold text-gray-900">{formatCurrency(calculatePriceByType().task)}</span>
                   </div>
                 )}
-                {currentQuotation.discount > 0 && (
-                  <div className="flex justify-between items-center mb-3">
-                    <span className="text-sm text-gray-600">Discount:</span>
-                    <span className="text-sm font-bold text-red-600">-{formatCurrency(currentQuotation.discount)}</span>
+                {calculatePriceByType().spare_part > 0 && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Spare Part Price:</span>
+                    <span className="text-sm font-bold text-gray-900">{formatCurrency(calculatePriceByType().spare_part)}</span>
+                  </div>
+                )}
+                {calculatePriceByType().other_charges > 0 && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Other Charges:</span>
+                    <span className="text-sm font-bold text-gray-900">{formatCurrency(calculatePriceByType().other_charges)}</span>
                   </div>
                 )}
                 <div className="border-t border-primary/20 pt-3 flex justify-between items-center">
-                  <span className="text-base font-bold text-gray-900">Total Amount</span>
+                  <span className="text-base font-bold text-gray-900">Sub Total</span>
                   <span className="text-lg font-bold text-primary">{formatCurrency(calculateCurrentTotal())}</span>
                 </div>
               </div>
 
               {/* Action Buttons */}
               <div className="flex gap-3 pt-5 border-t border-gray-100">
-                <button
-                  onClick={() => setShowPrintPreview(true)}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 rounded-lg text-sm font-bold transition-colors"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2-4H9m6 0h.01M9 11h.01M15 11h.01M9 15h.01M15 15h.01" />
-                  </svg>
-                  Print Preview
-                </button>
-                {currentQuotation.status === 'draft' && (
+                {isDetailModalEditMode && currentQuotation.status === 'draft' && (
                   <button
                     onClick={() => handleSave()}
                     className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-sm font-bold transition-colors"
@@ -790,28 +843,6 @@ function QuotationManagement({ user }) {
                   </button>
                 )}
                 <div className="flex-1" />
-                {currentQuotation.status === 'draft' && (
-                  <button
-                    onClick={() => handleApprove(currentQuotation.id)}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 rounded-lg text-sm font-bold transition-colors"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    Save & Approve
-                  </button>
-                )}
-                {currentQuotation.status === 'approved' && !currentQuotation.job_card_id && (
-                  <button
-                    onClick={() => handleConvertToJobCard(currentQuotation.id)}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg text-sm font-bold transition-colors"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    Convert to Job Card
-                  </button>
-                )}
                 <button
                   onClick={() => setShowDetailModal(false)}
                   className="px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 rounded-lg text-sm font-semibold transition-colors"
@@ -825,150 +856,12 @@ function QuotationManagement({ user }) {
       )}
 
       {/* Print Preview Modal */}
-      {showPrintPreview && currentQuotation && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[95vh] overflow-y-auto">
-            <div className="flex justify-between items-start px-7 py-5 border-b border-gray-100 sticky top-0 bg-white z-10">
-              <h3 className="text-lg font-bold text-gray-900">Print Preview - Quotation #{currentQuotation.quotation_number}</h3>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => window.print()}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg text-sm font-bold transition-colors"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2-4H9m6 0h.01M9 11h.01M15 11h.01M9 15h.01M15 15h.01" />
-                  </svg>
-                  Print
-                </button>
-                <button onClick={() => setShowPrintPreview(false)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            <div className="p-8 bg-white text-gray-900 space-y-6" id="printContent">
-              {/* Company Header - Professional Insurance Format */}
-              <div className="text-center border-b-2 border-gray-300 pb-4">
-                <h1 className="text-3xl font-bold">QUOTATION</h1>
-                <p className="text-gray-500 text-sm mt-1">Professional Insurance Quotation</p>
-              </div>
-
-              {/* Quotation Details */}
-              <div className="grid grid-cols-2 gap-8">
-                <div>
-                  <p className="text-xs text-gray-600 uppercase font-bold">Company Name</p>
-                  <p className="text-lg font-bold mt-1">ABC Auto Services</p>
-                  <p className="text-xs text-gray-600 mt-2">Professional Automotive Repairs</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-3xl font-bold text-primary">{currentQuotation.quotation_number}</p>
-                  <p className="text-xs text-gray-500 mt-1">Quotation Date: {new Date(currentQuotation.created_at).toLocaleDateString('en-LK', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                  <p className="text-xs text-gray-500">Valid Until: {new Date(currentQuotation.valid_until).toLocaleDateString('en-LK', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                </div>
-              </div>
-
-              {/* Customer & Vehicle Details */}
-              <div className="grid grid-cols-2 gap-8 p-4 bg-gray-50 rounded border border-gray-200">
-                <div>
-                  <p className="text-xs text-gray-600 uppercase font-bold mb-1">Customer Details</p>
-                  <p className="text-sm font-bold text-gray-900">{currentQuotation.customer?.name}</p>
-                  <p className="text-sm text-gray-700">{currentQuotation.customer?.phone}</p>
-                  <p className="text-sm text-gray-700">{currentQuotation.customer?.email}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-600 uppercase font-bold mb-1">Vehicle Details</p>
-                  <p className="text-sm font-bold text-gray-900">{currentQuotation.vehicle?.license_plate}</p>
-                  <p className="text-sm text-gray-700">{currentQuotation.vehicle?.make} {currentQuotation.vehicle?.model}</p>
-                  <p className="text-sm text-gray-700">Year: {currentQuotation.vehicle?.year}</p>
-                </div>
-              </div>
-
-              {/* Items Table */}
-              <div>
-                <table className="w-full text-sm border-collapse">
-                  <thead>
-                    <tr className="bg-primary/10 border-b-2 border-primary">
-                      <th className="px-4 py-3 text-left font-bold text-primary">Description</th>
-                      <th className="px-4 py-3 text-right font-bold text-primary">Qty/Hours</th>
-                      <th className="px-4 py-3 text-right font-bold text-primary">Unit Price (LKR)</th>
-                      <th className="px-4 py-3 text-right font-bold text-primary">Amount (LKR)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {/* Tasks Section */}
-                    {quotationItems.filter(i => i.item_type === 'task').length > 0 && (
-                      <>
-                        <tr className="bg-blue-50">
-                          <td colSpan="4" className="px-4 py-2 font-bold text-blue-900 text-sm">LABOR & SERVICES</td>
-                        </tr>
-                        {quotationItems.filter(i => i.item_type === 'task').map((item) => (
-                          <tr key={item.id} className="border-b border-gray-200 hover:bg-gray-50">
-                            <td className="px-4 py-3">{item.description}</td>
-                            <td className="px-4 py-3 text-right">{parseFloat(item.quantity_or_hours).toFixed(2)} hrs</td>
-                            <td className="px-4 py-3 text-right">{formatCurrency(item.unit_price)}</td>
-                            <td className="px-4 py-3 text-right font-bold">{formatCurrency(item.amount)}</td>
-                          </tr>
-                        ))}
-                      </>
-                    )}
-
-                    {/* Spare Parts Section */}
-                    {quotationItems.filter(i => i.item_type === 'spare_part').length > 0 && (
-                      <>
-                        <tr className="bg-orange-50">
-                          <td colSpan="4" className="px-4 py-2 font-bold text-orange-900 text-sm">SPARE PARTS & MATERIALS</td>
-                        </tr>
-                        {quotationItems.filter(i => i.item_type === 'spare_part').map((item) => (
-                          <tr key={item.id} className="border-b border-gray-200 hover:bg-gray-50">
-                            <td className="px-4 py-3">{item.description}</td>
-                            <td className="px-4 py-3 text-right">{parseFloat(item.quantity_or_hours).toFixed(2)} qty</td>
-                            <td className="px-4 py-3 text-right">{formatCurrency(item.unit_price)}</td>
-                            <td className="px-4 py-3 text-right font-bold">{formatCurrency(item.amount)}</td>
-                          </tr>
-                        ))}
-                      </>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Totals Section */}
-              <div className="flex justify-end">
-                <div className="w-80 space-y-2 p-4 bg-gray-50 rounded border border-gray-300">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-700">Subtotal:</span>
-                    <span className="font-bold text-gray-900">{formatCurrency(quotationItems.reduce((sum, item) => sum + (item.amount || 0), 0))}</span>
-                  </div>
-                  {currentQuotation.other_charges > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-700">Other Charges:</span>
-                      <span className="font-bold text-gray-900">{formatCurrency(currentQuotation.other_charges)}</span>
-                    </div>
-                  )}
-                  {currentQuotation.discount > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-700">Discount:</span>
-                      <span className="font-bold text-red-600">-{formatCurrency(currentQuotation.discount)}</span>
-                    </div>
-                  )}
-                  <div className="border-t border-gray-400 pt-2 flex justify-between text-base font-bold text-primary">
-                    <span>Total Amount</span>
-                    <span>{formatCurrency(calculateCurrentTotal())}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Footer */}
-              <div className="text-center pt-6 border-t border-gray-300 text-xs text-gray-500">
-                <p>This quotation is valid until {new Date(currentQuotation.valid_until).toLocaleDateString('en-LK')}</p>
-                <p>For insurance claim purposes. Please contact us for approval.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <QuotationPrint 
+        showPrintPreview={showPrintPreview}
+        setShowPrintPreview={setShowPrintPreview}
+        currentQuotation={currentQuotation}
+        quotationItems={quotationItems}
+      />
     </div>
   )
 }

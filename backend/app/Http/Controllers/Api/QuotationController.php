@@ -149,10 +149,6 @@ class QuotationController extends Controller
     {
         $quotation = Quotation::findOrFail($id);
 
-        if ($quotation->status !== 'sent') {
-            return response()->json(['message' => 'Only sent quotations can be approved'], 400);
-        }
-
         $quotation->update([
             'status' => 'approved',
             'approved_at' => now()
@@ -235,8 +231,9 @@ class QuotationController extends Controller
         }
 
         $validated = $request->validate([
-            'item_type' => 'required|in:task,spare_part',
+            'item_type' => 'required|in:task,spare_part,other_charges',
             'task_id' => 'nullable|exists:tasks,id',
+            'category' => 'nullable|string',
             'description' => 'required|string',
             'quantity_or_hours' => 'required|numeric|min:0.01',
             'unit_price' => 'required|numeric|min:0',

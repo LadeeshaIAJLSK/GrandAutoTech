@@ -13,6 +13,7 @@ class QuotationItem extends Model
         'quotation_id',
         'item_type',
         'task_id',
+        'category',
         'description',
         'quantity_or_hours',
         'unit_price',
@@ -53,6 +54,11 @@ class QuotationItem extends Model
     public function isSparePart()
     {
         return $this->item_type === 'spare_part';
+    }
+
+    public function isOtherCharge()
+    {
+        return $this->item_type === 'other_charges';
     }
 }
 
