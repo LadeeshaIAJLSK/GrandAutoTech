@@ -11,12 +11,18 @@ function CustomerManagement({ user }) {
   const [loading, setLoading] = useState(true)
   const [showCustomerModal, setShowCustomerModal] = useState(false)
   const [showVehicleModal, setShowVehicleModal] = useState(false)
+  const [showCustomerViewModal, setShowCustomerViewModal] = useState(false)
+  const [showVehicleViewModal, setShowVehicleViewModal] = useState(false)
   const [editingCustomer, setEditingCustomer] = useState(null)
   const [editingVehicle, setEditingVehicle] = useState(null)
+  const [viewingCustomer, setViewingCustomer] = useState(null)
+  const [viewingVehicle, setViewingVehicle] = useState(null)
   const [search, setSearch] = useState('')
   const [filterBranch, setFilterBranch] = useState('')
   const [branchDropdownOpen, setBranchDropdownOpen] = useState(false)
   const [notification, setNotification] = useState(null)
+  const [deleteCustomerConfirm, setDeleteCustomerConfirm] = useState(null)
+  const [deleteVehicleConfirm, setDeleteVehicleConfirm] = useState(null)
   const branchDropdownRef = useRef(null)
 
   const [customerForm, setCustomerForm] = useState({
@@ -179,6 +185,16 @@ function CustomerManagement({ user }) {
     setShowCustomerModal(true)
   }
 
+  const openViewCustomerModal = (customer) => {
+    setViewingCustomer(customer)
+    setShowCustomerViewModal(true)
+  }
+
+  const openViewVehicleModal = (vehicle) => {
+    setViewingVehicle(vehicle)
+    setShowVehicleViewModal(true)
+  }
+
   const handleCustomerSubmit = async () => {
     try {
       const token = localStorage.getItem('token')
@@ -212,14 +228,13 @@ function CustomerManagement({ user }) {
   }
 
   const handleDeleteCustomer = async (customerId) => {
-    if (!confirm('Are you sure you want to delete this customer?')) return
-
     try {
       const token = localStorage.getItem('token')
       await axiosClient.delete(`/customers/${customerId}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       setNotification({ type: 'success', title: 'Success', message: 'Customer deleted successfully!' })
+      setDeleteCustomerConfirm(null)
       fetchCustomers()
     } catch (error) {
       setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error deleting customer' })
@@ -324,18 +339,26 @@ function CustomerManagement({ user }) {
   }
 
   const handleDeleteVehicle = async (vehicleId) => {
-    if (!confirm('Are you sure you want to delete this vehicle?')) return
-
     try {
       const token = localStorage.getItem('token')
       await axiosClient.delete(`/vehicles/${vehicleId}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       setNotification({ type: 'success', title: 'Success', message: 'Vehicle deleted successfully!' })
+      setDeleteVehicleConfirm(null)
       fetchCustomers()
     } catch (error) {
       setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error deleting vehicle' })
     }
+  }
+
+  // Wrapper functions for delete confirmations
+  const showDeleteCustomerConfirm = (customerId) => {
+    setDeleteCustomerConfirm(customerId)
+  }
+
+  const showDeleteVehicleConfirm = (vehicleId) => {
+    setDeleteVehicleConfirm(vehicleId)
   }
 
   if (loading) {
@@ -357,22 +380,22 @@ function CustomerManagement({ user }) {
         <div ref={branchDropdownRef} className="relative w-fit">
           <button
             onClick={() => setBranchDropdownOpen(!branchDropdownOpen)}
-            className="flex items-center gap-3 bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 shadow-sm hover:shadow-md hover:border-blue-300 rounded-xl px-4 py-3 transition-all duration-200 min-w-[280px]"
+            className="flex items-center gap-3 bg-gradient-to-r from-[#2563A8]/10 to-[#2563A8]/30 border border-[#2563A8]/50 shadow-sm hover:shadow-md hover:border-[#2563A8]/70 rounded-xl px-4 py-3 transition-all duration-200 min-w-[280px]"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-blue-600 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-[#2563A8] flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
               <path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
             </svg>
-            <div className="w-px h-5 bg-blue-300" />
-            <span className="text-sm font-bold text-blue-900 flex-1 text-left">
+            <div className="w-px h-5 bg-[#2563A8]/50" />
+            <span className="text-sm font-bold text-[#2563A8] flex-1 text-left">
               {filterBranch ? branches.find(b => b.id === parseInt(filterBranch))?.name : 'All Branches'}
             </span>
-            <svg xmlns="http://www.w3.org/2000/svg" className={`w-4 h-4 text-blue-600 transition-transform duration-200 flex-shrink-0 ${branchDropdownOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className={`w-4 h-4 text-[#2563A8] transition-transform duration-200 flex-shrink-0 ${branchDropdownOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="currentColor">
               <path d="M7 10l5 5 5-5z" />
             </svg>
           </button>
 
           {branchDropdownOpen && (
-            <div className="absolute top-full left-0 mt-2 w-[320px] bg-white border border-blue-200 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+            <div className="absolute top-full left-0 mt-2 w-[320px] bg-white border border-[#2563A8]/50 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
               {/* Dropdown options */}
               <div className="max-h-72 overflow-y-auto">
                 <button
@@ -383,12 +406,12 @@ function CustomerManagement({ user }) {
                   }}
                   className={`w-full text-left px-4 py-3.5 text-sm font-semibold transition-all ${
                     filterBranch === ''
-                      ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white'
-                      : 'text-gray-700 hover:bg-blue-50'
+                      ? 'bg-gradient-to-r from-[#2563A8] to-[#2563A8]/80 text-white'
+                      : 'text-gray-700 hover:bg-[#2563A8]/10'
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`w-2.5 h-2.5 rounded-full ${filterBranch === '' ? 'bg-white' : 'bg-blue-300'}`} />
+                    <div className={`w-2.5 h-2.5 rounded-full ${filterBranch === '' ? 'bg-white' : 'bg-[#2563A8]/30'}`} />
                     All Branches
                   </div>
                 </button>
@@ -403,12 +426,12 @@ function CustomerManagement({ user }) {
                     }}
                     className={`w-full text-left px-4 py-3.5 text-sm font-semibold transition-all ${
                       filterBranch === String(branch.id)
-                        ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white'
-                        : 'text-gray-700 hover:bg-blue-50'
+                        ? 'bg-gradient-to-r from-[#2563A8] to-[#2563A8]/80 text-white'
+                        : 'text-gray-700 hover:bg-[#2563A8]/10'
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`w-2.5 h-2.5 rounded-full ${filterBranch === String(branch.id) ? 'bg-white' : 'bg-blue-300'}`} />
+                      <div className={`w-2.5 h-2.5 rounded-full ${filterBranch === String(branch.id) ? 'bg-white' : 'bg-[#2563A8]/30'}`} />
                       {branch.name}
                     </div>
                   </button>
@@ -443,7 +466,7 @@ function CustomerManagement({ user }) {
           {canAddCustomers && (
             <button
               onClick={openAddCustomerModal}
-              className="ml-auto inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-px active:translate-y-0"
+              className="ml-auto inline-flex items-center gap-2 bg-[#2563A8] hover:bg-[#2563A8]/90 text-white px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-px active:translate-y-0"
               style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
             >
               <span className="flex items-center justify-center w-5 h-5 bg-white/25 rounded-md">
@@ -459,11 +482,13 @@ function CustomerManagement({ user }) {
         <CustomerTable
           user={user}
           customers={customers}
+          onView={openViewCustomerModal}
           onEdit={openEditCustomerModal}
-          onDelete={handleDeleteCustomer}
+          onDelete={showDeleteCustomerConfirm}
           onAddVehicle={openAddVehicleModalForCustomer}
+          onViewVehicle={openViewVehicleModal}
           onEditVehicle={openEditVehicleModal}
-          onDeleteVehicle={handleDeleteVehicle}
+          onDeleteVehicle={showDeleteVehicleConfirm}
           canUpdate={canUpdateCustomers}
           canDelete={canDeleteCustomers}
           canAddVehicles={canAddVehicles}
@@ -494,6 +519,207 @@ function CustomerManagement({ user }) {
         branches={branches}
         filterBranch={filterBranch}
       />
+
+      {/* Customer View Modal */}
+      {showCustomerViewModal && viewingCustomer && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowCustomerViewModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center px-7 py-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100/50">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Customer Details</h3>
+                <p className="text-sm text-gray-500 mt-0.5">{viewingCustomer.name}</p>
+              </div>
+              <button onClick={() => setShowCustomerViewModal(false)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-200 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="px-7 py-6 space-y-6 max-h-[70vh] overflow-y-auto">
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Name</p>
+                  <p className="text-sm font-medium text-gray-900">{viewingCustomer.name}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Phone</p>
+                  <p className="text-sm font-medium text-gray-900">{viewingCustomer.phone}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Email</p>
+                  <p className="text-sm font-medium text-gray-900">{viewingCustomer.email || 'Not provided'}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Customer Type</p>
+                  <p className="text-sm font-medium text-gray-900 capitalize">{viewingCustomer.customer_type}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">City</p>
+                  <p className="text-sm font-medium text-gray-900">{viewingCustomer.city || 'Not provided'}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Branch</p>
+                  <p className="text-sm font-medium text-orange-600">{viewingCustomer.branch?.name || 'Not assigned'}</p>
+                </div>
+                {viewingCustomer.company_name && (
+                  <div className="col-span-2">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Company</p>
+                    <p className="text-sm font-medium text-gray-900">{viewingCustomer.company_name}</p>
+                  </div>
+                )}
+                {viewingCustomer.notes && (
+                  <div className="col-span-2">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Notes</p>
+                    <p className="text-sm font-medium text-gray-900">{viewingCustomer.notes}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 px-7 py-4 border-t border-gray-100">
+              <button
+                onClick={() => setShowCustomerViewModal(false)}
+                className="px-5 py-2.5 text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold border border-red-700 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2.5 text-sm bg-[#2563A8] hover:bg-[#2563A8]/90 text-white rounded-lg font-semibold border border-[#2563A8]/70 transition-colors"
+              >
+                Update Customer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Vehicle View Modal */}
+      {showVehicleViewModal && viewingVehicle && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowVehicleViewModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center px-7 py-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100/50">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Vehicle Details</h3>
+                <p className="text-sm text-gray-500 mt-0.5 font-mono">{viewingVehicle.license_plate}</p>
+              </div>
+              <button onClick={() => setShowVehicleViewModal(false)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-200 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="px-7 py-6 space-y-6 max-h-[70vh] overflow-y-auto">
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">License Plate</p>
+                  <p className="text-sm font-mono font-bold bg-gray-100 px-2 py-1 rounded inline-block">{viewingVehicle.license_plate}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Make & Model</p>
+                  <p className="text-sm font-medium text-gray-900">{viewingVehicle.make} {viewingVehicle.model}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Year</p>
+                  <p className="text-sm font-medium text-gray-900">{viewingVehicle.year}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Color</p>
+                  <p className="text-sm font-medium text-gray-900">{viewingVehicle.color || 'Not provided'}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Fuel Type</p>
+                  <p className="text-sm font-medium text-gray-900">{viewingVehicle.fuel_type || 'Not provided'}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Transmission</p>
+                  <p className="text-sm font-medium text-gray-900">{viewingVehicle.transmission || 'Not provided'}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Odometer Reading</p>
+                  <p className="text-sm font-medium text-gray-900">{viewingVehicle.odometer_reading ? `${viewingVehicle.odometer_reading.toLocaleString()} km` : 'Not provided'}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">VIN</p>
+                  <p className="text-sm font-medium text-gray-900 font-mono">{viewingVehicle.vin || 'Not provided'}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Customer</p>
+                  <p className="text-sm font-medium text-gray-900">{viewingVehicle.customer?.name || 'Not assigned'}</p>
+                </div>
+                {viewingVehicle.notes && (
+                  <div className="col-span-2">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Notes</p>
+                    <p className="text-sm font-medium text-gray-900">{viewingVehicle.notes}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 px-7 py-4 border-t border-gray-100">
+              <button onClick={() => setShowVehicleViewModal(false)} className="px-5 py-2.5 text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold border border-red-700 transition-colors">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Customer Confirmation Modal */}
+      {deleteCustomerConfirm && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setDeleteCustomerConfirm(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 space-y-4">
+              <div className="flex items-center justify-center w-12 h-12 mx-auto bg-red-50 rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4v2m0 6H7a2 2 0 01-2-2V9a2 2 0 012-2h10a2 2 0 012 2v12a2 2 0 01-2 2H7z" />
+                </svg>
+              </div>
+              <div className="text-center">
+                <h3 className="text-lg font-bold text-gray-900">Delete Customer</h3>
+                <p className="text-sm text-gray-600 mt-2">Are you sure you want to delete this customer? This action cannot be undone.</p>
+              </div>
+            </div>
+            <div className="flex gap-3 px-6 py-4 bg-gray-50 border-t border-gray-100">
+              <button onClick={() => setDeleteCustomerConfirm(null)} className="flex-1 px-4 py-2.5 text-sm bg-white hover:bg-gray-100 text-gray-700 rounded-lg font-semibold border border-gray-300 transition-colors">
+                Cancel
+              </button>
+              <button onClick={() => handleDeleteCustomer(deleteCustomerConfirm)} className="flex-1 px-4 py-2.5 text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold transition-all">
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Vehicle Confirmation Modal */}
+      {deleteVehicleConfirm && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setDeleteVehicleConfirm(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 space-y-4">
+              <div className="flex items-center justify-center w-12 h-12 mx-auto bg-red-50 rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </div>
+              <div className="text-center">
+                <h3 className="text-lg font-bold text-gray-900">Delete Vehicle</h3>
+                <p className="text-sm text-gray-600 mt-2">Are you sure you want to delete this vehicle? This action cannot be undone.</p>
+              </div>
+            </div>
+            <div className="flex gap-3 px-6 py-4 bg-gray-50 border-t border-gray-100">
+              <button onClick={() => setDeleteVehicleConfirm(null)} className="flex-1 px-4 py-2.5 text-sm bg-white hover:bg-gray-100 text-gray-700 rounded-lg font-semibold border border-gray-300 transition-colors">
+                Cancel
+              </button>
+              <button onClick={() => handleDeleteVehicle(deleteVehicleConfirm)} className="flex-1 px-4 py-2.5 text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold transition-all">
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Notification notification={notification} onClose={() => setNotification(null)} />
     </div>

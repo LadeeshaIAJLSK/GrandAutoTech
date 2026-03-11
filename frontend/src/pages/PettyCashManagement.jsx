@@ -273,22 +273,22 @@ function PettyCashManagement({ user }) {
         <div className="relative w-fit">
           <button
             onClick={() => setBranchDropdownOpen(!branchDropdownOpen)}
-            className="flex items-center gap-3 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 shadow-sm hover:shadow-md hover:border-orange-300 rounded-xl px-4 py-3 transition-all duration-200 min-w-[280px]"
+            className="flex items-center gap-3 bg-gradient-to-r from-[#2563A8]/10 to-[#2563A8]/30 border border-[#2563A8]/50 shadow-sm hover:shadow-md hover:border-[#2563A8]/70 rounded-xl px-4 py-3 transition-all duration-200 min-w-[280px]"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-orange-600 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-[#2563A8] flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
               <path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
             </svg>
-            <div className="w-px h-5 bg-orange-300" />
-            <span className="text-sm font-bold text-orange-900 flex-1 text-left">
+            <div className="w-px h-5 bg-[#2563A8]/30" />
+            <span className="text-sm font-bold text-[#2563A8] flex-1 text-left">
               {filterBranch ? branches.find(b => b.id === parseInt(filterBranch))?.name : 'All Branches'}
             </span>
-            <svg xmlns="http://www.w3.org/2000/svg" className={`w-4 h-4 text-orange-600 transition-transform duration-200 flex-shrink-0 ${branchDropdownOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className={`w-4 h-4 text-[#2563A8] transition-transform duration-200 flex-shrink-0 ${branchDropdownOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="currentColor">
               <path d="M7 10l5 5 5-5z" />
             </svg>
           </button>
 
           {branchDropdownOpen && (
-            <div className="absolute top-full left-0 mt-2 w-[320px] bg-white border border-orange-200 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+            <div className="absolute top-full left-0 mt-2 w-[320px] bg-white border border-[#2563A8]/50 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
               <div className="max-h-72 overflow-y-auto">
                 <button
                   onClick={() => {
@@ -296,10 +296,10 @@ function PettyCashManagement({ user }) {
                     localStorage.setItem('selectedBranchId', '')
                     setBranchDropdownOpen(false)
                   }}
-                  className={`w-full text-left px-4 py-3.5 text-sm font-semibold transition-all ${filterBranch === '' ? 'bg-gradient-to-r from-orange-600 to-amber-600 text-white' : 'text-gray-700 hover:bg-orange-50'}`}
+                  className={`w-full text-left px-4 py-3.5 text-sm font-semibold transition-all ${filterBranch === '' ? 'bg-gradient-to-r from-[#2563A8] to-[#2563A8]/80 text-white' : 'text-gray-700 hover:bg-[#2563A8]/10'}`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`w-2.5 h-2.5 rounded-full ${filterBranch === '' ? 'bg-white' : 'bg-orange-300'}`} />
+                    <div className={`w-2.5 h-2.5 rounded-full ${filterBranch === '' ? 'bg-white' : 'bg-[#2563A8]/30'}`} />
                     All Branches
                   </div>
                 </button>
@@ -311,10 +311,10 @@ function PettyCashManagement({ user }) {
                       localStorage.setItem('selectedBranchId', String(branch.id))
                       setBranchDropdownOpen(false)
                     }}
-                    className={`w-full text-left px-4 py-3.5 text-sm font-semibold transition-all ${filterBranch === String(branch.id) ? 'bg-gradient-to-r from-orange-600 to-amber-600 text-white' : 'text-gray-700 hover:bg-orange-50'}`}
+                    className={`w-full text-left px-4 py-3.5 text-sm font-semibold transition-all ${filterBranch === String(branch.id) ? 'bg-gradient-to-r from-[#2563A8] to-[#2563A8]/80 text-white' : 'text-gray-700 hover:bg-[#2563A8]/10'}`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`w-2.5 h-2.5 rounded-full ${filterBranch === String(branch.id) ? 'bg-white' : 'bg-orange-300'}`} />
+                      <div className={`w-2.5 h-2.5 rounded-full ${filterBranch === String(branch.id) ? 'bg-white' : 'bg-[#2563A8]/30'}`} />
                       {branch.name}
                     </div>
                   </button>

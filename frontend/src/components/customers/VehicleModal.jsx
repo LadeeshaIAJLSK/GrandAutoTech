@@ -182,10 +182,18 @@ function VehicleModal({ show, onClose, onSubmit, formData, setFormData, isEditin
 
           {/* Footer */}
           <div className="flex justify-end gap-2.5 px-7 py-4 border-t border-gray-100 bg-gray-50 flex-shrink-0">
-            <button type="button" onClick={onClose} className="px-5 py-2.5 bg-white hover:bg-gray-100 text-gray-700 border border-gray-300 rounded-lg text-sm font-semibold shadow-sm transition-colors">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white border border-red-700 rounded-lg text-sm font-semibold shadow-sm transition-colors"
+            >
               Cancel
             </button>
-            <button type="submit" className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-dark text-white rounded-lg text-sm font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-px" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>
+            <button
+              type="submit"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#2563A8] hover:bg-[#2563A8]/90 text-white rounded-lg text-sm font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-px"
+              style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
+            >
               <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
                 {isEditing
                   ? <path d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V6h5a2 2 0 012 2v7a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2h5v5.586l-1.293-1.293z" />

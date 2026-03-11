@@ -255,13 +255,13 @@ function CustomerModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 text-sm bg-white hover:bg-gray-50 text-gray-700 rounded-lg font-semibold transition-colors border border-gray-300 shadow-sm"
+              className="px-5 py-2.5 text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold transition-colors border border-red-700 shadow-sm"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-5 py-2.5 text-sm bg-primary hover:bg-primary-dark text-white rounded-lg font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-px active:translate-y-0"
+              className="px-5 py-2.5 text-sm bg-[#2563A8] hover:bg-[#2563A8]/90 text-white rounded-lg font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-px active:translate-y-0"
               style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
             >
               {isEditing ? 'Update Customer' : 'Create Customer'}

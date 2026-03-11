@@ -19,6 +19,8 @@ function UserManagement({ user, roleFilter }) {
   const [branchDropdownOpen, setBranchDropdownOpen] = useState(false)
   const [notification, setNotification] = useState(null)
   const [deleteConfirm, setDeleteConfirm] = useState(null)
+  const [selectedUsers, setSelectedUsers] = useState([])
+  const [deleteMultipleConfirm, setDeleteMultipleConfirm] = useState(false)
   const menuRef = useRef(null)
   const buttonRefs = useRef({})
   const branchDropdownRef = useRef(null)
@@ -131,19 +133,16 @@ function UserManagement({ user, roleFilter }) {
     }
   }
 
-  const generateEmployeeCode = async (branchId) => {
+  const generateEmployeeCodePreview = (branchId) => {
     if (!branchId) return ''
     const selectedBranch = branches.find(b => String(b.id) === String(branchId))
     if (!selectedBranch) return ''
     
-    // Get first 3 letters of branch name in uppercase
-    const branchPrefix = selectedBranch.name.substring(0, 3).toUpperCase()
-    
-    // Get the highest employee code number for this branch and increment
+    const branchCode = selectedBranch.code ? selectedBranch.code.toLowerCase().substring(0, 3) : selectedBranch.name.toLowerCase().substring(0, 3)
     const branchUsers = users.filter(u => u.branch_id === parseInt(branchId))
     let highestNumber = 0
     branchUsers.forEach(u => {
-      const match = u.employee_code?.match(new RegExp(`^${branchPrefix}(\\d+)$`))
+      const match = u.employee_code?.match(new RegExp(`^${branchCode}(\\d+)$`, 'i'))
       if (match) {
         const num = parseInt(match[1])
         if (num > highestNumber) highestNumber = num
@@ -151,24 +150,23 @@ function UserManagement({ user, roleFilter }) {
     })
     
     const nextNumber = String(highestNumber + 1).padStart(3, '0')
-    return `${branchPrefix}${nextNumber}`
+    return `${branchCode}${nextNumber}`
   }
 
-  const openAddModal = async () => {
+  const openAddModal = () => {
     setEditingUser(null)
-    // For super admin, use filtered branch if available, otherwise use their own branch
     const initialBranchId = user.role.name === 'super_admin' 
       ? (filterBranch || user.branch?.id || '')
       : (user.branch?.id || '')
     
-    const generatedCode = await generateEmployeeCode(initialBranchId)
+    const previewCode = generateEmployeeCodePreview(initialBranchId)
     
     setFormData({
       name: '',
       first_name: '',
       email: '',
       phone: '',
-      employee_code: generatedCode,
+      employee_code: previewCode,
       password: '',
       passwordConfirm: '',
       role_id: currentRole ? currentRole.id : '',
@@ -209,7 +207,6 @@ function UserManagement({ user, roleFilter }) {
       first_name: userToEdit.first_name || '',
       email: userToEdit.email,
       phone: userToEdit.phone || '',
-      employee_code: userToEdit.employee_code || '',
       password: '',
       passwordConfirm: '',
       role_id: userToEdit.role_id,
@@ -259,7 +256,6 @@ function UserManagement({ user, roleFilter }) {
         submitData.append('first_name', formData.first_name)
         submitData.append('email', formData.email)
         submitData.append('phone', formData.phone)
-        submitData.append('employee_code', formData.employee_code)
         if (formData.password) submitData.append('password', formData.password)
         submitData.append('role_id', formData.role_id)
         if (formData.technician_type) submitData.append('technician_type', formData.technician_type)
@@ -288,7 +284,6 @@ function UserManagement({ user, roleFilter }) {
           first_name: formData.first_name,
           email: formData.email,
           phone: formData.phone,
-          employee_code: formData.employee_code,
           role_id: formData.role_id,
           branch_id: formData.branch_id,
           is_active: formData.is_active ? 1 : 0,
@@ -364,6 +359,41 @@ function UserManagement({ user, roleFilter }) {
     }
   }
 
+  const toggleUserSelection = (userId) => {
+    setSelectedUsers(prev =>
+      prev.includes(userId)
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId]
+    )
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedUsers.length === users.length && users.length > 0) {
+      setSelectedUsers([])
+    } else {
+      setSelectedUsers(users.map(u => u.id))
+    }
+  }
+
+  const handleDeleteMultiple = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      await Promise.all(
+        selectedUsers.map(userId =>
+          axiosClient.delete(`/users/${userId}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          })
+        )
+      )
+      setNotification({ type: 'success', title: 'Success', message: `${selectedUsers.length} user(s) deleted successfully` })
+      setSelectedUsers([])
+      setDeleteMultipleConfirm(false)
+      fetchUsers()
+    } catch (error) {
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error deleting users' })
+    }
+  }
+
   const getRoleBadgeStyle = (roleName) => {
     const name = (roleName || '').toLowerCase()
     if (name.includes('super') || name.includes('admin')) return 'bg-purple-100 text-purple-700 border border-purple-200'
@@ -393,28 +423,28 @@ function UserManagement({ user, roleFilter }) {
         <div ref={branchDropdownRef} className="relative w-fit">
           <button
             onClick={() => setBranchDropdownOpen(!branchDropdownOpen)}
-            className="flex items-center gap-3 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 shadow-sm hover:shadow-md hover:border-orange-300 rounded-xl px-4 py-3 transition-all duration-200 min-w-[280px]"
+            className="flex items-center gap-3 bg-gradient-to-r from-[#2563A8]/10 to-[#2563A8]/30 border border-[#2563A8]/50 shadow-sm hover:shadow-md hover:border-[#2563A8]/70 rounded-xl px-4 py-3 transition-all duration-200 min-w-[280px]"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-orange-600 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-[#2563A8] flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
               <path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
             </svg>
-            <div className="w-px h-5 bg-orange-300" />
-            <span className="text-sm font-bold text-orange-900 flex-1 text-left">
+            <div className="w-px h-5 bg-[#2563A8]/50" />
+            <span className="text-sm font-bold text-[#2563A8] flex-1 text-left">
               {filterBranch ? branches.find(b => b.id === parseInt(filterBranch))?.name : 'All Branches'}
             </span>
-            <svg xmlns="http://www.w3.org/2000/svg" className={`w-4 h-4 text-orange-600 transition-transform duration-200 flex-shrink-0 ${branchDropdownOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className={`w-4 h-4 text-[#2563A8] transition-transform duration-200 flex-shrink-0 ${branchDropdownOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="currentColor">
               <path d="M7 10l5 5 5-5z" />
             </svg>
           </button>
 
           {branchDropdownOpen && (
-            <div className="absolute top-full left-0 mt-2 w-[320px] bg-white border border-orange-200 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+            <div className="absolute top-full left-0 mt-2 w-[320px] bg-white border border-[#2563A8]/50 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
               {/* Search in dropdown */}
-              <div className="p-3 border-b border-orange-100 bg-gradient-to-r from-orange-50/50 to-amber-50/50">
+              <div className="p-3 border-b border-[#2563A8]/30 bg-gradient-to-r from-[#2563A8]/10 to-[#2563A8]/20">
                 <input
                   type="text"
                   placeholder="Search branches..."
-                  className="w-full px-3.5 py-2.5 text-sm border border-orange-200 rounded-lg focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 transition-all"
+                  className="w-full px-3.5 py-2.5 text-sm border border-[#2563A8]/200 rounded-lg focus:border-[#2563A8]/500 focus:outline-none focus:ring-2 focus:ring-[#2563A8]/500/20 transition-all"
                 />
               </div>
 
@@ -428,12 +458,12 @@ function UserManagement({ user, roleFilter }) {
                   }}
                   className={`w-full text-left px-4 py-3.5 text-sm font-semibold transition-all ${
                     filterBranch === ''
-                      ? 'bg-gradient-to-r from-orange-600 to-amber-600 text-white'
-                      : 'text-gray-700 hover:bg-orange-50'
+                      ? 'bg-gradient-to-r from-[#2563A8] to-[#2563A8]/80 text-white'
+                      : 'text-gray-700 hover:bg-[#2563A8]/10'
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`w-2.5 h-2.5 rounded-full ${filterBranch === '' ? 'bg-white' : 'bg-orange-300'}`} />
+                    <div className={`w-2.5 h-2.5 rounded-full ${filterBranch === '' ? 'bg-white' : 'bg-[#2563A8]/30'}`} />
                     All Branches
                   </div>
                 </button>
@@ -448,12 +478,12 @@ function UserManagement({ user, roleFilter }) {
                     }}
                     className={`w-full text-left px-4 py-3.5 text-sm font-semibold transition-all ${
                       filterBranch === String(branch.id)
-                        ? 'bg-gradient-to-r from-orange-600 to-amber-600 text-white'
-                        : 'text-gray-700 hover:bg-orange-50'
+                        ? 'bg-gradient-to-r from-[#2563A8] to-[#2563A8]/80 text-white'
+                        : 'text-gray-700 hover:bg-[#2563A8]/10'
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`w-2.5 h-2.5 rounded-full ${filterBranch === String(branch.id) ? 'bg-white' : 'bg-orange-300'}`} />
+                      <div className={`w-2.5 h-2.5 rounded-full ${filterBranch === String(branch.id) ? 'bg-white' : 'bg-[#2563A8]/30'}`} />
                       {branch.name}
                     </div>
                   </button>
@@ -482,7 +512,7 @@ function UserManagement({ user, roleFilter }) {
             className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-md text-white ${
               !roleFilter || (roleFilter?.name === 'branch_admin' && user.role.name !== 'super_admin') || (user.role.name === 'super_admin' && !filterBranch)
                 ? 'bg-gray-300 cursor-not-allowed opacity-60'
-                : 'bg-orange-500 hover:bg-orange-600 hover:shadow-lg hover:-translate-y-px active:translate-y-0'
+                : 'bg-[#2563A8] hover:bg-[#1E4E8C] hover:shadow-lg hover:-translate-y-px active:translate-y-0'
             }`}
             style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
           >
@@ -497,7 +527,7 @@ function UserManagement({ user, roleFilter }) {
       </div>
 
       {/* Filters - Search & Count */}
-      <div className="flex gap-3 items-center">
+      <div className="flex gap-3 items-center flex-wrap">
         <div className="relative max-w-sm w-full">
           <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -510,6 +540,18 @@ function UserManagement({ user, roleFilter }) {
             className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-lg bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all shadow-sm"
           />
         </div>
+
+        {selectedUsers.length > 0 && (
+          <button
+            onClick={() => setDeleteMultipleConfirm(true)}
+            className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-all shadow-md hover:shadow-lg"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            Delete Selected ({selectedUsers.length})
+          </button>
+        )}
 
         <div className="ml-auto flex items-center gap-1.5 bg-white border border-gray-200 rounded-lg px-3.5 py-2 shadow-sm">
           <span className="w-2 h-2 rounded-full bg-primary opacity-80" />
@@ -525,6 +567,14 @@ function UserManagement({ user, roleFilter }) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b-2 border-gray-100 bg-gradient-to-r from-gray-50 to-gray-50/60">
+                <th className="px-3 py-3.5 text-center">
+                  <input
+                    type="checkbox"
+                    checked={selectedUsers.length === users.length && users.length > 0}
+                    onChange={toggleSelectAll}
+                    className="w-4 h-4 text-primary border-gray-300 rounded cursor-pointer"
+                  />
+                </th>
                 <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Employee Code</th>
                 <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Name</th>
                 <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Email</th>
@@ -543,7 +593,7 @@ function UserManagement({ user, roleFilter }) {
             <tbody className="divide-y divide-gray-100">
               {users.length === 0 ? (
                 <tr>
-                  <td colSpan={!roleFilter ? 8 : roleFilter.name === 'employee' ? 8 : 7} className="px-5 py-16 text-center">
+                  <td colSpan={!roleFilter ? 9 : roleFilter.name === 'employee' ? 9 : 8} className="px-5 py-16 text-center">
                     <div className="flex flex-col items-center gap-2">
                       <svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -555,16 +605,31 @@ function UserManagement({ user, roleFilter }) {
                 </tr>
               ) : (
                 users.map(u => (
-                  <tr key={u.id} className="hover:bg-gray-50/70 transition-colors">
+                  <tr key={u.id} className={`hover:bg-gray-50/70 transition-colors ${selectedUsers.includes(u.id) ? 'bg-blue-50' : ''}`}>
+                    <td className="px-3 py-4 text-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedUsers.includes(u.id)}
+                        onChange={() => toggleUserSelection(u.id)}
+                        className="w-4 h-4 text-primary border-gray-300 rounded cursor-pointer"
+                      />
+                    </td>
                     <td className="px-5 py-4 font-mono text-xs text-gray-500">
                       {u.employee_code || <span className="text-gray-300">—</span>}
                     </td>
                     <td className="px-5 py-4">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-gray-900">{u.name}</span>
-                        {u.id === user.id && (
-                          <span className="text-xs px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 font-medium border border-blue-100">
-                            You
+                      <div className="flex flex-col gap-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-gray-900">{u.name}</span>
+                          {u.id === user.id && (
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 font-medium border border-blue-100">
+                              You
+                            </span>
+                          )}
+                        </div>
+                        {u.technician_type && (
+                          <span className="text-xs text-gray-500 font-medium">
+                            {u.technician_type === 'employee' ? 'Employee' : u.technician_type === 'supervisor' ? 'Supervisor' : u.technician_type}
                           </span>
                         )}
                       </div>
@@ -809,18 +874,15 @@ function UserManagement({ user, roleFilter }) {
 
                 {/* Employee Code */}
                 <div className="col-span-1 space-y-1.5">
-                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Employee Code <span className="text-red-400">*</span></label>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Employee Code</label>
                   <input
                     type="text"
                     value={formData.employee_code}
-                    onChange={(e) => setFormData({...formData, employee_code: e.target.value})}
-                    required
+                    readOnly
                     placeholder="Auto-generated"
-                    readOnly={!editingUser}
-                    autoComplete="username"
-                    className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all read-only:bg-gray-100 read-only:cursor-not-allowed"
+                    className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed read-only:opacity-75"
                   />
-                  {!editingUser && <p className="text-xs text-gray-400">Auto-generated from branch</p>}
+                  <p className="text-xs text-gray-400">Auto-generated based on branch</p>
                 </div>
 
                 {/* Password */}
@@ -940,12 +1002,10 @@ function UserManagement({ user, roleFilter }) {
                     <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Branch <span className="text-red-400">*</span></label>
                     <select
                       value={formData.branch_id}
-                      onChange={async (e) => {
-                        setFormData({...formData, branch_id: e.target.value})
-                        if (!editingUser && e.target.value) {
-                          const newCode = await generateEmployeeCode(e.target.value)
-                          setFormData(prev => ({...prev, employee_code: newCode}))
-                        }
+                      onChange={(e) => {
+                        const newBranchId = e.target.value
+                        const previewCode = generateEmployeeCodePreview(newBranchId)
+                        setFormData({...formData, branch_id: newBranchId, employee_code: previewCode})
                       }}
                       required
                       disabled={!!filterBranch && !editingUser}
@@ -1058,7 +1118,7 @@ function UserManagement({ user, roleFilter }) {
                     type="file"
                     accept="image/*"
                     onChange={(e) => setFormData({...formData, profile_image: e.target.files?.[0] || null})}
-                    className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-white"
+                    className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all file:mr-2 file:py-1 file:px-3 file:rounded file:border file:border-gray-400 file:text-xs file:font-semibold file:bg-primary file:text-black"
                   />
                   {formData.profile_image && <p className="text-xs text-green-600 font-semibold">Image selected: {formData.profile_image.name}</p>}
                 </div>
@@ -1083,13 +1143,13 @@ function UserManagement({ user, roleFilter }) {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-5 py-2.5 text-sm bg-white hover:bg-gray-50 text-gray-700 rounded-lg font-semibold transition-colors border border-gray-300 shadow-sm"
+                  className="px-5 py-2.5 text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold transition-colors border border-red-700 shadow-sm"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 text-sm bg-primary hover:bg-primary-dark text-white rounded-lg font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-px active:translate-y-0"
+                  className="px-5 py-2.5 text-sm bg-[#2563A8] hover:bg-[#1E4E8C] text-white rounded-lg font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-px active:translate-y-0"
                 >
                   {editingUser ? 'Update User' : 'Create User'}
                 </button>
@@ -1196,6 +1256,16 @@ function UserManagement({ user, roleFilter }) {
                   </div>
                 </div>
 
+                {/* Technician Type */}
+                {viewingUser.technician_type && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Technician Type</p>
+                    <p className="text-sm font-medium text-gray-900 capitalize">
+                      {viewingUser.technician_type === 'employee' ? 'Employee' : viewingUser.technician_type === 'supervisor' ? 'Supervisor' : viewingUser.technician_type}
+                    </p>
+                  </div>
+                )}
+
                 {/* Branch */}
                 <div>
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Branch</p>
@@ -1240,7 +1310,7 @@ function UserManagement({ user, roleFilter }) {
 
               {/* Action Buttons */}
               <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-                <button onClick={() => setShowViewModal(false)} className="px-5 py-2.5 text-sm bg-white hover:bg-gray-50 text-gray-700 rounded-lg font-semibold border border-gray-300 transition-colors">
+                <button onClick={() => setShowViewModal(false)} className="px-5 py-2.5 text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold border border-red-700 transition-colors">
                   Close
                 </button>
                 {canUpdate && (
@@ -1249,7 +1319,7 @@ function UserManagement({ user, roleFilter }) {
                       openEditModal(viewingUser)
                       setShowViewModal(false)
                     }}
-                    className="px-5 py-2.5 text-sm bg-primary hover:bg-primary-dark text-white rounded-lg font-bold transition-all shadow-md"
+                    className="px-5 py-2.5 text-sm bg-[#2563A8] hover:bg-[#1E4E8C] text-white rounded-lg font-bold transition-all shadow-md"
                   >
                     Edit User
                   </button>
@@ -1281,6 +1351,33 @@ function UserManagement({ user, roleFilter }) {
               </button>
               <button onClick={() => handleDelete(deleteConfirm)} className="flex-1 px-4 py-2.5 text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold transition-all">
                 Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Multiple Users Confirmation Modal */}
+      {deleteMultipleConfirm && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setDeleteMultipleConfirm(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 space-y-4">
+              <div className="flex items-center justify-center w-12 h-12 mx-auto bg-red-50 rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </div>
+              <div className="text-center">
+                <h3 className="text-lg font-bold text-gray-900">Delete {selectedUsers.length} User(s)</h3>
+                <p className="text-sm text-gray-600 mt-2">Are you sure you want to delete the selected {selectedUsers.length} user(s)? This action cannot be undone.</p>
+              </div>
+            </div>
+            <div className="flex gap-3 px-6 py-4 bg-gray-50 border-t border-gray-100">
+              <button onClick={() => setDeleteMultipleConfirm(false)} className="flex-1 px-4 py-2.5 text-sm bg-white hover:bg-gray-100 text-gray-700 rounded-lg font-semibold border border-gray-300 transition-colors">
+                Cancel
+              </button>
+              <button onClick={handleDeleteMultiple} className="flex-1 px-4 py-2.5 text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold transition-all">
+                Delete All
               </button>
             </div>
           </div>

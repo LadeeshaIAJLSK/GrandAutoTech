@@ -162,23 +162,23 @@ function ActivityLog({ user }) {
             <div ref={branchDropdownRef} className="relative">
               <button
                 onClick={() => setBranchDropdownOpen(!branchDropdownOpen)}
-                className="w-full flex items-center gap-2 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 shadow-sm hover:shadow-md rounded-lg px-3 py-2 text-sm font-medium text-orange-900 transition-all"
+                className="w-full flex items-center gap-2 bg-gradient-to-r from-[#2563A8]/10 to-[#2563A8]/30 border border-[#2563A8]/50 shadow-sm hover:shadow-md rounded-lg px-3 py-2 text-sm font-medium text-[#2563A8] transition-all"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-orange-600 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-[#2563A8] flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                 </svg>
                 {filterBranch ? branches.find(b => b.id === parseInt(filterBranch))?.name : 'All Branches'}
               </button>
 
               {branchDropdownOpen && (
-                <div className="absolute top-full left-0 mt-1 w-[240px] bg-white border border-orange-200 rounded-lg shadow-lg z-50 overflow-hidden">
-                  <div className="p-2 border-b border-orange-100">
+                <div className="absolute top-full left-0 mt-1 w-[240px] bg-white border border-[#2563A8]/50 rounded-lg shadow-lg z-50 overflow-hidden">
+                  <div className="p-2 border-b border-[#2563A8]/30">
                     <input
                       type="text"
                       placeholder="Search..."
                       value={searchBranch}
                       onChange={(e) => setSearchBranch(e.target.value)}
-                      className="w-full px-2.5 py-1.5 text-sm border border-orange-200 rounded focus:outline-none focus:ring-2 focus:ring-orange-500/20"
+                      className="w-full px-2.5 py-1.5 text-sm border border-[#2563A8]/200 rounded focus:outline-none focus:ring-2 focus:ring-[#2563A8]/500/20"
                     />
                   </div>
                   <div className="max-h-48 overflow-y-auto">
@@ -187,7 +187,7 @@ function ActivityLog({ user }) {
                         setFilterBranch('')
                         setBranchDropdownOpen(false)
                       }}
-                      className={`w-full text-left px-3 py-2 text-sm font-medium ${filterBranch === '' ? 'bg-orange-100 text-orange-700' : 'text-gray-700 hover:bg-orange-50'}`}
+                      className={`w-full text-left px-3 py-2 text-sm font-medium ${filterBranch === '' ? 'bg-[#2563A8]/20 text-[#2563A8]' : 'text-gray-700 hover:bg-[#2563A8]/10'}`}
                     >
                       All Branches
                     </button>
@@ -200,7 +200,7 @@ function ActivityLog({ user }) {
                             setFilterBranch(String(branch.id))
                             setBranchDropdownOpen(false)
                           }}
-                          className={`w-full text-left px-3 py-2 text-sm font-medium ${filterBranch === String(branch.id) ? 'bg-orange-100 text-orange-700' : 'text-gray-700 hover:bg-orange-50'}`}
+                          className={`w-full text-left px-3 py-2 text-sm font-medium ${filterBranch === String(branch.id) ? 'bg-[#2563A8]/20 text-[#2563A8]' : 'text-gray-700 hover:bg-[#2563A8]/10'}`}
                         >
                           {branch.name}
                         </button>

@@ -175,7 +175,6 @@ class UserController extends Controller
             'first_name' => 'nullable|string|max:255',
             'email' => 'required|email|unique:users,email',
             'phone' => 'required|string|max:20',
-            'employee_code' => 'required|string|unique:users,employee_code',
             'password' => 'required|string|min:8',
             'role_id' => 'required|exists:roles,id',
             'technician_type' => 'nullable|in:employee,supervisor',
@@ -219,6 +218,32 @@ class UserController extends Controller
         if ($role->name === 'branch_admin') {
             $validated['branch_id'] = $user->branch_id;
         }
+
+        // Auto-generate employee_code based on branch
+        $branch = DB::table('branches')->where('id', $validated['branch_id'])->first();
+        if (!$branch) {
+            return response()->json(['message' => 'Branch not found'], 404);
+        }
+
+        // Get the next sequence number for this branch
+        $branchCode = strtolower(substr($branch->code, 0, 3)); // Use first 3 letters of branch code
+        $lastEmployee = DB::table('users')
+            ->where('branch_id', $validated['branch_id'])
+            ->where('employee_code', 'like', $branchCode . '%')
+            ->orderBy('employee_code', 'desc')
+            ->first();
+
+        if ($lastEmployee) {
+            // Extract the numeric part and increment
+            $lastNumber = intval(substr($lastEmployee->employee_code, strlen($branchCode)));
+            $nextNumber = $lastNumber + 1;
+        } else {
+            // First employee in this branch
+            $nextNumber = 1;
+        }
+
+        // Generate the employee code (e.g., col001, kan002)
+        $validated['employee_code'] = $branchCode . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
 
         $validated['password'] = Hash::make($validated['password']);
 
