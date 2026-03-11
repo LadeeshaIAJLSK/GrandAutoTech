@@ -235,7 +235,7 @@ function AnalyticsDashboard({ user }) {
           )}
         </div>
       )}
-      <div className="relative overflow-hidden bg-gradient-to-r from-primary to-orange-500 rounded-2xl shadow-lg px-8 py-7">
+      <div className="relative overflow-hidden bg-[#2563A8] rounded-2xl shadow-lg px-8 py-7">
         {/* Decorative circles */}
         <div className="absolute -top-8 -right-8 w-40 h-40 bg-white/10 rounded-full" />
         <div className="absolute -bottom-10 right-20 w-24 h-24 bg-white/5 rounded-full" />
