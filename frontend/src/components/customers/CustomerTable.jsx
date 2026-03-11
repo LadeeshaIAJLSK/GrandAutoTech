@@ -118,16 +118,16 @@ function CustomerTable({
       <div className="overflow-x-auto rounded-xl">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b-2 border-gray-100 bg-gradient-to-r from-gray-50 to-gray-50/60">
-              <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Name</th>
-              <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Phone</th>
-              <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Email</th>
-              <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</th>
-              <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">City</th>
-              <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Branch</th>
-              <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Vehicles</th>
-              <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-              <th className="px-5 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Action</th>
+            <tr className="border-b-2 border-gray-100" style={{ backgroundColor: '#2563A8' }}>
+              <th className="px-5 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider">Name</th>
+              <th className="px-5 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider">Phone</th>
+              <th className="px-5 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider">Email</th>
+              <th className="px-5 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider">Type</th>
+              <th className="px-5 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider">City</th>
+              <th className="px-5 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider">Branch</th>
+              <th className="px-5 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider">Vehicles</th>
+              <th className="px-5 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider">Status</th>
+              <th className="px-5 py-3.5 text-right text-xs font-semibold text-white uppercase tracking-wider">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -225,11 +225,7 @@ function CustomerTable({
                                 )}
                                 {canDeleteVehicles && (
                                   <button
-                                    onClick={() => {
-                                      if (confirm(`Delete ${vehicle.license_plate}?`)) {
-                                        onDeleteVehicle(vehicle.id)
-                                      }
-                                    }}
+                                    onClick={() => onDeleteVehicle(vehicle.id)}
                                     className="p-1 rounded text-red-600 hover:bg-red-50"
                                     title="Delete"
                                   >

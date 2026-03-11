@@ -566,7 +566,7 @@ function UserManagement({ user, roleFilter }) {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b-2 border-gray-100 bg-gradient-to-r from-gray-50 to-gray-50/60">
+              <tr className="border-b-2 border-gray-100" style={{ backgroundColor: '#2563A8' }}>
                 <th className="px-3 py-3.5 text-center">
                   <input
                     type="checkbox"
@@ -575,19 +575,19 @@ function UserManagement({ user, roleFilter }) {
                     className="w-4 h-4 text-primary border-gray-300 rounded cursor-pointer"
                   />
                 </th>
-                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Employee Code</th>
-                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Name</th>
-                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Email</th>
-                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Phone</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider">Employee Code</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider">Name</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider">Email</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider">Phone</th>
                 {!roleFilter && (
-                  <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Role</th>
+                  <th className="px-5 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider">Role</th>
                 )}
                 {roleFilter?.name === 'employee' && (
-                  <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Position</th>
+                  <th className="px-5 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider">Position</th>
                 )}
-                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Branch</th>
-                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-5 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Action</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider">Branch</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider">Status</th>
+                <th className="px-5 py-3.5 text-right text-xs font-semibold text-white uppercase tracking-wider">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">

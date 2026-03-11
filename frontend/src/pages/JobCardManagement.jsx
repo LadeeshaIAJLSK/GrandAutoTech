@@ -18,7 +18,6 @@ function JobCardManagement({ user, selectedBranchId }) {
   const [pendingPartsCounts, setPendingPartsCounts] = useState({})
   const [openMenuId, setOpenMenuId] = useState(null)
   const [menuPos, setMenuPos] = useState({ top: 0, right: 0 })
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
   const buttonRefs = useRef({})
   const branchDropdownRef = useRef(null)
 
@@ -53,15 +52,8 @@ function JobCardManagement({ user, selectedBranchId }) {
     }
     document.addEventListener('mousedown', handleClick)
 
-    // Handle responsive breakpoint
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 768)
-    }
-    window.addEventListener('resize', handleResize)
-
     return () => {
       document.removeEventListener('mousedown', handleClick)
-      window.removeEventListener('resize', handleResize)
     }
   }, [])
 
@@ -210,7 +202,7 @@ function JobCardManagement({ user, selectedBranchId }) {
     }
     
     const btn = buttonRefs.current[id]
-    if (btn && !isMobile) {
+    if (btn) {
       const rect = btn.getBoundingClientRect()
       const menuHeight = 160 // approximate height of menu
       const spaceBelow = window.innerHeight - rect.bottom
@@ -238,66 +230,6 @@ function JobCardManagement({ user, selectedBranchId }) {
   }
 
   const DropdownMenu = ({ jobCard }) => {
-    if (isMobile) {
-      // Mobile: bottom sheet menu
-      return createPortal(
-        <div
-          onMouseDown={(e) => e.stopPropagation()}
-          className="fixed inset-0 z-50 flex items-end"
-          onClick={() => setOpenMenuId(null)}
-        >
-          <div
-            className="w-full bg-white rounded-t-2xl shadow-2xl p-4 space-y-2"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-center mb-3">
-              <div className="w-10 h-1 bg-gray-300 rounded-full" />
-            </div>
-            <button
-              onClick={() => { navigate(`/job-cards/${jobCard.id}`); setOpenMenuId(null) }}
-              className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              </svg>
-              <span className="font-medium">View</span>
-            </button>
-            {canUpdate && (
-              <button
-                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
-                onClick={() => setOpenMenuId(null)}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
-                <span className="font-medium">Edit</span>
-              </button>
-            )}
-            {canDelete && (jobCard.status === 'pending' || jobCard.status === 'cancelled') && (
-              <button
-                onClick={() => { handleDelete(jobCard.id); setOpenMenuId(null) }}
-                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-                <span className="font-medium">Delete</span>
-              </button>
-            )}
-            <button
-              onClick={() => setOpenMenuId(null)}
-              className="w-full px-4 py-3 text-center text-sm font-medium text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>,
-        document.body
-      )
-    }
-
-    // Desktop: fixed positioning menu
     return createPortal(
       <div
         className="fixed bg-white rounded-lg shadow-xl border border-gray-200 py-1 z-[9999] min-w-[180px]"
@@ -421,7 +353,7 @@ function JobCardManagement({ user, selectedBranchId }) {
 
       {/* Statistics Cards */}
       {statistics && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-4 gap-4">
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex items-center gap-4">
             <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
               <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -499,9 +431,9 @@ function JobCardManagement({ user, selectedBranchId }) {
         )}
       </div>
 
-      {/* Filters - Responsive */}
-      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
-        <div className="relative flex-1 min-w-0 sm:max-w-sm">
+      {/* Filters */}
+      <div className="flex flex-row gap-3 items-center">
+        <div className="relative flex-1 min-w-0 max-w-sm">
           <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
@@ -533,19 +465,18 @@ function JobCardManagement({ user, selectedBranchId }) {
         </div>
       </div>
 
-      {/* DESKTOP VIEW - Table */}
-      <div className="hidden md:block bg-white rounded-xl border border-gray-200 shadow-sm">
+      {/* Table */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
         <div className="overflow-x-auto rounded-xl">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b-2 border-gray-100 bg-gradient-to-r from-gray-50 to-gray-50/60">
-                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Job Card #</th>
-                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Customer</th>
-                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Vehicle</th>
-                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Amount</th>
-                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Created</th>
-                <th className="px-5 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Action</th>
+              <tr className="border-b-2 border-gray-100" style={{ backgroundColor: '#2563A8' }}>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider">Job Card #</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider">Customer</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider">Vehicle</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider">Status</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider">Dates</th>
+                <th className="px-5 py-3.5 text-right text-xs font-semibold text-white uppercase tracking-wider">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -617,18 +548,16 @@ function JobCardManagement({ user, selectedBranchId }) {
                       )}
                     </td>
                     <td className="px-5 py-4">
-                      <div className="font-bold text-gray-800 text-sm">{formatCurrency(jobCard.total_amount)}</div>
-                      {jobCard.balance_amount > 0 && (
-                        <div className="text-xs text-red-500 mt-0.5">
-                          Balance: {formatCurrency(jobCard.balance_amount)}
+                      <div className="text-sm text-gray-700">
+                        <div className="font-semibold text-gray-900">Created:</div>
+                        <div className="text-xs text-gray-500 mt-0.5">{new Date(jobCard.created_at).toLocaleDateString()}</div>
+                      </div>
+                      {jobCard.estimated_completion_date && (
+                        <div className="text-sm text-gray-700 mt-2">
+                          <div className="font-semibold text-gray-900">Expected:</div>
+                          <div className="text-xs text-gray-500 mt-0.5">{new Date(jobCard.estimated_completion_date).toLocaleDateString()}</div>
                         </div>
                       )}
-                    </td>
-                    <td className="px-5 py-4">
-                      <div className="text-sm text-gray-700">{jobCard.creator?.name}</div>
-                      <div className="text-xs text-gray-400 mt-0.5">
-                        {new Date(jobCard.created_at).toLocaleTimeString()}
-                      </div>
                     </td>
                     <td className="px-5 py-4 text-right relative">
                       <button
@@ -654,101 +583,6 @@ function JobCardManagement({ user, selectedBranchId }) {
             </tbody>
           </table>
         </div>
-      </div>
-
-      {/* MOBILE VIEW - Cards */}
-      <div className="md:hidden space-y-3">
-        {jobCards.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 text-center">
-            <div className="flex flex-col items-center gap-3">
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              <p className="text-gray-400 font-medium">No job cards found</p>
-              <p className="text-gray-300 text-xs">
-                {canAdd ? 'Create your first job card to get started' : 'No job cards available'}
-              </p>
-            </div>
-          </div>
-        ) : (
-          jobCards.map(jobCard => (
-            <div
-              key={jobCard.id}
-              className={`bg-white rounded-lg border shadow-sm p-4 transition-colors ${
-                pendingPartsCounts[jobCard.id] ? 'border-red-200 bg-red-50/50' : 'border-gray-200'
-              }`}
-            >
-              {/* Header */}
-              <div className="flex items-start justify-between gap-3 mb-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    {pendingPartsCounts[jobCard.id] > 0 && (
-                      <span
-                        title={`${pendingPartsCounts[jobCard.id]} parts pending approval`}
-                        className="flex items-center justify-center w-4 h-4 rounded-full bg-red-100 flex-shrink-0"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                        </svg>
-                      </span>
-                    )}
-                    <h3 className="font-bold text-primary text-base">{jobCard.job_card_number}</h3>
-                  </div>
-                  <p className="text-xs text-gray-500">{new Date(jobCard.created_at).toLocaleDateString()}</p>
-                </div>
-                <button
-                  ref={el => buttonRefs.current[jobCard.id] = el}
-                  onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    toggleMenu(e, jobCard.id)
-                  }}
-                  className="inline-flex items-center justify-center p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 active:bg-gray-200 transition-all duration-150 flex-shrink-0"
-                  type="button"
-                  aria-label="Actions menu"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                  </svg>
-                </button>
-              </div>
-              {openMenuId === jobCard.id && <DropdownMenu jobCard={jobCard} />}
-
-              {/* Info Grid */}
-              <div className="grid grid-cols-2 gap-2 mb-3 text-sm">
-                <div className="bg-gray-50 p-2.5 rounded">
-                  <p className="text-xs text-gray-500 font-semibold mb-0.5">Customer</p>
-                  <p className="font-semibold text-gray-900 truncate">{jobCard.customer?.name}</p>
-                  <p className="text-xs text-gray-500 truncate">{jobCard.customer?.phone}</p>
-                </div>
-                <div className="bg-gray-50 p-2.5 rounded">
-                  <p className="text-xs text-gray-500 font-semibold mb-0.5">Vehicle</p>
-                  <p className="font-mono text-xs font-bold bg-gray-200 px-2 py-1 rounded inline-block">{jobCard.vehicle?.license_plate}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{jobCard.vehicle?.make} {jobCard.vehicle?.model}</p>
-                </div>
-              </div>
-
-              {/* Status and Amount Row */}
-              <div className="flex gap-2 mb-3">
-                <span className={`flex-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border text-center ${getStatusStyle(jobCard.status)}`}>
-                  {jobCard.status.charAt(0).toUpperCase() + jobCard.status.slice(1)}
-                </span>
-                <div className="flex-1 bg-gray-50 p-2.5 rounded text-right">
-                  <p className="text-xs text-gray-500 font-semibold mb-0.5">Amount</p>
-                  <p className="font-bold text-gray-900">{formatCurrency(jobCard.total_amount)}</p>
-                  {jobCard.balance_amount > 0 && (
-                    <p className="text-xs text-red-500 mt-0.5">Balance: {formatCurrency(jobCard.balance_amount)}</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Creator */}
-              <div className="text-xs text-gray-500 border-t pt-2">
-                <p>By {jobCard.creator?.name} • {new Date(jobCard.created_at).toLocaleTimeString()}</p>
-              </div>
-            </div>
-          ))
-        )}
       </div>
 
       {showCreateWizard && createPortal(
