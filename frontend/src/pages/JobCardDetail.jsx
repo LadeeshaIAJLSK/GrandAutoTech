@@ -238,18 +238,18 @@ function JobCardDetail({ jobCardId, onClose, user } = {}) {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b sticky top-0 z-50">
+      <div className="bg-white shadow-sm rounded-lg mb-4">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex justify-between items-center">
             <div>
               <button
                 onClick={onClose ? onClose : () => navigate('/job-cards')}
-                className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 mb-2 group transition-colors"
+                className="inline-flex items-center gap-1.5 text-sm text-white font-bold bg-yellow-500 rounded-lg px-4 py-2 hover:bg-yellow-800 mb-2 group transition-colors"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
-                Back to Job Cards
+                Back 
               </button>
               <div className="flex items-center gap-3">
                 <h1 className="text-2xl font-bold text-gray-900">{jobCard.job_card_number}</h1>
@@ -264,7 +264,7 @@ function JobCardDetail({ jobCardId, onClose, user } = {}) {
             </div>
             <button
               onClick={handlePrint}
-              className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm hover:shadow-md"
+              className="inline-flex items-center gap-2 bg-[#2563A8] hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm hover:shadow-md"
               style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -276,30 +276,26 @@ function JobCardDetail({ jobCardId, onClose, user } = {}) {
         </div>
       </div>
 
-      {/* Sticky Nav */}
-      <div className="bg-white shadow-sm sticky top-[88px] z-40 border-b">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex gap-1 overflow-x-auto scrollbar-hide py-1">
-            {navItems.map(item => (
-              <button
-                key={item.key}
-                onClick={() => scrollToSection(item.ref, item.key)}
-                className={`inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
-                  activeSection === item.key
-                    ? 'bg-primary text-white shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                {item.icon}
-                {item.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
       {/* Content */}
-      <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
+      <div className="max-w-7xl mx-auto px-6 py-8 space-y-8 relative">
+
+        {/* Right Side Navigation */}
+        <div className="fixed right-6 top-32 flex flex-col gap-2 z-40">
+          {navItems.map(item => (
+            <button
+              key={item.key}
+              onClick={() => scrollToSection(item.ref, item.key)}
+              className={`w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-md hover:scale-110 ${
+                activeSection === item.key
+                  ? 'bg-yellow-500 text-white'
+                  : 'bg-[#2563A8] text-white hover:opacity-90'
+              }`}
+              title={item.label}
+            >
+              {item.icon}
+            </button>
+          ))}
+        </div>
 
         {/* Overview Section */}
         <section ref={overviewRef} className="scroll-mt-40">

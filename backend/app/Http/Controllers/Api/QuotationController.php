@@ -80,7 +80,7 @@ class QuotationController extends Controller
             'branch_id' => 'required|exists:branches,id',
         ]);
 
-        $validated['quotation_number'] = $this->generateQuotationNumber();
+        $validated['quotation_number'] = $this->generateQuotationNumber($validated['branch_id']);
         $validated['created_by'] = $user->id;
         $validated['status'] = 'draft';
 
@@ -88,13 +88,13 @@ class QuotationController extends Controller
 
         return response()->json([
             'message' => 'Quotation created successfully',
-            'quotation' => $quotation->fresh()->load(['customer', 'vehicle'])
+            'quotation' => $quotation->fresh()->load(['customer', 'vehicle', 'branch'])
         ], 201);
     }
 
     public function show($id)
     {
-        $quotation = Quotation::with(['customer', 'vehicle', 'creator', 'jobCard', 'items.task'])
+        $quotation = Quotation::with(['customer', 'vehicle', 'creator', 'branch', 'jobCard', 'items.task'])
             ->findOrFail($id);
 
         return response()->json($quotation);
@@ -175,7 +175,7 @@ class QuotationController extends Controller
 
         // Create job card from quotation
         $jobCard = JobCard::create([
-            'job_card_number' => $this->generateJobCardNumber(),
+            'job_card_number' => $this->generateJobCardNumber($quotation->branch_id),
             'customer_id' => $quotation->customer_id,
             'vehicle_id' => $quotation->vehicle_id,
             'branch_id' => $quotation->branch_id,
@@ -327,10 +327,21 @@ class QuotationController extends Controller
         return response()->json(['message' => 'Items reordered successfully']);
     }
 
-    private function generateQuotationNumber()
+    private function generateQuotationNumber($branchId = null)
     {
         $year = date('Y');
-        $prefix = "QT-{$year}-";
+        $branchCode = '';
+
+        if ($branchId) {
+            $branch = \App\Models\Branch::find($branchId);
+            if ($branch && $branch->code) {
+                // Extract only letters and take first 3 characters
+                $branchCode = strtoupper(preg_replace('/[^A-Za-z]/', '', $branch->code));
+                $branchCode = substr($branchCode, 0, 3);
+            }
+        }
+
+        $prefix = "QT-{$branchCode}{$year}-";
         
         $last = Quotation::where('quotation_number', 'like', "{$prefix}%")
             ->orderBy('id', 'desc')
@@ -346,10 +357,21 @@ class QuotationController extends Controller
         return $prefix . str_pad($newNumber, 4, '0', STR_PAD_LEFT);
     }
 
-    private function generateJobCardNumber()
+    private function generateJobCardNumber($branchId = null)
     {
         $year = date('Y');
-        $prefix = "JC-{$year}-";
+        $branchCode = '';
+
+        if ($branchId) {
+            $branch = \App\Models\Branch::find($branchId);
+            if ($branch && $branch->code) {
+                // Extract only letters and take first 3 characters
+                $branchCode = strtoupper(preg_replace('/[^A-Za-z]/', '', $branch->code));
+                $branchCode = substr($branchCode, 0, 3);
+            }
+        }
+
+        $prefix = "JC-{$branchCode}-{$year}-";
         
         $lastJobCard = JobCard::where('job_card_number', 'like', "{$prefix}%")
             ->orderBy('id', 'desc')

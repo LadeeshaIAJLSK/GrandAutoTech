@@ -13,6 +13,7 @@ class Quotation extends Model
         'quotation_number',
         'customer_id',
         'vehicle_id',
+        'insurance_company',
         'created_by',
         'branch_id',
         'customer_complaint',

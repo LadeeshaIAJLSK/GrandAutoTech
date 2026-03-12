@@ -198,9 +198,9 @@ class JobCardController extends Controller
             }
         }
 
-        // Generate job card number
-        $jobCardNumber = $this->generateJobCardNumber();
         $branchId = $validated['branch_id'];
+        // Generate job card number with branch code
+        $jobCardNumber = $this->generateJobCardNumber($branchId);
 
         // Create job card
         $jobCard = JobCard::create([
@@ -501,12 +501,23 @@ class JobCardController extends Controller
     /**
      * Generate unique job card number
      */
-    private function generateJobCardNumber()
+    private function generateJobCardNumber($branchId = null)
     {
         $year = date('Y');
-        $prefix = "JC-{$year}-";
+        $branchCode = '';
+
+        if ($branchId) {
+            $branch = \App\Models\Branch::find($branchId);
+            if ($branch && $branch->code) {
+                // Extract only letters and take first 3 characters
+                $branchCode = strtoupper(preg_replace('/[^A-Za-z]/', '', $branch->code));
+                $branchCode = substr($branchCode, 0, 3);
+            }
+        }
+
+        $prefix = "JC-{$branchCode}-{$year}-";
         
-        // Get the last job card number for this year
+        // Get the last job card number for this branch and year
         $lastJobCard = JobCard::where('job_card_number', 'like', "{$prefix}%")
             ->orderBy('id', 'desc')
             ->first();

@@ -1,10 +1,11 @@
-function QuotationPrint({ showPrintPreview, setShowPrintPreview, currentQuotation, quotationItems }) {
-  const formatCurrency = (amount) => {
+function QuotationPrint({ showPrintPreview, setShowPrintPreview, currentQuotation, quotationItems, calculatePriceByType: parentCalculatePriceByType, calculateCurrentTotal: parentCalculateCurrentTotal, formatCurrency: parentFormatCurrency }) {
+  // Use functions from parent or create local versions
+  const formatCurrency = parentFormatCurrency || ((amount) => {
     const num = parseFloat(amount) || 0
     return new Intl.NumberFormat('en-LK', { style: 'currency', currency: 'LKR' }).format(num)
-  }
+  })
 
-  const calculatePriceByType = () => {
+  const calculatePriceByType = parentCalculatePriceByType || (() => {
     if (!quotationItems || quotationItems.length === 0) {
       return { task: 0, spare_part: 0, other_charges: 0, subtotal: 0 }
     }
@@ -16,9 +17,9 @@ function QuotationPrint({ showPrintPreview, setShowPrintPreview, currentQuotatio
       else other_charges += amount
     })
     return { task, spare_part, other_charges, subtotal: task + spare_part + other_charges }
-  }
+  })
 
-  const calculateCurrentTotal = () => calculatePriceByType().subtotal
+  const calculateCurrentTotal = parentCalculateCurrentTotal || (() => calculatePriceByType().subtotal)
 
   if (!showPrintPreview || !currentQuotation) return null
 
@@ -91,15 +92,26 @@ function QuotationPrint({ showPrintPreview, setShowPrintPreview, currentQuotatio
             {/* Header */}
             <div className="text-center border-b-2 border-gray-300 pb-4">
               <h1 className="text-3xl font-bold">QUOTATION</h1>
-              <p className="text-gray-500 text-sm mt-1">Professional Insurance Quotation</p>
+              <p className="text-sm text-gray-600 mt-2 font-semibold">{currentQuotation.branch?.name || 'GRAND AUTO TECH'}</p>
+              {currentQuotation.branch?.address && (
+                <p className="text-xs text-gray-600 mt-1">
+                  {currentQuotation.branch.address}
+                  {currentQuotation.branch.city && `, ${currentQuotation.branch.city}`}
+                </p>
+              )}
+              {currentQuotation.branch?.phone && (
+                <p className="text-xs text-gray-600">Tel: {currentQuotation.branch.phone}</p>
+              )}
+              {currentQuotation.branch?.email && (
+                <p className="text-xs text-gray-600">Email: {currentQuotation.branch.email}</p>
+              )}
             </div>
 
             {/* Quotation Details */}
             <div className="grid grid-cols-2 gap-8">
               <div>
-                <p className="text-xs text-gray-600 uppercase font-bold">Company Name</p>
-                <p className="text-lg font-bold mt-1">ABC Auto Services</p>
-                <p className="text-xs text-gray-600 mt-2">Professional Automotive Repairs</p>
+                <p className="text-xs text-gray-600 uppercase font-bold">Branch</p>
+                <p className="text-lg font-bold mt-1">{currentQuotation.branch?.name || 'GRAND AUTO TECH'}</p>
                 {currentQuotation.insurance_company && (
                   <>
                     <p className="text-xs text-gray-600 uppercase font-bold mt-3">Insurance Company</p>

@@ -221,8 +221,21 @@ function JobCardCreateWizard({ show, onClose, onSuccess, user, branches = [], in
 
   const generateJobCardNumber = () => {
     const year = new Date().getFullYear()
-    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0')
-    setJobCardNumber(`JC${random}${year % 100}`)
+    
+    // Get the branch code from current branch selection (only first 3 letters)
+    let branchCode = ''
+    if (formData.branch_id && branches && branches.length > 0) {
+      const selectedBranch = branches.find(b => String(b.id) === String(formData.branch_id))
+      if (selectedBranch && selectedBranch.code) {
+        // Extract only letters and take first 3 characters
+        branchCode = selectedBranch.code.replace(/[0-9]/g, '').substring(0, 3).toUpperCase()
+      }
+    }
+    
+    // Generate temporary sequence (will be replaced by actual backend number on creation)
+    const tempSequence = Math.floor(Math.random() * 10000).toString().padStart(4, '0')
+    const formattedCode = branchCode ? `${branchCode}` : ''
+    setJobCardNumber(`JC-${formattedCode}-${year}-${tempSequence}`)
   }
 
   const handleCustomerChange = (customerId) => {
@@ -449,7 +462,18 @@ function JobCardCreateWizard({ show, onClose, onSuccess, user, branches = [], in
                       <p className="text-xs text-gray-400 mt-1">{isEditMode ? 'Branch cannot be changed after creation' : 'Branch is locked based on filter'}</p>
                     </>
                   ) : (
-                    <select value={formData.branch_id} onChange={e => setFormData({...formData, branch_id: e.target.value})} required className={inputCls}>
+                    <select value={formData.branch_id} onChange={e => {
+                      setFormData({...formData, branch_id: e.target.value})
+                      // Regenerate job card number with new branch code
+                      setTimeout(() => {
+                        const year = new Date().getFullYear()
+                        const selectedBranch = branches.find(b => String(b.id) === String(e.target.value))
+                        // Extract only letters and take first 3 characters
+                        const branchCode = selectedBranch?.code?.replace(/[0-9]/g, '').substring(0, 3).toUpperCase() || ''
+                        const tempSequence = Math.floor(Math.random() * 10000).toString().padStart(4, '0')
+                        setJobCardNumber(`JC-${branchCode}-${year}-${tempSequence}`)
+                      }, 0)
+                    }} required className={inputCls}>
                       <option value="">Select branch...</option>
                       {branches.map(b => <option key={`branch-${b.id}`} value={b.id}>{b.name}</option>)}
                     </select>

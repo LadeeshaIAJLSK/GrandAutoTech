@@ -150,6 +150,12 @@ function QuotationManagement({ user }) {
       return
     }
 
+    // Category is required for task items
+    if (newItem.item_type === 'task' && !newItem.category) {
+      alert('Please select a category for task items')
+      return
+    }
+
     try {
       const token = localStorage.getItem('token')
       const response = await axiosClient.post(
@@ -420,6 +426,7 @@ function QuotationManagement({ user }) {
                 <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Quotation #</th>
                 <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Customer</th>
                 <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Vehicle</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Insurance Company</th>
                 <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Amount</th>
                 <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Valid Until</th>
                 <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
@@ -429,7 +436,7 @@ function QuotationManagement({ user }) {
             <tbody className="divide-y divide-gray-100">
               {quotations.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="px-5 py-12 text-center">
+                  <td colSpan="8" className="px-5 py-12 text-center">
                     <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 text-gray-200 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
@@ -450,6 +457,7 @@ function QuotationManagement({ user }) {
                           {quot.vehicle?.license_plate}
                         </span>
                       </td>
+                      <td className="px-5 py-4 text-gray-700">{quot.insurance_company || '—'}</td>
                       <td className="px-5 py-4 font-bold text-gray-900">{formatCurrency(quot.total_amount)}</td>
                       <td className="px-5 py-4 text-gray-500 text-sm">
                         {quot.valid_until ? new Date(quot.valid_until).toLocaleDateString() : '—'}
@@ -748,7 +756,7 @@ function QuotationManagement({ user }) {
                       </div>
                       {newItem.item_type === 'task' && (
                         <div className="space-y-1">
-                          <label className="text-xs font-semibold text-gray-600">Category</label>
+                          <label className="text-xs font-semibold text-gray-600">Category <span className="text-red-500">*</span></label>
                           <select
                             value={newItem.category}
                             onChange={(e) => setNewItem({...newItem, category: e.target.value})}
@@ -861,6 +869,9 @@ function QuotationManagement({ user }) {
         setShowPrintPreview={setShowPrintPreview}
         currentQuotation={currentQuotation}
         quotationItems={quotationItems}
+        calculatePriceByType={calculatePriceByType}
+        calculateCurrentTotal={calculateCurrentTotal}
+        formatCurrency={formatCurrency}
       />
     </div>
   )
