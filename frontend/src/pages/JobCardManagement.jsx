@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import JobCardCreateWizard from '../components/jobcards/JobCardCreateWizard'
 import axiosClient from '../api/axios'
 import { createPortal } from 'react-dom'
+import Notification from '../components/common/Notification'
 
 function JobCardManagement({ user, selectedBranchId }) {
   const navigate = useNavigate()
@@ -12,12 +13,16 @@ function JobCardManagement({ user, selectedBranchId }) {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [showCreateWizard, setShowCreateWizard] = useState(false)
+  const [editingJobCard, setEditingJobCard] = useState(null)
+  const [loadingEdit, setLoadingEdit] = useState(false)
   const [branches, setBranches] = useState([])
   const [filterBranch, setFilterBranch] = useState('')
   const [branchDropdownOpen, setBranchDropdownOpen] = useState(false)
   const [pendingPartsCounts, setPendingPartsCounts] = useState({})
   const [openMenuId, setOpenMenuId] = useState(null)
   const [menuPos, setMenuPos] = useState({ top: 0, right: 0 })
+  const [notification, setNotification] = useState(null)
+  const [deleteConfirm, setDeleteConfirm] = useState(null)
   const buttonRefs = useRef({})
   const branchDropdownRef = useRef(null)
 
@@ -101,7 +106,7 @@ function JobCardManagement({ user, selectedBranchId }) {
       }
     } catch (error) {
       console.error('Error fetching job cards:', error)
-      alert('Error fetching job cards: ' + (error.response?.data?.message || error.message))
+      setNotification({ type: 'error', title: 'Loading Failed', message: error.response?.data?.message || error.message })
     } finally {
       setLoading(false)
     }
@@ -166,17 +171,22 @@ function JobCardManagement({ user, selectedBranchId }) {
   }
 
   const handleDelete = async (jobCardId) => {
-    if (!confirm('Are you sure you want to delete this job card?')) return
+    setDeleteConfirm(jobCardId)
+  }
+
+  const confirmDelete = async (jobCardId) => {
     try {
       const token = localStorage.getItem('token')
       await axiosClient.delete(`/job-cards/${jobCardId}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      alert('Job card deleted successfully!')
+      setDeleteConfirm(null)
+      setNotification({ type: 'success', title: 'Deleted Successfully', message: 'Job card has been deleted successfully!' })
       fetchJobCards()
       fetchStatistics()
     } catch (error) {
-      alert(error.response?.data?.message || 'Error deleting job card')
+      setDeleteConfirm(null)
+      setNotification({ type: 'error', title: 'Deletion Failed', message: error.response?.data?.message || 'Error deleting job card' })
     }
   }
 
@@ -186,11 +196,11 @@ function JobCardManagement({ user, selectedBranchId }) {
       await axiosClient.patch(`/job-cards/${jobCardId}/status`, { status: newStatus }, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      alert(`Status updated to ${formatStatus(newStatus)}`)
+      setNotification({ type: 'success', title: 'Status Updated', message: `Status updated to ${formatStatus(newStatus)}` })
       fetchJobCards()
       fetchStatistics()
     } catch (error) {
-      alert(error.response?.data?.message || 'Error updating status')
+      setNotification({ type: 'error', title: 'Update Failed', message: error.response?.data?.message || 'Error updating status' })
     }
   }
 
@@ -229,6 +239,34 @@ function JobCardManagement({ user, selectedBranchId }) {
     setOpenMenuId(id)
   }
 
+  const handleEditJobCard = async (jobCard) => {
+    try {
+      setLoadingEdit(true)
+      const token = localStorage.getItem('token')
+      const response = await axiosClient.get(`/job-cards/${jobCard.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      console.log('=== EDIT FETCH RAW RESPONSE ===')
+      console.log('Full response:', response.data)
+      console.log('Response.data.data:', response.data?.data)
+      console.log('Response.data.images:', response.data?.images)
+      
+      const fullJobCard = response.data.data || response.data
+      console.log('=== EXTRACTED JOB CARD ===')
+      console.log('Full job card:', fullJobCard)
+      console.log('Job card images:', fullJobCard?.images)
+      console.log('Images array length:', fullJobCard?.images?.length || 0)
+      
+      setEditingJobCard(fullJobCard)
+      setOpenMenuId(null)
+    } catch (error) {
+      console.error('Error fetching job card:', error)
+      setNotification({ type: 'error', title: 'Loading Failed', message: 'Error loading job card for editing' })
+    } finally {
+      setLoadingEdit(false)
+    }
+  }
+
   const DropdownMenu = ({ jobCard }) => {
     return createPortal(
       <div
@@ -256,7 +294,7 @@ function JobCardManagement({ user, selectedBranchId }) {
         {canUpdate && (
           <button
             className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 transition-colors text-left"
-            onClick={() => { navigate(`/job-cards/${jobCard.id}`); setOpenMenuId(null) }}
+            onClick={() => { handleEditJobCard(jobCard) }}
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-blue-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -418,7 +456,7 @@ function JobCardManagement({ user, selectedBranchId }) {
                 : (user.branch?.id || '')
               setShowCreateWizard({ initialBranchId })
             }}
-            className="inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-px active:translate-y-0"
+            className="inline-flex items-center gap-2 bg-[#2563A8] hover:bg-[#1E4E7E] text-white px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-px active:translate-y-0"
             style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
           >
             <span className="flex items-center justify-center w-5 h-5 bg-white/25 rounded-md">
@@ -439,7 +477,7 @@ function JobCardManagement({ user, selectedBranchId }) {
           </svg>
           <input
             type="text"
-            placeholder="Search job cards..."
+            placeholder="Search job cards by name phone email..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-lg bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all shadow-sm"
@@ -471,12 +509,12 @@ function JobCardManagement({ user, selectedBranchId }) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b-2 border-gray-100" style={{ backgroundColor: '#2563A8' }}>
-                <th className="px-5 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider">Job Card #</th>
-                <th className="px-5 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider">Customer</th>
-                <th className="px-5 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider">Vehicle</th>
-                <th className="px-5 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider">Status</th>
-                <th className="px-5 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider">Dates</th>
-                <th className="px-5 py-3.5 text-right text-xs font-semibold text-white uppercase tracking-wider">Action</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider" style={{ width: '18%' }}>Job Card</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider" style={{ width: '19%' }}>Customer</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider" style={{ width: '17%' }}>Vehicle</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider" style={{ width: '8%' }}>Status</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider" style={{ width: '30%' }}>Dates</th>
+                <th className="px-5 py-3.5 text-right text-xs font-semibold text-white uppercase tracking-wider" style={{ width: '8%' }}>Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -549,15 +587,10 @@ function JobCardManagement({ user, selectedBranchId }) {
                     </td>
                     <td className="px-5 py-4">
                       <div className="text-sm text-gray-700">
-                        <div className="font-semibold text-gray-900">Created:</div>
-                        <div className="text-xs text-gray-500 mt-0.5">{new Date(jobCard.created_at).toLocaleDateString()}</div>
-                      </div>
-                      {jobCard.estimated_completion_date && (
-                        <div className="text-sm text-gray-700 mt-2">
-                          <div className="font-semibold text-gray-900">Expected:</div>
-                          <div className="text-xs text-gray-500 mt-0.5">{new Date(jobCard.estimated_completion_date).toLocaleDateString()}</div>
+                        <div className="font-semibold text-gray-900">
+                          <span className="text-gray-600 font-bold">Created:</span> {new Date(jobCard.created_at).toLocaleDateString()} | <span className="text-gray-600 font-bold">Expected:</span> {jobCard.estimated_completion_date ? new Date(jobCard.estimated_completion_date).toLocaleDateString() : 'N/A'}
                         </div>
-                      )}
+                      </div>
                     </td>
                     <td className="px-5 py-4 text-right relative">
                       <button
@@ -567,11 +600,11 @@ function JobCardManagement({ user, selectedBranchId }) {
                           e.stopPropagation()
                           toggleMenu(e, jobCard.id)
                         }}
-                        className="inline-flex items-center justify-center p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 active:bg-gray-200 transition-all duration-150"
+                        className="inline-flex items-center justify-center p-1.5 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100 active:bg-gray-200 transition-all duration-150"
                         type="button"
                         aria-label="Actions menu"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
                           <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
                         </svg>
                       </button>
@@ -591,6 +624,7 @@ function JobCardManagement({ user, selectedBranchId }) {
           onClose={() => setShowCreateWizard(false)}
           onSuccess={(jobCard) => {
             setShowCreateWizard(false)
+            setNotification({ type: 'success', title: 'Created Successfully', message: 'Job card has been created successfully!' })
             fetchJobCards()
             fetchStatistics()
           }}
@@ -600,6 +634,64 @@ function JobCardManagement({ user, selectedBranchId }) {
         />,
         document.body
       )}
+
+      {editingJobCard && createPortal(
+        <JobCardCreateWizard
+          show={true}
+          onClose={() => setEditingJobCard(null)}
+          onSuccess={() => {
+            setEditingJobCard(null)
+            setNotification({ type: 'success', title: 'Updated Successfully', message: 'Job card has been updated successfully!' })
+            fetchJobCards()
+            fetchStatistics()
+          }}
+          user={user}
+          branches={branches}
+          jobCard={editingJobCard}
+        />,
+        document.body
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && createPortal(
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden bg-gradient-to-br from-red-50 to-rose-50 border-2 border-red-300">
+            <div className="p-8 space-y-5">
+              <div className="flex justify-center">
+                <div className="flex items-center justify-center w-16 h-16 rounded-full bg-red-100">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                </div>
+              </div>
+              <div className="text-center space-y-2">
+                <h3 className="text-lg font-bold text-red-900">Confirm Delete</h3>
+                <p className="text-sm leading-relaxed text-red-700">
+                  Are you sure you want to delete this job card? This action cannot be undone.
+                </p>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={() => setDeleteConfirm(null)}
+                  className="flex-1 py-3 rounded-lg font-bold text-gray-700 bg-white hover:bg-gray-100 border border-gray-300 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => confirmDelete(deleteConfirm)}
+                  className="flex-1 py-3 rounded-lg font-bold text-white bg-red-600 hover:bg-red-700 active:scale-95 transition-all"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Notification */}
+      <Notification notification={notification} onClose={() => setNotification(null)} />
     </div>
   )
 }

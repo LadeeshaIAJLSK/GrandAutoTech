@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('job_card_id')->constrained()->onDelete('cascade');
             $table->string('image_path'); // Storage path
-            $table->enum('image_type', ['before', 'during', 'after'])->default('before');
+            $table->enum('image_type', ['before', 'during', 'after', 'front', 'back', 'right', 'left', 'interior1', 'interior2', 'dashboard', 'top', 'other1', 'other2'])->default('before');
             $table->text('description')->nullable();
             $table->integer('order')->default(0); // Display order
             $table->timestamps();

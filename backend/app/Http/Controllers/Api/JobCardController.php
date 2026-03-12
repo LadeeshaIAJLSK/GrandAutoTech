@@ -316,17 +316,21 @@ class JobCardController extends Controller
         $request->validate([
             'images' => 'required|array|max:10',
             'images.*' => 'image|mimes:jpeg,png,jpg|max:5120', // 5MB max
-            'image_type' => 'nullable|in:before,during,after',
+            'image_types' => 'nullable|array',
+            'image_types.*' => 'string|in:front,back,right,left,interior1,interior2,dashboard,top,other1,other2',
             'descriptions' => 'nullable|array',
         ]);
 
         $jobCard = JobCard::findOrFail($id);
         $uploadedImages = [];
-        $imageType = $request->image_type ?? 'before'; // Default to 'before' if not provided
+        $imageTypes = $request->image_types ?? [];
 
         foreach ($request->file('images') as $index => $image) {
             // Store image
             $path = $image->store('job-cards/' . $jobCard->id, 'public');
+
+            // Get the image type for this image, or use default
+            $imageType = $imageTypes[$index] ?? 'other';
 
             // Create image record
             $jobCardImage = JobCardImage::create([

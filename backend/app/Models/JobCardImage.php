@@ -21,6 +21,8 @@ class JobCardImage extends Model
         'order' => 'integer',
     ];
 
+    protected $appends = ['image_url'];
+
     // Relationships
     public function jobCard()
     {

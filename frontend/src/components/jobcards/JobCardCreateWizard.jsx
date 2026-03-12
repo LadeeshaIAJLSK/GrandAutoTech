@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
 import axiosClient from '../../api/axios'
+import Notification from '../common/Notification'
 
-function JobCardCreateWizard({ show, onClose, onSuccess, user, branches = [], initialBranchId = '' }) {
+function JobCardCreateWizard({ show, onClose, onSuccess, user, branches = [], initialBranchId = '', jobCard = null }) {
   const [currentStep, setCurrentStep] = useState(1)
   const [customers, setCustomers] = useState([])
   const [vehicles, setVehicles] = useState([])
   const [jobCardNumber, setJobCardNumber] = useState('')
+  const [createdDate, setCreatedDate] = useState('')
   const [customerSearch, setCustomerSearch] = useState('')
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false)
 
@@ -25,14 +27,106 @@ function JobCardCreateWizard({ show, onClose, onSuccess, user, branches = [], in
     interior1: null, interior2: null, dashboard: null,
     top: null, other1: null, other2: null,
   })
+  const [existingImages, setExistingImages] = useState({})
+  const [notification, setNotification] = useState(null)
 
   const [tasks, setTasks] = useState([{ description: '', category: '' }])
 
   const categories = ['Mechanical','Electrical','Bodywork','Painting','Diagnostic','Maintenance','Other']
 
+  const isEditMode = jobCard !== null
+
   useEffect(() => {
-    if (show) { fetchCustomers(); generateJobCardNumber() }
-  }, [show])
+    if (show) {
+      fetchCustomers()
+      if (isEditMode && jobCard) {
+        console.log('Loading job card data:', jobCard)
+        console.log('Details field content:', jobCard.details)
+        console.log('Job card images array:', jobCard.images)
+        setJobCardNumber(jobCard.job_card_number)
+        setCreatedDate(jobCard.created_at)
+        setFormData({
+          customer_id: jobCard.customer_id || '',
+          vehicle_id: jobCard.vehicle_id || '',
+          branch_id: jobCard.branch_id || '',
+          expected_completion_date: jobCard.estimated_completion_date ? jobCard.estimated_completion_date.split('T')[0] : '',
+          test_run_required: jobCard.test_run_required ? true : false,
+          details: jobCard.details || jobCard.complaint || jobCard.customer_complaint || '',
+          current_mileage: jobCard.current_mileage || '',
+          additional_details: jobCard.additional_details || jobCard.notes || '',
+        })
+        console.log('Form data set to:', { details: jobCard.details || jobCard.complaint || jobCard.customer_complaint || '' })
+        
+        // Load existing images from job card - map image_type to the state keys
+        if (jobCard.images && Array.isArray(jobCard.images) && jobCard.images.length > 0) {
+          const imageMap = {}
+          const imageTypeMap = {
+            'front': 'front',
+            'back': 'back',
+            'right': 'right',
+            'left': 'left',
+            'interior1': 'interior1',
+            'interior2': 'interior2',
+            'dashboard': 'dashboard',
+            'top': 'top',
+            'other1': 'other1',
+            'other2': 'other2',
+            'right side': 'right',
+            'left side': 'left',
+            'interior 1': 'interior1',
+            'interior 2': 'interior2',
+            'other 1': 'other1',
+            'other 2': 'other2',
+          }
+          
+          jobCard.images.forEach(img => {
+            const normalizedType = img.image_type?.toLowerCase().trim() || ''
+            const key = imageTypeMap[normalizedType]
+            if (key) {
+              imageMap[key] = img.image_url || img.url
+              console.log(`Mapped ${normalizedType} -> ${key} : ${imageMap[key]}`)
+            } else {
+              console.warn(`Unknown image type: ${normalizedType}`)
+            }
+          })
+          console.log('Final existing images map:', imageMap)
+          setExistingImages(imageMap)
+        } else {
+          console.log('No images found in job card')
+          setExistingImages({})
+        }
+        
+        if (jobCard.customer_id) fetchVehicles(jobCard.customer_id)
+        if (jobCard.tasks && Array.isArray(jobCard.tasks) && jobCard.tasks.length > 0) {
+          const loadedTasks = jobCard.tasks.map(t => ({ 
+            description: t.description || '', 
+            category: t.category || '' 
+          }))
+          console.log('Loaded tasks:', loadedTasks)
+          setTasks(loadedTasks)
+        } else {
+          setTasks([{ description: '', category: '' }])
+        }
+        setCustomerSearch(jobCard.customer?.name || '')
+      } else if (!isEditMode) {
+        generateJobCardNumber()
+        setCreatedDate('')
+        setFormData({
+          customer_id: '',
+          vehicle_id: '',
+          branch_id: initialBranchId || '',
+          expected_completion_date: '',
+          test_run_required: false,
+          details: '',
+          current_mileage: '',
+          additional_details: '',
+        })
+        setImages({ front: null, back: null, right: null, left: null, interior1: null, interior2: null, dashboard: null, top: null, other1: null, other2: null })
+        setExistingImages({})
+        setTasks([{ description: '', category: '' }])
+      }
+    }
+  }, [show, jobCard])
 
   const fetchCustomers = async () => {
     try {
@@ -69,34 +163,83 @@ function JobCardCreateWizard({ show, onClose, onSuccess, user, branches = [], in
     return c.name.toLowerCase().includes(s) || c.phone.toLowerCase().includes(s) || (c.email && c.email.toLowerCase().includes(s))
   })
 
-  const handleImageUpload = (key, file) => setImages({ ...images, [key]: file })
+  const handleImageUpload = (key, file) => {
+    setImages({ ...images, [key]: file })
+  }
+  
+  const removeExistingImage = (key) => {
+    setExistingImages({ ...existingImages, [key]: null })
+  }
+
   const addTask = () => setTasks([...tasks, { description: '', category: '' }])
   const removeTask = (index) => { if (tasks.length > 1) setTasks(tasks.filter((_, i) => i !== index)) }
   const updateTask = (index, field, value) => { const t = [...tasks]; t[index][field] = value; setTasks(t) }
 
+  const showNotification = (type, title, message) => {
+    setNotification({ type, title, message })
+  }
+
   const handleSubmit = async () => {
     try {
       const tasksWithDescription = tasks.filter(t => t.description && t.description.trim())
-      if (tasksWithDescription.length === 0) { alert('Please add at least one task with a description'); return }
-      if (!formData.details || !formData.details.trim()) { alert('Please fill in the Customer Complaint field'); return }
-      if (!formData.branch_id) { alert('Please select a branch'); return }
-      const token = localStorage.getItem('token')
-      const response = await axiosClient.post('/job-cards', { ...formData, tasks: tasksWithDescription }, { headers: { Authorization: `Bearer ${token}` } })
-      const jobCardId = response.data.job_card.id
-      const imageFormData = new FormData()
-      let hasImages = false
-      Object.entries(images).forEach(([key, file]) => { if (file) { imageFormData.append('images[]', file); hasImages = true } })
-      if (hasImages) {
-        await axiosClient.post(`/job-cards/${jobCardId}/images`, imageFormData, {
-          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
-        })
+      if (!isEditMode && tasksWithDescription.length === 0) { 
+        showNotification('error', 'Missing Tasks', 'Please add at least one task with a description')
+        return 
       }
-      alert('Job Card created successfully!')
+      if (!formData.details || !formData.details.trim()) { 
+        showNotification('error', 'Missing Information', 'Please fill in the Customer Complaint field')
+        return 
+      }
+      if (!formData.branch_id) { 
+        showNotification('error', 'Missing Branch', 'Please select a branch')
+        return 
+      }
+      if (!formData.expected_completion_date) { 
+        showNotification('error', 'Missing Date', 'Please select an Expected Completion Date')
+        return 
+      }
+      const token = localStorage.getItem('token')
+      
+      if (isEditMode) {
+        // Update existing job card
+        await axiosClient.put(`/job-cards/${jobCard.id}`, { ...formData }, { headers: { Authorization: `Bearer ${token}` } })
+        
+        // Handle new images - send with their types
+        const newImages = Object.entries(images).filter(([key, file]) => file)
+        if (newImages.length > 0) {
+          const imageFormData = new FormData()
+          newImages.forEach(([key, file]) => {
+            imageFormData.append('images[]', file)
+            imageFormData.append('image_types[]', key) // Send the image type with each image
+          })
+          await axiosClient.post(`/job-cards/${jobCard.id}/images`, imageFormData, {
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
+          })
+        }
+      } else {
+        // Create new job card
+        const response = await axiosClient.post('/job-cards', { ...formData, tasks: tasksWithDescription }, { headers: { Authorization: `Bearer ${token}` } })
+        const jobCardId = response.data.job_card.id
+        
+        // Handle images - send with their types
+        const newImages = Object.entries(images).filter(([key, file]) => file)
+        if (newImages.length > 0) {
+          const imageFormData = new FormData()
+          newImages.forEach(([key, file]) => {
+            imageFormData.append('images[]', file)
+            imageFormData.append('image_types[]', key) // Send the image type with each image
+          })
+          await axiosClient.post(`/job-cards/${jobCardId}/images`, imageFormData, {
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
+          })
+        }
+      }
+      // Success - close form immediately and let parent show notification
       onSuccess()
       resetForm()
     } catch (error) {
       console.error('Error:', error)
-      alert(error.response?.data?.message || 'Error creating job card')
+      showNotification('error', isEditMode ? 'Update Failed' : 'Creation Failed', error.response?.data?.message || (isEditMode ? 'Error updating job card' : 'Error creating job card'))
     }
   }
 
@@ -104,6 +247,7 @@ function JobCardCreateWizard({ show, onClose, onSuccess, user, branches = [], in
     setCurrentStep(1)
     setFormData({ customer_id: '', vehicle_id: '', branch_id: initialBranchId || '', expected_completion_date: '', test_run_required: false, details: '', current_mileage: '', additional_details: '' })
     setImages({ front: null, back: null, right: null, left: null, interior1: null, interior2: null, dashboard: null, top: null, other1: null, other2: null })
+    setExistingImages({})
     setTasks([{ description: '', category: '' }])
     generateJobCardNumber()
   }
@@ -116,11 +260,12 @@ function JobCardCreateWizard({ show, onClose, onSuccess, user, branches = [], in
   const steps = [
     { n: 1, label: 'Service Details', icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /> },
     { n: 2, label: 'Service Images', icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /> },
-    { n: 3, label: 'Task List',       icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 14l2 2 4-4" /> },
+    { n: 3, label: 'Task List',       icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /> },
   ]
 
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
+    <>
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl my-8 overflow-hidden">
 
         {/* Header */}
@@ -129,8 +274,8 @@ function JobCardCreateWizard({ show, onClose, onSuccess, user, branches = [], in
           <div className="absolute -bottom-8 right-24 w-20 h-20 bg-white/5 rounded-full" />
           <div className="relative flex justify-between items-center">
             <div>
-              <h2 className="text-xl font-bold text-white tracking-tight">Create New Job Card</h2>
-              <p className="text-gray-400 text-sm mt-0.5">Fill in all required information below</p>
+              <h2 className="text-xl font-bold text-white tracking-tight">{isEditMode ? 'Edit Job Card' : 'Create New Job Card'}</h2>
+              <p className="text-gray-400 text-sm mt-0.5">{isEditMode ? 'Update job card information below' : 'Fill in all required information below'}</p>
             </div>
             <button onClick={() => { onClose(); resetForm() }} className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors">
               <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -142,33 +287,36 @@ function JobCardCreateWizard({ show, onClose, onSuccess, user, branches = [], in
 
         {/* Step Progress */}
         <div className="flex items-center justify-center gap-0 px-8 py-5 bg-gray-50 border-b border-gray-100">
-          {steps.map((s, i) => (
-            <div key={s.n} className="flex items-center">
-              <button
-                onClick={() => s.n < currentStep && setCurrentStep(s.n)}
-                disabled={s.n > currentStep}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all ${
-                  currentStep === s.n
-                    ? 'bg-primary text-white shadow-md scale-105'
-                    : currentStep > s.n
-                    ? 'bg-green-500 text-white cursor-pointer hover:bg-green-600'
-                    : 'bg-white text-gray-400 border border-gray-200 cursor-not-allowed'
-                }`}
-              >
-                {currentStep > s.n ? (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">{s.icon}</svg>
+          {(() => {
+            const visibleSteps = steps.filter(s => !isEditMode || s.n !== 3)
+            return visibleSteps.map((s, i) => (
+              <div key={s.n} className="flex items-center">
+                <button
+                  onClick={() => s.n < currentStep && setCurrentStep(s.n)}
+                  disabled={s.n > currentStep}
+                  className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all ${
+                    currentStep === s.n
+                      ? 'bg-primary text-white shadow-md scale-105'
+                      : currentStep > s.n
+                      ? 'bg-green-500 text-white cursor-pointer hover:bg-green-600'
+                      : 'bg-white text-gray-400 border border-gray-200 cursor-not-allowed'
+                  }`}
+                >
+                  {currentStep > s.n ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">{s.icon}</svg>
+                  )}
+                  {s.label}
+                </button>
+                {i < visibleSteps.length - 1 && (
+                  <div className={`w-8 h-0.5 mx-1 ${currentStep > s.n ? 'bg-green-400' : 'bg-gray-200'}`} />
                 )}
-                {s.label}
-              </button>
-              {i < steps.length - 1 && (
-                <div className={`w-8 h-0.5 mx-1 ${currentStep > s.n ? 'bg-green-400' : 'bg-gray-200'}`} />
-              )}
-            </div>
-          ))}
+              </div>
+            ))
+          })()}
         </div>
 
         {/* Step Content */}
@@ -190,29 +338,38 @@ function JobCardCreateWizard({ show, onClose, onSuccess, user, branches = [], in
                   <input type="text" value={jobCardNumber} readOnly className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-100 text-gray-600 font-mono font-bold" />
                 </div>
                 <div>
-                  <label className={labelCls}>Date and Time <span className="text-red-400">*</span></label>
-                  <input type="text" value={new Date().toLocaleString()} readOnly className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-100 text-gray-500" />
-                  <p className="text-xs text-gray-400 mt-1">Automatically set to current date and time</p>
+                  <label className={labelCls}>{isEditMode ? 'Created Date' : 'Date and Time'} <span className="text-red-400">*</span></label>
+                  <input type="text" value={isEditMode ? new Date(createdDate).toLocaleString() : new Date().toLocaleString()} readOnly className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-100 text-gray-500" />
+                  <p className="text-xs text-gray-400 mt-1">{isEditMode ? 'Original creation date cannot be changed' : 'Automatically set to current date and time'}</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-5">
                 <div>
                   <label className={labelCls}>Expected Completion Date <span className="text-red-400">*</span></label>
-                  <input type="date" value={formData.expected_completion_date} onChange={e => setFormData({...formData, expected_completion_date: e.target.value})} min={getTodayDateString()} required className={inputCls} />
-                  <p className="text-xs text-gray-400 mt-1">Select when you expect this job to be completed</p>
+                  {isEditMode ? (
+                    <>
+                      <input type="date" value={formData.expected_completion_date} readOnly className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-100 text-gray-500" />
+                      <p className="text-xs text-gray-400 mt-1">Cannot be edited after creation</p>
+                    </>
+                  ) : (
+                    <>
+                      <input type="date" value={formData.expected_completion_date} onChange={e => setFormData({...formData, expected_completion_date: e.target.value})} min={getTodayDateString()} required className={inputCls} />
+                      <p className="text-xs text-gray-400 mt-1">Select when you expect this job to be completed <span className="text-red-500">*</span></p>
+                    </>
+                  )}
                 </div>
                 <div>
                   <label className={labelCls}>Branch <span className="text-red-400">*</span></label>
-                  {initialBranchId ? (
+                  {initialBranchId || isEditMode ? (
                     <>
                       <input 
                         type="text" 
-                        value={branches.find(b => b.id === parseInt(initialBranchId))?.name || ''} 
+                        value={branches.find(b => b.id === parseInt(isEditMode ? formData.branch_id : initialBranchId))?.name || ''} 
                         readOnly 
                         className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-100 text-gray-600 font-semibold" 
                       />
-                      <p className="text-xs text-gray-400 mt-1">Branch is locked based on filter</p>
+                      <p className="text-xs text-gray-400 mt-1">{isEditMode ? 'Branch cannot be changed after creation' : 'Branch is locked based on filter'}</p>
                     </>
                   ) : (
                     <select value={formData.branch_id} onChange={e => setFormData({...formData, branch_id: e.target.value})} required className={inputCls}>
@@ -234,7 +391,8 @@ function JobCardCreateWizard({ show, onClose, onSuccess, user, branches = [], in
                       onChange={e => { setCustomerSearch(e.target.value); setShowCustomerDropdown(true) }}
                       onFocus={() => setShowCustomerDropdown(true)}
                       placeholder="Search customer..."
-                      className={inputCls}
+                      disabled={isEditMode}
+                      className={`${inputCls} ${isEditMode ? 'disabled:cursor-not-allowed disabled:bg-gray-100' : ''}`}
                     />
                     {showCustomerDropdown && filteredCustomers.length > 0 && (
                       <div className="absolute top-full left-0 right-0 mt-1 border border-gray-200 rounded-xl bg-white shadow-lg z-10 max-h-48 overflow-y-auto">
@@ -251,8 +409,8 @@ function JobCardCreateWizard({ show, onClose, onSuccess, user, branches = [], in
                 </div>
                 <div>
                   <label className={labelCls}>Vehicle <span className="text-red-400">*</span></label>
-                  <p className="text-xs text-gray-400 mb-1.5">Select a customer first</p>
-                  <select value={formData.vehicle_id} onChange={e => setFormData({...formData, vehicle_id: e.target.value})} required disabled={!formData.customer_id} className={`${inputCls} disabled:cursor-not-allowed`}>
+                  <p className="text-xs text-gray-400 mb-1.5">{isEditMode ? 'Vehicle selected at creation' : 'Select a customer first'}</p>
+                  <select value={formData.vehicle_id} onChange={e => setFormData({...formData, vehicle_id: e.target.value})} required disabled={!formData.customer_id || isEditMode} className={`${inputCls} disabled:cursor-not-allowed disabled:bg-gray-100`}>
                     <option value="">Select vehicle...</option>
                     {vehicles.map(v => <option key={v.id} value={v.id}>{v.license_plate} — {v.make} {v.model}</option>)}
                   </select>
@@ -273,7 +431,7 @@ function JobCardCreateWizard({ show, onClose, onSuccess, user, branches = [], in
 
               <div>
                 <label className={labelCls}>Customer Complaint <span className="text-red-400">*</span></label>
-                <textarea value={formData.details} onChange={e => setFormData({...formData, details: e.target.value})} placeholder="Enter customer complaint or service request..." rows="4" required className={`${inputCls} resize-none`} />
+                <textarea value={formData.details || ''} onChange={e => setFormData({...formData, details: e.target.value})} placeholder="Enter customer complaint or service request..." rows="4" required className={`${inputCls} resize-none`} />
               </div>
 
               <div>
@@ -306,12 +464,22 @@ function JobCardCreateWizard({ show, onClose, onSuccess, user, branches = [], in
                   { key: 'other1', label: 'Other 1', optional: true },
                   { key: 'other2', label: 'Other 2', optional: true },
                 ].map(img => (
-                  <div key={img.key} className="border-2 border-dashed border-gray-200 hover:border-primary/50 rounded-xl overflow-hidden transition-colors">
+                  <div key={img.key} className="border-2 border-dashed border-gray-200 hover:border-primary/50 rounded-xl overflow-hidden transition-colors relative">
                     <label className="cursor-pointer block h-full">
                       {images[img.key] ? (
                         <div className="relative">
                           <img src={URL.createObjectURL(images[img.key])} alt={img.label} className="w-full h-28 object-cover" />
+                          <div className="absolute top-1 left-1 bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded">New</div>
                           <button type="button" onClick={e => { e.preventDefault(); handleImageUpload(img.key, null) }}
+                            className="absolute top-1.5 right-1.5 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center text-xs font-bold transition-colors">
+                            ×
+                          </button>
+                        </div>
+                      ) : existingImages[img.key] ? (
+                        <div className="relative">
+                          <img src={existingImages[img.key]} alt={img.label} className="w-full h-28 object-cover" />
+                          <div className="absolute top-1 left-1 bg-gray-600 text-white text-xs px-1.5 py-0.5 rounded">Existing</div>
+                          <button type="button" onClick={e => { e.preventDefault(); removeExistingImage(img.key) }}
                             className="absolute top-1.5 right-1.5 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center text-xs font-bold transition-colors">
                             ×
                           </button>
@@ -334,7 +502,7 @@ function JobCardCreateWizard({ show, onClose, onSuccess, user, branches = [], in
           )}
 
           {/* STEP 3 */}
-          {currentStep === 3 && (
+          {currentStep === 3 && !isEditMode && (
             <div className="space-y-4">
               <div className="flex items-center gap-2 pb-3 border-b border-gray-100">
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -410,11 +578,11 @@ function JobCardCreateWizard({ show, onClose, onSuccess, user, branches = [], in
               Cancel
             </button>
 
-            {currentStep < 3 ? (
+            {currentStep < (isEditMode ? 2 : 3) ? (
               <button onClick={() => {
-                if (currentStep === 1 && !formData.customer_id) { alert('Please select a customer'); return }
-                if (currentStep === 1 && !formData.vehicle_id) { alert('Please select a vehicle'); return }
-                if (currentStep === 1 && !formData.details.trim()) { alert('Please fill in the Customer Complaint field'); return }
+                if (currentStep === 1 && !formData.customer_id) { showNotification('error', 'Missing Customer', 'Please select a customer'); return }
+                if (currentStep === 1 && !formData.vehicle_id) { showNotification('error', 'Missing Vehicle', 'Please select a vehicle'); return }
+                if (currentStep === 1 && !formData.details.trim()) { showNotification('error', 'Missing Information', 'Please fill in the Customer Complaint field'); return }
                 setCurrentStep(currentStep + 1)
               }}
                 className="inline-flex items-center gap-2 px-5 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg text-sm font-bold transition-all shadow-sm hover:shadow-md hover:-translate-y-px"
@@ -426,12 +594,12 @@ function JobCardCreateWizard({ show, onClose, onSuccess, user, branches = [], in
               </button>
             ) : (
               <button onClick={handleSubmit}
-                className="inline-flex items-center gap-2 px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-px"
+                className="inline-flex items-center gap-2 px-6 py-2 bg-[#2563A8] hover:bg-[#1E4E7E] text-white rounded-lg text-sm font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-px"
                 style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                Create Job Card
+                {isEditMode ? 'Update Job Card' : 'Create Job Card'}
               </button>
             )}
           </div>
@@ -439,6 +607,9 @@ function JobCardCreateWizard({ show, onClose, onSuccess, user, branches = [], in
 
       </div>
     </div>
+
+      <Notification notification={notification} onClose={() => setNotification(null)} />
+    </>
   )
 }
 

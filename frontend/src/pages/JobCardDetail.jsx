@@ -65,6 +65,8 @@ function JobCardDetail({ jobCardId, onClose, user } = {}) {
       console.log('[FETCH] Final jobCard data:', jobCardData)
       console.log('[FETCH] jobCard.otherCharges:', jobCardData?.otherCharges)
       console.log('[FETCH] jobCard.other_charges (total):', jobCardData?.other_charges)
+      console.log('[FETCH] jobCard.images:', jobCardData?.images)
+      console.log('[FETCH] Images count:', jobCardData?.images?.length || 0)
       
       setJobCard(jobCardData)
     } catch (error) {
@@ -395,7 +397,8 @@ function JobCardDetail({ jobCardId, onClose, user } = {}) {
           )}
 
           {/* Images */}
-          {jobCard.images && jobCard.images.length > 0 && (
+          {/* Images Section */}
+          <section>
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mt-4">
               <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5 mb-4">
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -403,22 +406,32 @@ function JobCardDetail({ jobCardId, onClose, user } = {}) {
                 </svg>
                 Vehicle Images
               </h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {jobCard.images.map((image, index) => (
-                  <div key={index} className="relative group">
-                    <img
-                      src={image.image_url}
-                      alt={image.description || 'Vehicle image'}
-                      className="w-full h-36 object-cover rounded-lg border border-gray-200 group-hover:border-primary transition-colors"
-                    />
-                    <div className="absolute top-2 left-2 bg-black/60 text-white px-2 py-0.5 rounded text-xs font-semibold">
-                      {image.image_type}
+              {jobCard?.images && Array.isArray(jobCard.images) && jobCard.images.length > 0 ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {jobCard.images.map((image, index) => (
+                    <div key={index} className="relative group">
+                      <img
+                        src={image.image_url}
+                        alt={image.description || 'Vehicle image'}
+                        className="w-full h-36 object-cover rounded-lg border border-gray-200 group-hover:border-primary transition-colors"
+                      />
+                      <div className="absolute top-2 left-2 bg-black/60 text-white px-2 py-0.5 rounded text-xs font-semibold">
+                        {image.image_type}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-8 text-center bg-gray-50 rounded-lg">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 text-gray-300 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <p className="text-gray-500 font-medium">No images captured yet</p>
+                  <p className="text-gray-400 text-sm">Images will appear once they are added during service</p>
+                </div>
+              )}
             </div>
-          )}
+          </section>
         </section>
 
         {/* Tasks Section */}
