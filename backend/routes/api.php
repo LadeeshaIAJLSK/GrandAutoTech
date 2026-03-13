@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\PettyCashController;
 use App\Http\Controllers\Api\AccessRightsController;
 use App\Http\Controllers\Api\BranchController;
+use App\Http\Controllers\Api\ThirdPartyServiceController;
 use App\Http\Controllers\ActivityController;
 
 
@@ -209,4 +210,11 @@ Route::post('/tasks/{id}/stop-timer', [TaskController::class, 'stopTimer']);
 Route::get('/activities', [ActivityController::class, 'index']);
 Route::get('/activities/statistics', [ActivityController::class, 'statistics']);
 Route::get('/activities/filters', [ActivityController::class, 'filters']);
+
+// Third Party Services Management
+Route::get('/third-party-services', [ThirdPartyServiceController::class, 'index']);
+Route::post('/third-party-services', [ThirdPartyServiceController::class, 'store']);
+Route::get('/third-party-services/{id}', [ThirdPartyServiceController::class, 'show']);
+Route::put('/third-party-services/{id}', [ThirdPartyServiceController::class, 'update']);
+Route::delete('/third-party-services/{id}', [ThirdPartyServiceController::class, 'destroy']);
 });

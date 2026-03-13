@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import axiosClient from '../api/axios'
+import Notification from '../components/common/Notification'
 
 function PettyCashManagement({ user }) {
   const [branches, setBranches] = useState([])
@@ -44,6 +45,11 @@ function PettyCashManagement({ user }) {
   const [categories, setCategories] = useState([])
   const [summary, setSummary] = useState(null)
   const [pendingCount, setPendingCount] = useState(0)
+  const [notification, setNotification] = useState(null)
+  const [jobCardSearch, setJobCardSearch] = useState('')
+  const [jobCardResults, setJobCardResults] = useState([])
+  const [selectedJobCard, setSelectedJobCard] = useState(null)
+  const [searchLoading, setSearchLoading] = useState(false)
 
   useEffect(() => {
     fetchBranches()
@@ -136,23 +142,66 @@ function PettyCashManagement({ user }) {
     } catch (error) { console.error('Error fetching summary:', error) }
   }
 
+  const searchJobCards = async (query) => {
+    if (!query || query.trim().length === 0) {
+      setJobCardResults([])
+      setSelectedJobCard(null)
+      return
+    }
+    setSearchLoading(true)
+    try {
+      const response = await axiosClient.get('/job-cards', { params: { search: query } })
+      const cards = response.data.data || response.data
+      setJobCardResults(cards)
+    } catch (error) {
+      setNotification({ type: 'error', title: 'Search Failed', message: 'Unable to search job cards' })
+      setJobCardResults([])
+    } finally {
+      setSearchLoading(false)
+    }
+  }
+
+  const selectJobCardPart = (part) => {
+    const amount = parseFloat(part.selling_price || 0)
+    if (amount > 0) {
+      setExpenseForm({
+        ...expenseForm,
+        amount: amount.toString(),
+        category: part.part_name,
+        how: `Part: ${part.part_name} (${part.part_number || 'N/A'})`,
+        why: `For job card ${selectedJobCard.job_card_number}`,
+      })
+    }
+    setJobCardSearch('')
+    setJobCardResults([])
+    setSelectedJobCard(null)
+  }
+
   const handleCreateFund = async (e) => {
     e.preventDefault()
-    if (!filterBranch) { alert('Please select a branch first'); return }
+    if (!filterBranch) { 
+      setNotification({ type: 'error', title: 'Branch Required', message: 'Please select a branch first' })
+      return 
+    }
     try {
       await axiosClient.post('/petty-cash/funds', { ...fundForm, branch_id: filterBranch })
-      alert('Fund created successfully!')
+      setNotification({ type: 'success', title: 'Fund Created', message: 'Petty cash fund has been created successfully!' })
       setFundForm({ fund_name: '', initial_amount: '' })
       setShowFundModal(false)
       setSelectedFund(null)
       setTransactions([])
       fetchFunds()
-    } catch (error) { alert('Error creating fund: ' + (error.response?.data?.message || error.message)) }
+    } catch (error) { 
+      setNotification({ type: 'error', title: 'Creation Failed', message: error.response?.data?.message || error.message })
+    }
   }
 
   const handleRecordExpense = async (e) => {
     e.preventDefault()
-    if (!selectedFund) { alert('Please select a fund first'); return }
+    if (!selectedFund) { 
+      setNotification({ type: 'error', title: 'Fund Required', message: 'Please select a fund first' })
+      return 
+    }
     const formData = new FormData()
     formData.append('fund_id', selectedFund)
     formData.append('amount', expenseForm.amount)
@@ -163,21 +212,25 @@ function PettyCashManagement({ user }) {
     if (expenseForm.receipt_image) formData.append('receipt_image', expenseForm.receipt_image)
     try {
       await axiosClient.post('/petty-cash/expense', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
-      alert('Expense recorded successfully!')
+      setNotification({ type: 'success', title: 'Expense Recorded', message: 'Your expense has been recorded successfully!' })
       setExpenseForm({ fund_id: '', amount: '', category: '', how: '', why: '', receipt_image: null, receipt_number: '', transaction_date: new Date().toISOString().slice(0, 10) })
       setShowExpenseModal(false)
       fetchTransactions()
       fetchFunds()
       fetchSummary()
-    } catch (error) { alert('Error recording expense: ' + (error.response?.data?.message || error.message)) }
+    } catch (error) { 
+      setNotification({ type: 'error', title: 'Recording Failed', message: error.response?.data?.message || error.message })
+    }
   }
 
   const approvePendingTransaction = async (transactionId) => {
     try {
       await axiosClient.post(`/petty-cash/transactions/${transactionId}/approve`)
-      alert('Transaction approved!')
+      setNotification({ type: 'success', title: 'Approved', message: 'Transaction has been approved successfully!' })
       fetchTransactions(); fetchFunds(); fetchSummary()
-    } catch (error) { alert('Error approving transaction: ' + (error.response?.data?.message || error.message)) }
+    } catch (error) { 
+      setNotification({ type: 'error', title: 'Approval Failed', message: error.response?.data?.message || error.message })
+    }
   }
 
   const rejectTransaction = async (transactionId) => {
@@ -185,14 +238,19 @@ function PettyCashManagement({ user }) {
     if (!reason) return
     try {
       await axiosClient.post(`/petty-cash/transactions/${transactionId}/reject`, { rejection_reason: reason })
-      alert('Transaction rejected!')
+      setNotification({ type: 'success', title: 'Rejected', message: 'Transaction has been rejected successfully!' })
       fetchTransactions()
-    } catch (error) { alert('Error rejecting transaction: ' + (error.response?.data?.message || error.message)) }
+    } catch (error) { 
+      setNotification({ type: 'error', title: 'Rejection Failed', message: error.response?.data?.message || error.message })
+    }
   }
 
   const handleReplenish = async (e) => {
     e.preventDefault()
-    if (!selectedFund) { alert('Please select a fund first'); return }
+    if (!selectedFund) { 
+      setNotification({ type: 'error', title: 'Fund Required', message: 'Please select a fund first' })
+      return 
+    }
     
     const fund = funds.find(f => f.id === selectedFund)
     const newBalance = parseFloat(fund.current_balance) + parseFloat(replenishForm.amount)
@@ -200,13 +258,17 @@ function PettyCashManagement({ user }) {
     // Validate that replenishment doesn't exceed fixed amount
     if (newBalance > parseFloat(fund.initial_amount)) {
       const availableToReplenish = parseFloat(fund.initial_amount) - parseFloat(fund.current_balance)
-      alert(`Replenishment amount exceeds the fixed amount limit. You can only replenish up to ${formatCurrency(availableToReplenish)}. Consider editing the fixed amount if you need to replenish more.`)
+      setNotification({ 
+        type: 'error', 
+        title: 'Limit Exceeded', 
+        message: `You can only replenish up to ${formatCurrency(availableToReplenish)}. Consider editing the fixed amount if you need to replenish more.`
+      })
       return
     }
     
     try {
       await axiosClient.post('/petty-cash/replenishment', { fund_id: selectedFund, ...replenishForm })
-      alert('Fund replenished successfully!')
+      setNotification({ type: 'success', title: 'Fund Replenished', message: 'The fund has been replenished successfully!' })
       setReplenishForm({ amount: '', description: '', transaction_date: new Date().toISOString().slice(0, 10) })
       setShowReplenishModal(false)
       fetchFunds()
@@ -215,29 +277,40 @@ function PettyCashManagement({ user }) {
     } catch (error) { 
       const errorData = error.response?.data
       if (errorData?.error === 'REPLENISHMENT_EXCEEDS_LIMIT') {
-        alert(`Cannot replenish: ${errorData.message}\nYou can replenish up to ${formatCurrency(errorData.max_allowed_amount)}. Edit the fixed amount if you need more.`)
+        setNotification({ 
+          type: 'error', 
+          title: 'Replenishment Failed', 
+          message: `${errorData.message}\nYou can replenish up to ${formatCurrency(errorData.max_allowed_amount)}. Edit the fixed amount if you need more.`
+        })
       } else {
-        alert('Error replenishing fund: ' + (error.response?.data?.message || error.message))
+        setNotification({ type: 'error', title: 'Replenishment Failed', message: error.response?.data?.message || error.message })
       }
     }
   }
 
   const handleEditFixedAmount = async (e) => {
     e.preventDefault()
-    if (!selectedFund) { alert('Please select a fund first'); return }
+    if (!selectedFund) { 
+      setNotification({ type: 'error', title: 'Fund Required', message: 'Please select a fund first' })
+      return 
+    }
     
     const fund = funds.find(f => f.id === selectedFund)
     const newAmount = parseFloat(editFixedAmountForm.initial_amount)
     
     // Validate that new fixed amount is not less than current balance
     if (newAmount < parseFloat(fund.current_balance)) {
-      alert(`New fixed amount cannot be less than the current balance (${formatCurrency(fund.current_balance)})`)
+      setNotification({ 
+        type: 'error', 
+        title: 'Invalid Amount', 
+        message: `New fixed amount cannot be less than the current balance (${formatCurrency(fund.current_balance)})`
+      })
       return
     }
     
     try {
       await axiosClient.put(`/petty-cash/funds/${selectedFund}/fixed-amount`, { initial_amount: newAmount })
-      alert('Fixed amount updated successfully!')
+      setNotification({ type: 'success', title: 'Amount Updated', message: 'Fixed amount has been updated successfully!' })
       setEditFixedAmountForm({ initial_amount: '' })
       setShowEditFixedAmountModal(false)
       fetchFunds()
@@ -245,9 +318,13 @@ function PettyCashManagement({ user }) {
     } catch (error) { 
       const errorData = error.response?.data
       if (errorData?.error === 'FIXED_AMOUNT_TOO_LOW') {
-        alert(`Cannot update: ${errorData.message}\nMinimum allowed: ${formatCurrency(errorData.minimum_allowed)}`)
+        setNotification({ 
+          type: 'error', 
+          title: 'Update Failed', 
+          message: `${errorData.message}\nMinimum allowed: ${formatCurrency(errorData.minimum_allowed)}`
+        })
       } else {
-        alert('Error updating fixed amount: ' + (error.response?.data?.message || error.message))
+        setNotification({ type: 'error', title: 'Update Failed', message: error.response?.data?.message || error.message })
       }
     }
   }
@@ -266,7 +343,8 @@ function PettyCashManagement({ user }) {
   ]
 
   return (
-    <div className="space-y-5">
+    <>
+      <div className="space-y-5">
 
       {/* Branch Filter - Only for Super Admin */}
       {user.role.name === 'super_admin' && (
@@ -682,8 +760,8 @@ function PettyCashManagement({ user }) {
       {/* Record Expense Modal */}
       {showExpenseModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg my-8 overflow-hidden">
-            <div className="flex justify-between items-start px-7 py-5 border-b border-gray-100">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg my-8 overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-start px-7 py-5 border-b border-gray-100 flex-shrink-0">
               <div>
                 <h2 className="text-lg font-bold text-gray-900">Record New Expense</h2>
                 <p className="text-sm text-gray-400 mt-0.5">Track where petty cash is being used</p>
@@ -694,7 +772,78 @@ function PettyCashManagement({ user }) {
                 </svg>
               </button>
             </div>
-            <form onSubmit={handleRecordExpense} className="px-7 py-5 space-y-4">
+            <form onSubmit={handleRecordExpense} className="px-7 py-5 space-y-4 overflow-y-auto flex-1">
+              <div>
+                <label className={labelCls}>Find Spare Parts from Job Card</label>
+                <div className="relative">
+                  <input 
+                    type="text" 
+                    value={jobCardSearch} 
+                    onChange={(e) => {
+                      setJobCardSearch(e.target.value)
+                      searchJobCards(e.target.value)
+                    }}
+                    placeholder="Enter job card number (e.g., JC-001)" 
+                    className={inputCls}
+                  />
+                  {searchLoading && (
+                    <div className="absolute right-3 top-2.5">
+                      <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  )}
+                </div>
+                
+                {jobCardResults.length > 0 && (
+                  <div className="mt-2 bg-white border border-gray-200 rounded-lg shadow-md max-h-64 overflow-y-auto z-50">
+                    {jobCardResults.map(card => (
+                      <div 
+                        key={card.id}
+                        className="border-b last:border-b-0 hover:bg-gray-50 transition-colors"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setSelectedJobCard(card)}
+                          className="w-full text-left px-4 py-3 flex items-center justify-between"
+                        >
+                          <div className="flex-1">
+                            <p className="font-bold text-gray-900">{card.job_card_number}</p>
+                            <p className="text-xs text-gray-500">{card.vehicle?.registration || 'N/A'} • {card.customer?.name || 'N/A'}</p>
+                          </div>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </button>
+                        
+                        {selectedJobCard?.id === card.id && card.spare_parts_requests && card.spare_parts_requests.length > 0 && (
+                          <div className="bg-gray-50 border-t border-gray-200 px-4 py-3 space-y-2">
+                            <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Spare Parts:</p>
+                            {card.spare_parts_requests.map((part, idx) => (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={() => selectJobCardPart(part)}
+                                className="w-full text-left px-3 py-2 bg-white border border-blue-200 hover:border-blue-400 hover:bg-blue-50 rounded-lg text-xs transition-colors"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <p className="font-semibold text-gray-800">{part.part_name}</p>
+                                    <p className="text-gray-600">{part.part_number || 'N/A'} • Qty: {part.quantity} • {formatCurrency(part.selling_price || 0)}</p>
+                                  </div>
+                                  <span className="text-blue-600 font-bold">+</span>
+                                </div>
+                              </button>
+                            ))}
+                            {card.spare_parts_requests.length === 0 && (
+                              <p className="text-xs text-gray-500 italic">No spare parts requested for this job card</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
               <div>
                 <label className={labelCls}>Expense Category <span className="text-red-400">*</span></label>
                 <input type="text" value={expenseForm.category} onChange={e => setExpenseForm({...expenseForm, category: e.target.value})} placeholder="e.g., Fuel, Supplies, Parts, Tools..." className={inputCls} required />
@@ -755,7 +904,7 @@ function PettyCashManagement({ user }) {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2.5 pt-4 border-t border-gray-100">
+              <div className="flex justify-end gap-2.5 pt-4 border-t border-gray-100 flex-shrink-0">
                 <button type="button" onClick={() => setShowExpenseModal(false)} className="px-5 py-2.5 bg-white hover:bg-gray-100 text-gray-700 border border-gray-300 rounded-lg text-sm font-semibold shadow-sm transition-colors">Cancel</button>
                 <button type="submit" className="px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-px" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>Record Expense</button>
               </div>
@@ -951,6 +1100,9 @@ function PettyCashManagement({ user }) {
         </div>
       )}
     </div>
+
+    <Notification notification={notification} onClose={() => setNotification(null)} />
+    </>
   )
 }
 

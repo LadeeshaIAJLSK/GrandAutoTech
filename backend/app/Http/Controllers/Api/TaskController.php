@@ -29,15 +29,20 @@ class TaskController extends Controller
         ->with([
             'jobCard.customer',
             'jobCard.vehicle',
-            'assignments' => function($query) use ($user) {
-                $query->where('user_id', $user->id);
-            },
+            'assignments.employee',
             'timeTracking' => function($query) use ($user) {
                 $query->where('user_id', $user->id);
             }
         ])
         ->orderBy('created_at', 'desc')
-        ->get();
+        ->get()
+        ->map(function($task) {
+            // Add assigned_employees field for frontend
+            $task->assigned_employees = $task->assignments->map(function($assignment) {
+                return $assignment->employee;
+            })->filter()->values();
+            return $task;
+        });
 
         return response()->json($tasks);
     }
@@ -56,19 +61,31 @@ class TaskController extends Controller
         }
         
         // Get all tasks with their assignments and relationships
-        $tasks = Task::with([
+        $query = Task::with([
             'jobCard.customer',
             'jobCard.vehicle',
             'assignments.employee',
             'timeTracking'
         ])
-        ->orderBy('created_at', 'desc')
+        ->join('job_cards', 'tasks.job_card_id', '=', 'job_cards.id');
+
+        // Super admin: can view all branches, or filter by specific branch if provided
+        if ($request->has('branch_id') && $request->branch_id) {
+            $query->where('job_cards.branch_id', $request->branch_id);
+        }
+
+        $tasks = $query->orderBy('tasks.created_at', 'desc')
+        ->select('tasks.*')
         ->get()
         ->map(function($task) {
             // Add assigned_to_user field from first assignment
             if ($task->assignments && $task->assignments->count() > 0) {
                 $task->assigned_to_user = $task->assignments->first()->employee;
             }
+            // Add assigned_employees field for frontend
+            $task->assigned_employees = $task->assignments->map(function($assignment) {
+                return $assignment->employee;
+            })->filter()->values();
             return $task;
         });
 
@@ -159,7 +176,10 @@ class TaskController extends Controller
     {
         $user = $request->user();
         
-        if (!$user->hasPermission('approve_tasks') && !in_array($user->role->name, ['super_admin', 'branch_admin'])) {
+        // Allow: super_admin, branch_admin, users with approve_tasks permission, or supervisor technicians
+        if (!$user->hasPermission('approve_tasks') && 
+            !in_array($user->role->name, ['super_admin', 'branch_admin']) &&
+            !($user->role->name === 'technician' && $user->technician_type?->value === 'supervisor')) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -175,9 +195,24 @@ class TaskController extends Controller
         // Branch filter
         $role = DB::table('roles')->where('id', $user->role_id)->first();
         if ($role->name === 'branch_admin' && $user->branch_id) {
+            // Branch admin: can only see their own branch
             $query->whereHas('jobCard', function($q) use ($user) {
                 $q->where('branch_id', $user->branch_id);
             });
+        } else if ($role->name === 'super_admin') {
+            // Super admin: can view all branches, or filter by specific branch if provided
+            if ($request->has('branch_id') && $request->branch_id) {
+                $query->whereHas('jobCard', function($q) use ($request) {
+                    $q->where('branch_id', $request->branch_id);
+                });
+            }
+        } else if ($role->name === 'technician' && $user->technician_type?->value === 'supervisor') {
+            // Supervisor technician: can see tasks from their branch
+            if ($user->branch_id) {
+                $query->whereHas('jobCard', function($q) use ($user) {
+                    $q->where('branch_id', $user->branch_id);
+                });
+            }
         }
 
         $tasks = $query->orderBy('created_at', 'desc')->get();
@@ -203,7 +238,10 @@ class TaskController extends Controller
     {
         $user = $request->user();
         
-        if (!$user->hasPermission('approve_tasks') && !in_array($user->role->name, ['super_admin', 'branch_admin'])) {
+        // Allow: super_admin, branch_admin, users with approve_tasks permission, or supervisor technicians
+        if (!$user->hasPermission('approve_tasks') && 
+            !in_array($user->role->name, ['super_admin', 'branch_admin']) &&
+            !($user->role->name === 'technician' && $user->technician_type?->value === 'supervisor')) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -252,7 +290,10 @@ class TaskController extends Controller
     {
         $user = $request->user();
         
-        if (!$user->hasPermission('approve_tasks') && !in_array($user->role->name, ['super_admin', 'branch_admin'])) {
+        // Allow: super_admin, branch_admin, users with approve_tasks permission, or supervisor technicians
+        if (!$user->hasPermission('approve_tasks') && 
+            !in_array($user->role->name, ['super_admin', 'branch_admin']) &&
+            !($user->role->name === 'technician' && $user->technician_type?->value === 'supervisor')) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -291,7 +332,10 @@ class TaskController extends Controller
     {
         $user = $request->user();
         
-        if (!$user->hasPermission('approve_tasks') && !in_array($user->role->name, ['super_admin', 'branch_admin'])) {
+        // Allow: super_admin, branch_admin, users with approve_tasks permission, or supervisor technicians
+        if (!$user->hasPermission('approve_tasks') && 
+            !in_array($user->role->name, ['super_admin', 'branch_admin']) &&
+            !($user->role->name === 'technician' && $user->technician_type?->value === 'supervisor')) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 

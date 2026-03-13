@@ -15,10 +15,11 @@ import PettyCashManagement from './pages/PettyCashManagement'
 import AccessRightsManagement from './pages/AccessRightsManagement'
 import BranchManagement from './pages/BranchManagement'
 import BranchOverview from './pages/BranchOverview'
+import ThirdPartyServiceManagement from './pages/ThirdPartyServiceManagement'
 import Layout from './components/Layout'
 import MyTasks from './pages/MyTasks'
 import TaskApproval from './pages/TaskApproval'
-import ActivityLog from './pages/ActivityLog'
+
 
 function App() {
   const [user, setUser] = useState(null)
@@ -158,8 +159,8 @@ function App() {
         />
 
         <Route 
-          path="/activity-log" 
-          element={user ? <Layout user={user} onLogout={handleLogout}><ActivityLog user={user} /></Layout> : <Navigate to="/login" />} 
+          path="/third-party-services" 
+          element={user ? <Layout user={user} onLogout={handleLogout}><ThirdPartyServiceManagement user={user} /></Layout> : <Navigate to="/login" />} 
         />
         
         <Route 
