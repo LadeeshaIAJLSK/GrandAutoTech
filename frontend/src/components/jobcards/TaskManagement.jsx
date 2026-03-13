@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import Notification from '../common/Notification'
+import ConfirmDialog from '../common/ConfirmDialog'
 import axiosClient from '../../api/axios'
 
 function TaskManagement({ jobCard, onUpdate, user }) {
@@ -9,6 +11,9 @@ function TaskManagement({ jobCard, onUpdate, user }) {
   const [selectedEmployees, setSelectedEmployees] = useState([])
   const [activeTimer, setActiveTimer] = useState(null)
   const [timerUpdate, setTimerUpdate] = useState(0) // For live timer updates
+  const [notification, setNotification] = useState(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleteTaskId, setDeleteTaskId] = useState(null)
 
   const [taskForm, setTaskForm] = useState({
     task_name: '',
@@ -45,7 +50,7 @@ function TaskManagement({ jobCard, onUpdate, user }) {
       setAvailableEmployees(response.data)
     } catch (error) {
       console.error('Error:', error)
-      alert(error.response?.data?.message || 'Error fetching available employees')
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error fetching available employees' })
     }
   }
 
@@ -56,12 +61,12 @@ function TaskManagement({ jobCard, onUpdate, user }) {
       await axiosClient.post(`/job-cards/${jobCard.id}/tasks`, taskForm, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      alert('Task added successfully!')
+      setNotification({ type: 'success', title: 'Success', message: 'Task added successfully!' })
       setShowAddTaskModal(false)
       setTaskForm({ task_name: '', description: '', category: 'mechanical', priority: 0 })
-      onUpdate()
+      setTimeout(() => onUpdate(), 2000)
     } catch (error) {
-      alert(error.response?.data?.message || 'Error adding task')
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error adding task' })
     }
   }
 
@@ -82,7 +87,7 @@ function TaskManagement({ jobCard, onUpdate, user }) {
 
   const handleAssignEmployees = async () => {
     if (selectedEmployees.length === 0) {
-      alert('Please select at least one employee')
+      setNotification({ type: 'error', title: 'Validation Error', message: 'Please select at least one employee' })
       return
     }
     try {
@@ -92,12 +97,12 @@ function TaskManagement({ jobCard, onUpdate, user }) {
       }, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      alert(`${selectedEmployees.length} employee(s) assigned successfully!`)
+      setNotification({ type: 'success', title: 'Success', message: `${selectedEmployees.length} employee(s) assigned successfully!` })
       setShowAssignModal(false)
       setSelectedEmployees([])
-      onUpdate()
+      setTimeout(() => onUpdate(), 2000)
     } catch (error) {
-      alert(error.response?.data?.message || 'Error assigning employees')
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error assigning employees' })
     }
   }
 
@@ -107,10 +112,10 @@ function TaskManagement({ jobCard, onUpdate, user }) {
       await axiosClient.post(`/tasks/${taskId}/start-timer`, {}, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      alert('Timer started!');
-      onUpdate();
+      setNotification({ type: 'success', title: 'Success', message: 'Timer started!' });
+      setTimeout(() => onUpdate(), 2000);
     } catch (error) {
-      alert(error.response?.data?.message || 'Error starting timer');
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error starting timer' });
     }
   };
 
@@ -120,10 +125,10 @@ function TaskManagement({ jobCard, onUpdate, user }) {
       await axiosClient.post(`/tasks/${taskId}/pause-timer`, {}, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      alert('Timer paused!');
-      onUpdate();
+      setNotification({ type: 'success', title: 'Success', message: 'Timer paused!' });
+      setTimeout(() => onUpdate(), 2000);
     } catch (error) {
-      alert(error.response?.data?.message || 'Error pausing timer');
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error pausing timer' });
     }
   };
 
@@ -133,10 +138,10 @@ function TaskManagement({ jobCard, onUpdate, user }) {
       await axiosClient.post(`/tasks/${taskId}/resume-timer`, {}, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      alert('Timer resumed!');
-      onUpdate();
+      setNotification({ type: 'success', title: 'Success', message: 'Timer resumed!' });
+      setTimeout(() => onUpdate(), 2000);
     } catch (error) {
-      alert(error.response?.data?.message || 'Error resuming timer');
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error resuming timer' });
     }
   };
 
@@ -146,10 +151,10 @@ function TaskManagement({ jobCard, onUpdate, user }) {
       await axiosClient.post(`/tasks/${taskId}/stop-timer`, {}, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      alert('Task completed!');
-      onUpdate();
+      setNotification({ type: 'success', title: 'Success', message: 'Task completed!' });
+      setTimeout(() => onUpdate(), 2000);
     } catch (error) {
-      alert(error.response?.data?.message || 'Error stopping timer');
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error stopping timer' });
     }
   };
 
@@ -159,22 +164,30 @@ function TaskManagement({ jobCard, onUpdate, user }) {
     try {
       const token = localStorage.getItem('token')
       await axiosClient.post(`/tasks/${taskId}/complete`, { completion_notes: notes }, { headers: { Authorization: `Bearer ${token}` } })
-      alert('Task completed!')
-      onUpdate()
+      setNotification({ type: 'success', title: 'Success', message: 'Task completed!' })
+      setTimeout(() => onUpdate(), 2000)
     } catch (error) {
-      alert(error.response?.data?.message || 'Error completing task')
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error completing task' })
     }
   }
 
-  const handleDeleteTask = async (taskId) => {
-    if (!confirm('Are you sure you want to delete this task?')) return
+  const handleDeleteTask = (taskId) => {
+    setDeleteTaskId(taskId)
+    setShowDeleteConfirm(true)
+  }
+
+  const confirmDeleteTask = async () => {
     try {
       const token = localStorage.getItem('token')
-      await axiosClient.delete(`/tasks/${taskId}`, { headers: { Authorization: `Bearer ${token}` } })
-      alert('Task deleted!')
-      onUpdate()
+      await axiosClient.delete(`/tasks/${deleteTaskId}`, { headers: { Authorization: `Bearer ${token}` } })
+      setNotification({ type: 'success', title: 'Success', message: 'Task deleted successfully!' })
+      setShowDeleteConfirm(false)
+      setDeleteTaskId(null)
+      setTimeout(() => onUpdate(), 2000)
     } catch (error) {
-      alert(error.response?.data?.message || 'Error deleting task')
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error deleting task' })
+      setShowDeleteConfirm(false)
+      setDeleteTaskId(null)
     }
   }
 
@@ -631,6 +644,22 @@ function TaskManagement({ jobCard, onUpdate, user }) {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        show={showDeleteConfirm}
+        type="danger"
+        title="Delete Task"
+        message="Are you sure you want to delete this task? This action cannot be undone."
+        onConfirm={confirmDeleteTask}
+        onCancel={() => {
+          setShowDeleteConfirm(false)
+          setDeleteTaskId(null)
+        }}
+        confirmText="Delete"
+        cancelText="Cancel"
+      />
+
+      <Notification notification={notification} onClose={() => setNotification(null)} />
     </div>
   )
 }

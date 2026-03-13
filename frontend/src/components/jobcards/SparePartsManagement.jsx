@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import Notification from '../common/Notification'
+import ConfirmDialog from '../common/ConfirmDialog'
 import axiosClient from '../../api/axios'
 
 function SparePartsManagement({ jobCard, onUpdate, user }) {
@@ -10,6 +12,9 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
   const [approvalLevel, setApprovalLevel] = useState('')
   const [approvalNotes, setApprovalNotes] = useState('')
   const [receivedCost, setReceivedCost] = useState('')
+  const [notification, setNotification] = useState(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deletePartId, setDeletePartId] = useState(null)
 
   const [partForm, setPartForm] = useState({
     task_id: '',
@@ -53,12 +58,12 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
     try {
       const token = localStorage.getItem('token')
       await axiosClient.post(`/job-cards/${jobCard.id}/spare-parts`, partForm, { headers: { Authorization: `Bearer ${token}` } })
-      alert('Spare part requested successfully!')
+      setNotification({ type: 'success', title: 'Success', message: 'Spare part requested successfully!' })
       setShowAddModal(false)
       setPartForm({ task_id: '', part_name: '', part_number: '', description: '' })
-      onUpdate()
+      setTimeout(() => onUpdate(), 2000)
     } catch (error) {
-      alert(error.response?.data?.message || 'Error requesting part')
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error requesting part' })
     }
   }
 
@@ -70,10 +75,10 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
     try {
       const token = localStorage.getItem('token')
       await axiosClient.post(`/spare-parts/${selectedPart.id}/approve/${approvalLevel}`, { status, notes: approvalNotes }, { headers: { Authorization: `Bearer ${token}` } })
-      alert(`${status === 'approved' ? 'Approved' : 'Rejected'} successfully!`)
-      setShowApprovalModal(false); onUpdate()
+      setNotification({ type: 'success', title: 'Success', message: `${status === 'approved' ? 'Approved' : 'Rejected'} successfully!` })
+      setShowApprovalModal(false); setTimeout(() => onUpdate(), 2000)
     } catch (error) {
-      alert(error.response?.data?.message || 'Error processing approval')
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error processing approval' })
     }
   }
 
@@ -81,10 +86,10 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
     try {
       const token = localStorage.getItem('token')
       await axiosClient.post(`/spare-parts/${partId}/approve/admin`, { status, notes: '' }, { headers: { Authorization: `Bearer ${token}` } })
-      alert(`Part ${status === 'approved' ? 'approved' : 'rejected'} by Admin!`)
-      onUpdate()
+      setNotification({ type: 'success', title: 'Success', message: `Part ${status === 'approved' ? 'approved' : 'rejected'} by Admin!` })
+      setTimeout(() => onUpdate(), 2000)
     } catch (error) {
-      alert(error.response?.data?.message || 'Error processing approval')
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error processing approval' })
     }
   }
 
@@ -92,10 +97,10 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
     try {
       const token = localStorage.getItem('token')
       await axiosClient.post(`/spare-parts/${partId}/approve/customer`, { status, notes: '' }, { headers: { Authorization: `Bearer ${token}` } })
-      alert(`Part ${status === 'approved' ? 'approved' : 'rejected'} by Customer!`)
-      onUpdate()
+      setNotification({ type: 'success', title: 'Success', message: `Part ${status === 'approved' ? 'approved' : 'rejected'} by Customer!` })
+      setTimeout(() => onUpdate(), 2000)
     } catch (error) {
-      alert(error.response?.data?.message || 'Error processing approval')
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error processing approval' })
     }
   }
 
@@ -103,31 +108,40 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
     try {
       const token = localStorage.getItem('token')
       await axiosClient.patch(`/spare-parts/${partId}/status`, { overall_status: newStatus }, { headers: { Authorization: `Bearer ${token}` } })
-      alert(`Status updated to ${newStatus}`); onUpdate()
+      setNotification({ type: 'success', title: 'Success', message: `Status updated to ${newStatus}` }); setTimeout(() => onUpdate(), 2000)
     } catch (error) {
-      alert(error.response?.data?.message || 'Error updating status')
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error updating status' })
     }
   }
 
-  const handleDeletePart = async (partId) => {
-    if (!confirm('Are you sure you want to delete this request?')) return
+  const handleDeletePart = (partId) => {
+    setDeletePartId(partId)
+    setShowDeleteConfirm(true)
+  }
+
+  const confirmDeletePart = async () => {
     try {
       const token = localStorage.getItem('token')
-      await axiosClient.delete(`/spare-parts/${partId}`, { headers: { Authorization: `Bearer ${token}` } })
-      alert('Spare part deleted!'); onUpdate()
+      await axiosClient.delete(`/spare-parts/${deletePartId}`, { headers: { Authorization: `Bearer ${token}` } })
+      setNotification({ type: 'success', title: 'Success', message: 'Spare part deleted successfully!' })
+      setShowDeleteConfirm(false)
+      setDeletePartId(null)
+      setTimeout(() => onUpdate(), 2000)
     } catch (error) {
-      alert(error.response?.data?.message || 'Error deleting part')
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error deleting part' })
+      setShowDeleteConfirm(false)
+      setDeletePartId(null)
     }
   }
 
   const handleMarkAsDelivered = async (partId) => {
-    if (!confirm('Confirm that parts have been handed over to employee?')) return
+
     try {
       const token = localStorage.getItem('token')
       await axiosClient.post(`/spare-parts/${partId}/confirm-delivery`, {}, { headers: { Authorization: `Bearer ${token}` } })
-      alert('Parts delivery confirmed!'); onUpdate()
+      setNotification({ type: 'success', title: 'Success', message: 'Parts delivery confirmed!' }); setTimeout(() => onUpdate(), 2000)
     } catch (error) {
-      alert(error.response?.data?.message || 'Error confirming delivery')
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error confirming delivery' })
     }
   }
 
@@ -137,9 +151,9 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
     try {
       const token = localStorage.getItem('token')
       await axiosClient.patch(`/spare-parts/${selectedPart.id}/status`, { overall_status: 'ordered' }, { headers: { Authorization: `Bearer ${token}` } })
-      alert('Part marked as ordered'); setShowHavePartModal(false); onUpdate()
+      setNotification({ type: 'success', title: 'Success', message: 'Part marked as ordered' }); setShowHavePartModal(false); setTimeout(() => onUpdate(), 2000)
     } catch (error) {
-      alert(error.response?.data?.message || 'Error marking as ordered')
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error marking as ordered' })
     }
   }
 
@@ -147,22 +161,22 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
     try {
       const token = localStorage.getItem('token')
       await axiosClient.patch(`/spare-parts/${selectedPart.id}/status`, { overall_status: 'process' }, { headers: { Authorization: `Bearer ${token}` } })
-      alert('Part marked as available!'); setShowHavePartModal(false); onUpdate()
+      setNotification({ type: 'success', title: 'Success', message: 'Part marked as available!' }); setShowHavePartModal(false); setTimeout(() => onUpdate(), 2000)
     } catch (error) {
-      alert(error.response?.data?.message || 'Error marking as available')
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error marking as available' })
     }
   }
 
   const openReceivedCostModal = (part) => { setSelectedPart(part); setReceivedCost(''); setShowReceivedCostModal(true) }
 
   const handleMarkAsReceived = async () => {
-    if (!receivedCost || receivedCost <= 0) { alert('Please enter the actual cost'); return }
+    if (!receivedCost || receivedCost <= 0) { setNotification({ type: 'error', title: 'Validation Error', message: 'Please enter the actual cost' }); return }
     try {
       const token = localStorage.getItem('token')
       await axiosClient.patch(`/spare-parts/${selectedPart.id}/status`, { overall_status: 'process', actual_cost: receivedCost }, { headers: { Authorization: `Bearer ${token}` } })
-      alert('Part received from supplier and available!'); setShowReceivedCostModal(false); onUpdate()
+      setNotification({ type: 'success', title: 'Success', message: 'Part received from supplier and available!' }); setShowReceivedCostModal(false); setTimeout(() => onUpdate(), 2000)
     } catch (error) {
-      alert(error.response?.data?.message || 'Error marking as received')
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error marking as received' })
     }
   }
 
@@ -170,9 +184,9 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
     try {
       const token = localStorage.getItem('token')
       await axiosClient.post(`/spare-parts/${selectedPart.id}/confirm-delivery`, {}, { headers: { Authorization: `Bearer ${token}` } })
-      alert('Parts marked as delivered!'); setShowHavePartModal(false); onUpdate()
+      setNotification({ type: 'success', title: 'Success', message: 'Parts marked as delivered!' }); setShowHavePartModal(false); setTimeout(() => onUpdate(), 2000)
     } catch (error) {
-      alert(error.response?.data?.message || 'Error marking as delivered')
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error marking as delivered' })
     }
   }
 
@@ -576,6 +590,22 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        show={showDeleteConfirm}
+        type="danger"
+        title="Delete Spare Part"
+        message="Are you sure you want to delete this spare part? This action cannot be undone."
+        onConfirm={confirmDeletePart}
+        onCancel={() => {
+          setShowDeleteConfirm(false)
+          setDeletePartId(null)
+        }}
+        confirmText="Delete"
+        cancelText="Cancel"
+      />
+
+      <Notification notification={notification} onClose={() => setNotification(null)} />
     </div>
   )
 }

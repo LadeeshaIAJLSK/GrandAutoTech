@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import JobCardCreateWizard from '../components/jobcards/JobCardCreateWizard'
+import ConfirmDialog from '../components/common/ConfirmDialog'
 import axiosClient from '../api/axios'
 import { createPortal } from 'react-dom'
 import Notification from '../components/common/Notification'
@@ -652,43 +653,17 @@ function JobCardManagement({ user, selectedBranchId }) {
         document.body
       )}
 
-      {/* Delete Confirmation Modal */}
-      {deleteConfirm && createPortal(
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden bg-gradient-to-br from-red-50 to-rose-50 border-2 border-red-300">
-            <div className="p-8 space-y-5">
-              <div className="flex justify-center">
-                <div className="flex items-center justify-center w-16 h-16 rounded-full bg-red-100">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 text-red-600" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                  </svg>
-                </div>
-              </div>
-              <div className="text-center space-y-2">
-                <h3 className="text-lg font-bold text-red-900">Confirm Delete</h3>
-                <p className="text-sm leading-relaxed text-red-700">
-                  Are you sure you want to delete this job card? This action cannot be undone.
-                </p>
-              </div>
-              <div className="flex gap-2 pt-2">
-                <button
-                  onClick={() => setDeleteConfirm(null)}
-                  className="flex-1 py-3 rounded-lg font-bold text-gray-700 bg-white hover:bg-gray-100 border border-gray-300 transition-all"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => confirmDelete(deleteConfirm)}
-                  className="flex-1 py-3 rounded-lg font-bold text-white bg-red-600 hover:bg-red-700 active:scale-95 transition-all"
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        show={deleteConfirm ? true : false}
+        type="danger"
+        title="Delete Job Card"
+        message="Are you sure you want to delete this job card? This action cannot be undone."
+        onConfirm={() => confirmDelete(deleteConfirm)}
+        onCancel={() => setDeleteConfirm(null)}
+        confirmText="Delete"
+        cancelText="Cancel"
+      />
 
       {/* Notification */}
       <Notification notification={notification} onClose={() => setNotification(null)} />

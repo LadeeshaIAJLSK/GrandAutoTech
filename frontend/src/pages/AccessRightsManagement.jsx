@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import axiosClient from '../api/axios'
+import Notification from '../components/common/Notification'
 
 function AccessRightsManagement({ user }) {
   const [roles, setRoles] = useState([])
@@ -11,6 +12,7 @@ function AccessRightsManagement({ user }) {
   const [technicianType, setTechnicianType] = useState('employee') // 'employee' or 'supervisor'
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [notification, setNotification] = useState(null)
 
   useEffect(() => {
     fetchRolesAndPermissions()
@@ -27,7 +29,7 @@ function AccessRightsManagement({ user }) {
       if (response.data.roles.length > 0) selectRole(response.data.roles[0])
     } catch (error) {
       console.error('Error:', error)
-      alert('Error loading access rights')
+      setNotification({ type: 'error', title: 'Error', message: 'Error loading access rights' })
     } finally {
       setLoading(false)
     }
@@ -120,10 +122,10 @@ function AccessRightsManagement({ user }) {
       await axiosClient.put(`/access-rights/roles/${selectedRole.id}`, payload, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      alert('Permissions updated successfully!')
+      setNotification({ type: 'success', title: 'Success', message: 'Permissions updated successfully!' })
       fetchRolesAndPermissions()
     } catch (error) {
-      alert(error.response?.data?.message || 'Error saving permissions')
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error saving permissions' })
     } finally {
       setSaving(false)
     }
@@ -354,6 +356,7 @@ function AccessRightsManagement({ user }) {
         </div>
       </div>
 
+      <Notification notification={notification} onClose={() => setNotification(null)} />
     </div>
   )
 }

@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import axiosClient from '../api/axios'
+import Notification from '../components/common/Notification'
+import ConfirmDialog from '../components/common/ConfirmDialog'
 
 function MyTasks({ user, selectedBranchId, onBranchChange }) {
   const [tasks, setTasks] = useState([])
@@ -24,6 +26,9 @@ function MyTasks({ user, selectedBranchId, onBranchChange }) {
     quantity: '',
   })
   const [expandedPartsTask, setExpandedPartsTask] = useState(null)
+  const [notification, setNotification] = useState(null)
+  const [confirmAction, setConfirmAction] = useState(null)
+  const [partsValidationError, setPartsValidationError] = useState(null)
 
   useEffect(() => {
     fetchMyTasks()
@@ -76,7 +81,10 @@ function MyTasks({ user, selectedBranchId, onBranchChange }) {
     try {
       const token = localStorage.getItem('token')
       const endpoint = user.role.name === 'super_admin' ? '/all-tasks' : '/my-tasks'
-      const params = filterBranchId ? { branch_id: filterBranchId } : {}
+      const params = {}
+      if (filterBranchId) {
+        params.branch_id = parseInt(filterBranchId, 10)
+      }
       const response = await axiosClient.get(endpoint, { 
         headers: { Authorization: `Bearer ${token}` },
         params
@@ -89,7 +97,7 @@ function MyTasks({ user, selectedBranchId, onBranchChange }) {
     }
   }
 
-  const handleMarkAsDone = async (taskId) => {
+  const handleMarkAsDone = (taskId) => {
     // Check if there are any requested spare parts
     const task = tasks.find(t => t.id === taskId)
     const parts = taskParts[taskId] || []
@@ -98,25 +106,39 @@ function MyTasks({ user, selectedBranchId, onBranchChange }) {
     if (parts.length > 0) {
       const undeliveredParts = parts.filter(p => p.overall_status !== 'delivered')
       if (undeliveredParts.length > 0) {
-        alert(`❌ Cannot mark task as done!\n\nYou have ${undeliveredParts.length} spare part(s) that are not yet delivered:\n\n${undeliveredParts.map(p => `• ${p.part_name}`).join('\n')}\n\nPlease mark all spare parts as delivered first.`)
+        const partsList = undeliveredParts.map(p => p.part_name).join('\n• ')
+        setPartsValidationError({
+          title: 'Cannot Submit Task',
+          message: `You have ${undeliveredParts.length} spare part(s) that are not yet delivered:\n\n• ${partsList}\n\nPlease mark all spare parts as delivered first.`
+        })
         return
       }
     }
 
-    if (!confirm('Submit this task for approval?')) return
+    setConfirmAction({ type: 'submit', taskId })
+  }
+
+  const confirmMarkAsDone = async () => {
     try {
       const token = localStorage.getItem('token')
-      const response = await axiosClient.post(`/tasks/${taskId}/mark-done`, {}, { headers: { Authorization: `Bearer ${token}` } })
-      alert(`Task submitted for approval! Total time: ${Math.floor(response.data.total_time_spent / 60)}h ${response.data.total_time_spent % 60}m`)
+      const response = await axiosClient.post(`/tasks/${confirmAction.taskId}/mark-done`, {}, { headers: { Authorization: `Bearer ${token}` } })
+      const hours = Math.floor(response.data.total_time_spent / 60)
+      const minutes = response.data.total_time_spent % 60
+      setNotification({ type: 'success', title: 'Success', message: `Task submitted for approval! Total time: ${hours}h ${minutes}m` })
+      setConfirmAction(null)
       fetchMyTasks()
     } catch (error) {
       // Handle backend validation errors about undelivered parts
       if (error.response?.data?.undelivered_parts && error.response?.data?.undelivered_parts.length > 0) {
         const partsList = error.response.data.undelivered_parts.join('\n• ')
-        alert(`❌ Cannot mark task as done!\n\nThe following spare parts are not yet delivered:\n• ${partsList}\n\nPlease mark all spare parts as delivered first.`)
+        setPartsValidationError({
+          title: 'Cannot Submit Task',
+          message: `The following spare parts are not yet delivered:\n\n• ${partsList}\n\nPlease mark all spare parts as delivered first.`
+        })
       } else {
-        alert(error.response?.data?.message || 'Error completing task')
+        setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error completing task' })
       }
+      setConfirmAction(null)
     }
   }
 
@@ -135,11 +157,11 @@ function MyTasks({ user, selectedBranchId, onBranchChange }) {
     try {
       const token = localStorage.getItem('token')
       await axiosClient.post(`/spare-parts/${partId}/confirm-delivery`, {}, { headers: { Authorization: `Bearer ${token}` } })
-      alert('Parts delivery confirmed!')
+      setNotification({ type: 'success', title: 'Success', message: 'Parts delivery confirmed!' })
       fetchMyTasks()
       if (selectedTask) fetchTaskParts(selectedTask.id)
     } catch (error) {
-      alert(error.response?.data?.message || 'Error confirming delivery')
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error confirming delivery' })
     }
   }
 
@@ -151,11 +173,11 @@ function MyTasks({ user, selectedBranchId, onBranchChange }) {
         ...partsRequest,
         task_id: selectedTask.id
       }, { headers: { Authorization: `Bearer ${token}` } })
-      alert('Parts requested! Waiting for approval.')
+      setNotification({ type: 'success', title: 'Success', message: 'Parts requested! Waiting for approval.' })
       setShowRequestPartsModal(false)
       setPartsRequest({ part_name: '', part_number: '', description: '' })
     } catch (error) {
-      alert(error.response?.data?.message || 'Error requesting parts')
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error requesting parts' })
     }
   }
 
@@ -278,10 +300,10 @@ function MyTasks({ user, selectedBranchId, onBranchChange }) {
       await axiosClient.post(`/tasks/${taskId}/start-timer`, {}, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      alert('Timer started!');
+      setNotification({ type: 'success', title: 'Success', message: 'Timer started!' });
       fetchMyTasks();
     } catch (error) {
-      alert(error.response?.data?.message || 'Error starting timer');
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error starting timer' });
     }
   };
 
@@ -291,10 +313,10 @@ function MyTasks({ user, selectedBranchId, onBranchChange }) {
       await axiosClient.post(`/tasks/${taskId}/pause-timer`, {}, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      alert('Timer paused!');
+      setNotification({ type: 'success', title: 'Success', message: 'Timer paused!' });
       fetchMyTasks();
     } catch (error) {
-      alert(error.response?.data?.message || 'Error pausing timer');
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error pausing timer' });
     }
   };
 
@@ -304,10 +326,10 @@ function MyTasks({ user, selectedBranchId, onBranchChange }) {
       await axiosClient.post(`/tasks/${taskId}/resume-timer`, {}, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      alert('Timer resumed!');
+      setNotification({ type: 'success', title: 'Success', message: 'Timer resumed!' });
       fetchMyTasks();
     } catch (error) {
-      alert(error.response?.data?.message || 'Error resuming timer');
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error resuming timer' });
     }
   };
 
@@ -317,10 +339,10 @@ function MyTasks({ user, selectedBranchId, onBranchChange }) {
       await axiosClient.post(`/tasks/${taskId}/stop-timer`, {}, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      alert('Task completed!');
+      setNotification({ type: 'success', title: 'Success', message: 'Task completed!' });
       fetchMyTasks();
     } catch (error) {
-      alert(error.response?.data?.message || 'Error stopping timer');
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error stopping timer' });
     }
   };
 
@@ -610,7 +632,7 @@ function MyTasks({ user, selectedBranchId, onBranchChange }) {
                             <button
                               onClick={() => {
                                 if (!canRequestParts) {
-                                  alert('Cannot request parts for this task. Only tasks that are assigned or in progress can request parts.')
+                                  setNotification({ type: 'error', title: 'Error', message: 'Cannot request parts for this task. Only tasks that are assigned or in progress can request parts.' })
                                   return
                                 }
                                 setSelectedTask(task)
@@ -745,6 +767,42 @@ function MyTasks({ user, selectedBranchId, onBranchChange }) {
                 <button type="submit" className="px-5 py-2.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-px order-1 sm:order-2" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>Request Parts</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Notification */}
+      <Notification notification={notification} onClose={() => setNotification(null)} />
+
+      {/* Confirm Dialog for task submission */}
+      <ConfirmDialog
+        show={confirmAction?.type === 'submit' ? true : false}
+        type="warning"
+        title="Submit Task for Approval"
+        message="Are you sure you want to submit this task for approval?"
+        onConfirm={confirmMarkAsDone}
+        onCancel={() => setConfirmAction(null)}
+        confirmText="Submit"
+        cancelText="Cancel"
+      />
+
+      {/* Parts Validation Error Modal */}
+      {partsValidationError && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-100 mx-auto mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-bold text-gray-800 text-center mb-3">{partsValidationError.title}</h3>
+            <p className="text-gray-600 text-center text-sm mb-6 whitespace-pre-line">{partsValidationError.message}</p>
+            <button
+              onClick={() => setPartsValidationError(null)}
+              className="w-full px-4 py-2.5 text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold transition-colors"
+            >
+              OK
+            </button>
           </div>
         </div>
       )}

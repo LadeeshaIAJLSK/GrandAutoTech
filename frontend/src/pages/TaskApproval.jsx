@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axiosClient from '../api/axios'
+import Notification from '../components/common/Notification'
+import ConfirmDialog from '../components/common/ConfirmDialog'
 
 function TaskApproval({ user }) {
   const navigate = useNavigate()
@@ -13,6 +15,8 @@ function TaskApproval({ user }) {
   const [branches, setBranches] = useState([])
   const [selectedBranch, setSelectedBranch] = useState(user?.branch_id || '')
   const [branchDropdownOpen, setBranchDropdownOpen] = useState(false)
+  const [notification, setNotification] = useState(null)
+  const [confirmAction, setConfirmAction] = useState(null)
   const branchDropdownRef = useRef(null)
 
   useEffect(() => {
@@ -67,8 +71,13 @@ function TaskApproval({ user }) {
   const fetchCompleteJobCards = async () => {
     try {
       const token = localStorage.getItem('token')
+      const params = {}
+      if (selectedBranch) {
+        params.branch_id = selectedBranch
+      }
       const response = await axiosClient.get('/job-cards', {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
+        params
       })
       const allJobCards = response.data.data || response.data
 
@@ -111,47 +120,63 @@ function TaskApproval({ user }) {
   }
 
   const handleApproveTask = async (taskId) => {
-    if (!confirm('Approve this task?')) return
+    setConfirmAction({ type: 'approve', taskId })
+  }
+
+  const confirmApproveTask = async () => {
     try {
       const token = localStorage.getItem('token')
-      await axiosClient.post(`/tasks/${taskId}/approve`, {}, {
+      await axiosClient.post(`/tasks/${confirmAction.taskId}/approve`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      alert('Task approved successfully!')
+      setNotification({ type: 'success', title: 'Success', message: 'Task approved successfully!' })
+      setConfirmAction(null)
       fetchPendingTasks()
       fetchCompleteJobCards()
     } catch (error) {
-      alert(error.response?.data?.message || 'Error approving task')
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error approving task' })
+      setConfirmAction(null)
     }
   }
 
   const handleRejectTask = async (taskId) => {
-    if (!confirm('Reject this task?')) return
+    setConfirmAction({ type: 'reject', taskId })
+  }
+
+  const confirmRejectTask = async () => {
     try {
       const token = localStorage.getItem('token')
-      await axiosClient.post(`/tasks/${taskId}/reject`, {}, {
+      await axiosClient.post(`/tasks/${confirmAction.taskId}/reject`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      alert('Task rejected!')
+      setNotification({ type: 'success', title: 'Success', message: 'Task rejected!' })
+      setConfirmAction(null)
       fetchPendingTasks()
     } catch (error) {
-      alert(error.response?.data?.message || 'Error rejecting task')
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error rejecting task' })
+      setConfirmAction(null)
     }
   }
 
   const handleMarkInspectionCompleted = async (jobCardId) => {
-    if (!confirm('Mark this inspection as completed?')) return
+    setConfirmAction({ type: 'inspection', jobCardId })
+  }
+
+  const confirmMarkInspectionCompleted = async () => {
     try {
-      setInspectionLoading(prev => ({ ...prev, [jobCardId]: true }))
+      setInspectionLoading(prev => ({ ...prev, [confirmAction.jobCardId]: true }))
       const token = localStorage.getItem('token')
-      await axiosClient.post(`/job-cards/${jobCardId}/approve`, {}, {
+      await axiosClient.post(`/job-cards/${confirmAction.jobCardId}/approve`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      alert('Job card marked as completed! ')
-      setTimeout(() => { navigate('/invoices') }, 1000)
+      setNotification({ type: 'success', title: 'Success', message: 'Job card marked as completed!' })
+      setConfirmAction(null)
+      fetchCompleteJobCards()
     } catch (error) {
-      alert(error.response?.data?.message || 'Error marking inspection completed')
-      setInspectionLoading(prev => ({ ...prev, [jobCardId]: false }))
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error marking inspection as completed' })
+      setConfirmAction(null)
+    } finally {
+      setInspectionLoading(prev => ({ ...prev, [confirmAction?.jobCardId]: false }))
     }
   }
 
@@ -476,6 +501,40 @@ function TaskApproval({ user }) {
       </div>
       )}
 
+      {/* Notification */}
+      <Notification notification={notification} onClose={() => setNotification(null)} />
+
+      {/* Confirm Dialogs */}
+      <ConfirmDialog
+        show={confirmAction?.type === 'approve' ? true : false}
+        type="warning"
+        title="Approve Task"
+        message="Are you sure you want to approve this task?"
+        onConfirm={confirmApproveTask}
+        onCancel={() => setConfirmAction(null)}
+        confirmText="Approve"
+        cancelText="Cancel"
+      />
+      <ConfirmDialog
+        show={confirmAction?.type === 'reject' ? true : false}
+        type="danger"
+        title="Reject Task"
+        message="Are you sure you want to reject this task?"
+        onConfirm={confirmRejectTask}
+        onCancel={() => setConfirmAction(null)}
+        confirmText="Reject"
+        cancelText="Cancel"
+      />
+      <ConfirmDialog
+        show={confirmAction?.type === 'inspection' ? true : false}
+        type="warning"
+        title="Complete Inspection"
+        message="Are you sure you want to mark this inspection as completed?"
+        onConfirm={confirmMarkInspectionCompleted}
+        onCancel={() => setConfirmAction(null)}
+        confirmText="Complete"
+        cancelText="Cancel"
+      />
     </div>
   )
 }

@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import Notification from '../common/Notification'
+import ConfirmDialog from '../common/ConfirmDialog'
 import axiosClient from '../../api/axios'
 
 function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef, onPricingStatusChange }) {
@@ -8,6 +10,8 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef, onPric
   const [showEditLaborModal, setShowEditLaborModal] = useState(false)
   const [showEditSparePartModal, setShowEditSparePartModal] = useState(false)
   const [invoice, setInvoice] = useState(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deletePaymentId, setDeletePaymentId] = useState(null)
   //used
   const [editLaborForm, setEditLaborForm] = useState({
     labor_cost: jobCard?.labor_cost || 0,
@@ -51,6 +55,8 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef, onPric
     cost_price: '',
     amount: '',
   })
+
+  const [notification, setNotification] = useState(null)
 
   // Track which pricing sections have been saved
   const [savedServicesPrices, setSavedServicesPrices] = useState(false)
@@ -126,11 +132,11 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef, onPric
     try {
       const token = localStorage.getItem('token')
       const response = await axiosClient.post(`/job-cards/${jobCard.id}/invoice/generate`, {}, { headers: { Authorization: `Bearer ${token}` } })
-      alert('Invoice generated successfully!')
+      setNotification({ type: 'success', title: 'Success', message: 'Invoice generated successfully!' })
       setInvoice(response.data.invoice)
-      onUpdate()
+      setTimeout(() => onUpdate(), 2000)
     } catch (error) {
-      alert(error.response?.data?.message || 'Error generating invoice')
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error generating invoice' })
     }
   }
 
@@ -155,12 +161,12 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef, onPric
         job_card_id: jobCard.id,
         invoice_id: null
       }, { headers: { Authorization: `Bearer ${token}` } })
-      alert('Advance payment recorded successfully!')
+      setNotification({ type: 'success', title: 'Success', message: 'Advance payment recorded successfully!' })
       setShowAdvancePaymentModal(false)
       setAdvancePaymentForm({ amount: '', payment_method: 'cash', reference_number: '', bank_name: '', payment_date: new Date().toISOString().slice(0, 10), notes: '' })
-      onUpdate()
+      setTimeout(() => onUpdate(), 2000)
     } catch (error) {
-      alert(error.response?.data?.message || 'Error recording advance payment')
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error recording advance payment' })
     }
   }
 
@@ -173,12 +179,12 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef, onPric
         job_card_id: jobCard.id,
         invoice_id: invoice?.id || null
       }, { headers: { Authorization: `Bearer ${token}` } })
-      alert('Payment recorded successfully!')
+      setNotification({ type: 'success', title: 'Success', message: 'Payment recorded successfully!' })
       setShowPaymentModal(false)
       setPaymentForm({ amount: '', payment_type: 'partial', payment_method: 'cash', reference_number: '', bank_name: '', payment_date: new Date().toISOString().slice(0, 10), notes: '' })
-      onUpdate()
+      setTimeout(() => onUpdate(), 2000)
     } catch (error) {
-      alert(error.response?.data?.message || 'Error recording payment')
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error recording payment' })
     }
   }
 
@@ -194,11 +200,11 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef, onPric
       } else {
         await axiosClient.put(`/job-cards/${jobCard.id}`, { labor_cost: parseFloat(editLaborForm.labor_cost) }, { headers: { Authorization: `Bearer ${token}` } })
       }
-      alert('Cost updated successfully!')
+      setNotification({ type: 'success', title: 'Success', message: 'Cost updated successfully!' })
       setShowEditLaborModal(false)
-      onUpdate()
+      setTimeout(() => onUpdate(), 2000)
     } catch (error) {
-      alert(error.response?.data?.message || 'Error updating cost')
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error updating cost' })
     }
   }
 
@@ -212,7 +218,7 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef, onPric
       }
       if (user?.role?.name === 'super_admin') updateData.force_update = true
       await axiosClient.put(`/spare-parts/${editSparePartForm.part_id}`, updateData, { headers: { Authorization: `Bearer ${token}` } })
-      alert('Spare part prices updated successfully!')
+      setNotification({ type: 'success', title: 'Success', message: 'Spare part prices updated successfully!' })
       
       // Update status if it has changed
       if (editSparePartForm.overall_status) {
@@ -223,35 +229,43 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef, onPric
           statusData.actual_cost = parseFloat(editSparePartForm.actual_cost)
         }
         await axiosClient.patch(`/spare-parts/${editSparePartForm.part_id}/status`, statusData, { headers: { Authorization: `Bearer ${token}` } })
-        alert('Status updated successfully!')
+        setNotification({ type: 'success', title: 'Success', message: 'Status updated successfully!' })
       }
       
       setShowEditSparePartModal(false)
-      onUpdate()
+      setTimeout(() => onUpdate(), 2000)
     } catch (error) {
-      alert(error.response?.data?.message || 'Error updating spare part')
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error updating spare part' })
     }
   }
 
-  const handleVoidPayment = async (paymentId) => {
-    if (!confirm('Are you sure you want to void this payment?')) return
+  const handleVoidPayment = (paymentId) => {
+    setDeletePaymentId(paymentId)
+    setShowDeleteConfirm(true)
+  }
+
+  const confirmVoidPayment = async () => {
     try {
       const token = localStorage.getItem('token')
-      await axiosClient.delete(`/payments/${paymentId}`, { headers: { Authorization: `Bearer ${token}` } })
-      alert('Payment voided successfully!')
-      onUpdate()
+      await axiosClient.delete(`/payments/${deletePaymentId}`, { headers: { Authorization: `Bearer ${token}` } })
+      setNotification({ type: 'success', title: 'Success', message: 'Payment voided successfully!' })
+      setShowDeleteConfirm(false)
+      setDeletePaymentId(null)
+      setTimeout(() => onUpdate(), 2000)
     } catch (error) {
-      alert(error.response?.data?.message || 'Error voiding payment')
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error voiding payment' })
+      setShowDeleteConfirm(false)
+      setDeletePaymentId(null)
     }
   }
 
   const handleAddCharge = async () => {
     if (!chargeForm.description.trim()) {
-      alert('Please enter charge description')
+      setNotification({ type: 'error', title: 'Validation Error', message: 'Please enter charge description' })
       return
     }
     if (!chargeForm.cost_price || !chargeForm.amount) {
-      alert('Please enter both cost price and amount')
+      setNotification({ type: 'error', title: 'Validation Error', message: 'Please enter both cost price and amount' })
       return
     }
     try {
@@ -275,11 +289,11 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef, onPric
         console.warn('[CHARGE] WARNING: Unexpected status code', response.status)
       }
       
-      alert('✅ Charge added successfully! Status: ' + response.status)
+      setNotification({ type: 'success', title: 'Success', message: 'Charge added successfully!' })
       setChargeForm({ description: '', cost_price: '', amount: '' })
       
       console.log('[CHARGE] 5. Calling onUpdate()...')
-      await onUpdate()
+      setTimeout(() => onUpdate(), 2000)
       console.log('[CHARGE] 6. onUpdate() completed')
       
     } catch (error) {
@@ -289,7 +303,7 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef, onPric
       console.error('[CHARGE] Error message:', error.message)
       
       const errorMsg = error.response?.data?.message || error.response?.data?.error || error.message
-      alert('❌ Error: ' + errorMsg)
+      setNotification({ type: 'error', title: 'Error', message: errorMsg })
     }
   }
 
@@ -305,9 +319,6 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef, onPric
         .map(t => `"${t.description || t.name}"`)
         .join(', ')
       
-      if (!window.confirm(`⚠️  The following services have 0 price:\n\n${zeroItems}\n\nAre you sure you want to keep these 0 prices?`)) {
-        return
-      }
     }
     
     setSavedServicesPrices(true)
@@ -328,9 +339,6 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef, onPric
         .map(p => `"${p.part_name}"`)
         .join(', ')
       
-      if (!window.confirm(`⚠️  The following spare parts have 0 price:\n\n${zeroItems}\n\nAre you sure you want to keep these 0 prices?`)) {
-        return
-      }
     }
     
     setSavedSparePartsPrices(true)
@@ -347,9 +355,6 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef, onPric
         .map(c => `"${c.description}"`)
         .join(', ')
       
-      if (!window.confirm(`⚠️  The following charges have 0 amount:\n\n${zeroItems}\n\nAre you sure you want to keep these 0 amounts?`)) {
-        return
-      }
     }
     
     setSavedAdditionalCharges(true)
@@ -1522,6 +1527,22 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef, onPric
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        show={showDeleteConfirm}
+        type="danger"
+        title="Void Payment"
+        message="Are you sure you want to void this payment? This action cannot be undone."
+        onConfirm={confirmVoidPayment}
+        onCancel={() => {
+          setShowDeleteConfirm(false)
+          setDeletePaymentId(null)
+        }}
+        confirmText="Void Payment"
+        cancelText="Cancel"
+      />
+
+      <Notification notification={notification} onClose={() => setNotification(null)} />
       </>
     </div>
   )

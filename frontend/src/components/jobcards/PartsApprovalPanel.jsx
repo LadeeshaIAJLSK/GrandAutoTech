@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import Notification from '../common/Notification'
 import axiosClient from '../../api/axios'
 
 function PartsApprovalPanel({ jobCard, user, onUpdate }) {
@@ -7,6 +8,7 @@ function PartsApprovalPanel({ jobCard, user, onUpdate }) {
   const [loading, setLoading] = useState(true)
   const [showAdminModal, setShowAdminModal] = useState(false)
   const [showCustomerModal, setShowCustomerModal] = useState(false)
+  const [notification, setNotification] = useState(null)
 
   useEffect(() => {
     if (user.role.name === 'super_admin' || user.permissions.includes('approve_spare_parts')) {
@@ -37,11 +39,11 @@ function PartsApprovalPanel({ jobCard, user, onUpdate }) {
       await axiosClient.post(`/spare-parts/${partId}/approve/admin`, { status, notes: '' }, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      alert(`Admin ${status === 'approved' ? 'approved' : 'rejected'} this part!`)
+      setNotification({ type: 'success', title: 'Success', message: `Admin ${status === 'approved' ? 'approved' : 'rejected'} this part!` })
       fetchPendingParts()
-      onUpdate()
+      setTimeout(() => onUpdate(), 2000)
     } catch (error) {
-      alert(error.response?.data?.message || 'Error processing approval')
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error processing approval' })
     }
   }
 
@@ -51,11 +53,11 @@ function PartsApprovalPanel({ jobCard, user, onUpdate }) {
       await axiosClient.post(`/spare-parts/${partId}/approve/customer`, { status, notes: '' }, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      alert(`Customer ${status === 'approved' ? 'approved' : 'rejected'} this part!`)
+      setNotification({ type: 'success', title: 'Success', message: `Customer ${status === 'approved' ? 'approved' : 'rejected'} this part!` })
       fetchPendingParts()
-      onUpdate()
+      setTimeout(() => onUpdate(), 2000)
     } catch (error) {
-      alert(error.response?.data?.message || 'Error processing approval')
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error processing approval' })
     }
   }
 
@@ -292,6 +294,8 @@ function PartsApprovalPanel({ jobCard, user, onUpdate }) {
           </div>
         </div>
       )}
+
+      <Notification notification={notification} onClose={() => setNotification(null)} />
     </div>
   )
 }

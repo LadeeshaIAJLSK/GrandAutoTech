@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import axiosClient from '../api/axios'
 import Notification from '../components/common/Notification'
+import ConfirmDialog from '../components/common/ConfirmDialog'
 
 function BranchManagement({ user }) {
   const [branches, setBranches] = useState([])
@@ -8,6 +9,7 @@ function BranchManagement({ user }) {
   const [showModal, setShowModal] = useState(false)
   const [editingBranch, setEditingBranch] = useState(null)
   const [notification, setNotification] = useState(null)
+  const [confirmAction, setConfirmAction] = useState(null)
 
   const [formData, setFormData] = useState({
     name: '',
@@ -77,15 +79,20 @@ function BranchManagement({ user }) {
     }
   }
 
-  const handleDelete = async (branchId) => {
-    if (!confirm('Are you sure you want to delete this branch?')) return
+  const handleDelete = (branchId) => {
+    setConfirmAction({ type: 'delete', branchId })
+  }
+
+  const confirmDeleteBranch = async () => {
     try {
       const token = localStorage.getItem('token')
-      await axiosClient.delete(`/branches/${branchId}`, { headers: { Authorization: `Bearer ${token}` } })
+      await axiosClient.delete(`/branches/${confirmAction.branchId}`, { headers: { Authorization: `Bearer ${token}` } })
       setNotification({ type: 'success', title: 'Success', message: 'Branch deleted successfully!' })
+      setConfirmAction(null)
       fetchBranches()
     } catch (error) {
       setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error deleting branch' })
+      setConfirmAction(null)
     }
   }
 
@@ -335,6 +342,17 @@ function BranchManagement({ user }) {
       )}
 
       <Notification notification={notification} onClose={() => setNotification(null)} />
+
+      <ConfirmDialog
+        show={confirmAction?.type === 'delete' ? true : false}
+        type="danger"
+        title="Delete Branch"
+        message="Are you sure you want to delete this branch? This action cannot be undone."
+        onConfirm={confirmDeleteBranch}
+        onCancel={() => setConfirmAction(null)}
+        confirmText="Delete"
+        cancelText="Cancel"
+      />
     </div>
   )
 }

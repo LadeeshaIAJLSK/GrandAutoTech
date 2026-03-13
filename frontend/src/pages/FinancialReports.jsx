@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import axiosClient from '../api/axios'
+import Notification from '../components/common/Notification'
 
 function FinancialReports({ user }) {
   const [financialData, setFinancialData] = useState(null)
@@ -8,6 +9,7 @@ function FinancialReports({ user }) {
   const [paymentTransactions, setPaymentTransactions] = useState([])
   const [outstandingDues, setOutstandingDues] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [notification, setNotification] = useState(null)
 
   const [startDate, setStartDate] = useState(new Date(new Date().setDate(1)).toISOString().slice(0, 10))
   const [endDate, setEndDate] = useState(new Date().toISOString().slice(0, 10))
@@ -119,7 +121,7 @@ function FinancialReports({ user }) {
       .filter(t => !selectedBank || t.bank_name === selectedBank)
 
     if (filteredTransactions.length === 0) {
-      alert('No transactions to download. Try adjusting your filters.')
+      setNotification({ type: 'error', title: 'No Data', message: 'No transactions to download. Try adjusting your filters.' })
       return
     }
 
@@ -557,6 +559,8 @@ function FinancialReports({ user }) {
           </div>
         </div>
       )}
+
+      <Notification notification={notification} onClose={() => setNotification(null)} />
     </div>
   )
 }

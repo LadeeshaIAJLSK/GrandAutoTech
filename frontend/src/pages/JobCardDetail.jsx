@@ -6,6 +6,7 @@ import SparePartsManagement from '../components/jobcards/SparePartsManagement'
 import PaymentManagement from '../components/jobcards/PaymentManagement'
 import JobCardPrint from '../components/jobcards/JobCardPrint'
 import PartsApprovalPanel from '../components/jobcards/PartsApprovalPanel'
+import Notification from '../components/common/Notification'
 import axiosClient from '../api/axios'
 
 function JobCardDetail({ jobCardId, onClose, user } = {}) {
@@ -22,9 +23,7 @@ function JobCardDetail({ jobCardId, onClose, user } = {}) {
     savedSpareParts: false,
     savedCharges: false
   })
-  const [loadError, setLoadError] = useState(null)
-  const [successMessage, setSuccessMessage] = useState(null)
-  const [unsavedSectionsError, setUnsavedSectionsError] = useState(null)
+  const [notification, setNotification] = useState(null)
 
   // Refs for sections
   const overviewRef = useRef(null)
@@ -71,7 +70,7 @@ function JobCardDetail({ jobCardId, onClose, user } = {}) {
       setJobCard(jobCardData)
     } catch (error) {
       console.error('Error fetching job card:', error)
-      setLoadError(error.response?.data?.message || error.message)
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || error.message })
     } finally {
       setLoading(false)
     }
@@ -187,17 +186,21 @@ function JobCardDetail({ jobCardId, onClose, user } = {}) {
     // Check if all pricing sections with records are saved
     if (!allPricingSectionsSaved()) {
       const unsaved = getUnsavedSections()
-      setUnsavedSectionsError(unsaved)
+      setNotification({ 
+        type: 'error', 
+        title: 'Unsaved Sections', 
+        message: `Please save pricing for the following sections before proceeding: ${unsaved.join(', ')}`
+      })
       return
     }
 
     try {
       setSavingPrices(true)
       await axiosClient.post(`/job-cards/${jobCard.id}/mark-inspected`, {})
-      setSuccessMessage('Prices saved and job card marked as inspected!')
+      setNotification({ type: 'success', title: 'Success', message: 'Prices saved and job card marked as inspected!' })
       fetchJobCard()
     } catch (error) {
-      setLoadError(error.response?.data?.message || 'Error saving prices')
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error saving prices' })
     } finally {
       setSavingPrices(false)
     }
@@ -566,82 +569,7 @@ function JobCardDetail({ jobCardId, onClose, user } = {}) {
 
       <JobCardPrint ref={printRef} jobCard={jobCard} />
 
-      {/* Error Modal */}
-      {loadError && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setLoadError(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            <div className="p-6 space-y-4">
-              <div className="flex items-center justify-center w-12 h-12 mx-auto bg-red-50 rounded-full">
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4v2m0 6H7a2 2 0 01-2-2V9a2 2 0 012-2h10a2 2 0 012 2v12a2 2 0 01-2 2H7z" />
-                </svg>
-              </div>
-              <div className="text-center">
-                <h3 className="text-lg font-bold text-gray-900">Error</h3>
-                <p className="text-sm text-gray-600 mt-2">{loadError}</p>
-              </div>
-            </div>
-            <div className="flex gap-3 px-6 py-4 bg-gray-50 border-t border-gray-100">
-              <button onClick={() => setLoadError(null)} className="flex-1 px-4 py-2.5 text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold border border-red-700 transition-colors">
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Success Modal */}
-      {successMessage && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setSuccessMessage(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            <div className="p-6 space-y-4">
-              <div className="flex items-center justify-center w-12 h-12 mx-auto bg-green-50 rounded-full">
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <div className="text-center">
-                <h3 className="text-lg font-bold text-gray-900">Success</h3>
-                <p className="text-sm text-gray-600 mt-2">{successMessage}</p>
-              </div>
-            </div>
-            <div className="flex gap-3 px-6 py-4 bg-gray-50 border-t border-gray-100">
-              <button onClick={() => setSuccessMessage(null)} className="flex-1 px-4 py-2.5 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold border border-green-700 transition-colors">
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Unsaved Sections Warning Modal */}
-      {unsavedSectionsError && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setUnsavedSectionsError(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            <div className="p-6 space-y-4">
-              <div className="flex items-center justify-center w-12 h-12 mx-auto bg-amber-50 rounded-full">
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4v2m0 6H7a2 2 0 01-2-2V9a2 2 0 012-2h10a2 2 0 012 2v12a2 2 0 01-2 2H7z" />
-                </svg>
-              </div>
-              <div className="text-center">
-                <h3 className="text-lg font-bold text-gray-900">Unsaved Sections</h3>
-                <p className="text-sm text-gray-600 mt-2">Please save pricing for the following sections before proceeding:</p>
-                <ul className="text-sm text-gray-700 mt-3 space-y-1">
-                  {unsavedSectionsError.map((section, idx) => (
-                    <li key={idx}>• {section}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-            <div className="flex gap-3 px-6 py-4 bg-gray-50 border-t border-gray-100">
-              <button onClick={() => setUnsavedSectionsError(null)} className="flex-1 px-4 py-2.5 text-sm bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-semibold border border-amber-700 transition-colors">
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Notification notification={notification} onClose={() => setNotification(null)} />
     </div>
   )
 }
