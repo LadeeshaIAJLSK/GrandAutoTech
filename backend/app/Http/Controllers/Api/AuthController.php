@@ -19,6 +19,7 @@ class AuthController extends Controller
         $request->validate([
             'email' => 'required|email',
             'password' => 'required',
+            'remember_me' => 'nullable|boolean',
         ]);
 
         $user = User::where('email', $request->email)->first();
@@ -60,6 +61,17 @@ class AuthController extends Controller
         $branch = null;
         if ($user->branch_id) {
             $branch = DB::table('branches')->where('id', $user->branch_id)->first();
+        }
+
+        // Handle remember me functionality
+        if ($request->remember_me) {
+            $rememberToken = \Illuminate\Support\Str::random(60);
+            $user->remember_token = $rememberToken;
+            $user->save();
+        } else {
+            // Clear remember token if not checking remember me
+            $user->remember_token = null;
+            $user->save();
         }
 
         // Create token  Login once → get token → send token every request
