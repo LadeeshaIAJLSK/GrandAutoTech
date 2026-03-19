@@ -16,7 +16,6 @@ class JobCard extends Model
         'vehicle_id',
         'branch_id',
         'created_by',
-        'odometer_reading',
         'status',
         'payment_status',
         'customer_complaint',

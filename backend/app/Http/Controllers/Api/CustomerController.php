@@ -95,7 +95,11 @@ class CustomerController extends Controller
         $userRole = DB::table('roles')->where('id', $user->role_id)->first();
         
         // Branch filtering - SUPER ADMIN can view all or filter by branch, BRANCH ADMIN can view all, others see only their branch
-        if ($userRole->name === 'super_admin') {
+        // UNLESS ?all=true is specified (for job card creation where vehicles can come from other branches)
+        if ($request->has('all') && $request->all === 'true') {
+            // Allow all users to see customers from all branches when explicitly requested (for job card creation)
+            // No branch filtering applied
+        } elseif ($userRole->name === 'super_admin') {
             // Super admin: can view ALL customers from ALL branches, or filter by branch if provided
             if ($request->has('branch_id') && $request->branch_id) {
                 $query->where('branch_id', $request->branch_id);

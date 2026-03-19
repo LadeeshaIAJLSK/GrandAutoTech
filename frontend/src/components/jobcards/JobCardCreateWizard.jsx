@@ -75,7 +75,7 @@ function JobCardCreateWizard({ show, onClose, onSuccess, user, branches = [], in
           expected_completion_date: jobCard.estimated_completion_date ? jobCard.estimated_completion_date.split('T')[0] : '',
           test_run_required: jobCard.test_run_required ? true : false,
           details: jobCard.details || jobCard.complaint || jobCard.customer_complaint || '',
-          odometer_reading: jobCard.odometer_reading || '',
+          odometer_reading: jobCard.vehicle?.odometer_reading || '',
           additional_details: jobCard.additional_details || jobCard.notes || '',
         })
         console.log('Form data set to:', { details: jobCard.details || jobCard.complaint || jobCard.customer_complaint || '' })
@@ -212,10 +212,10 @@ function JobCardCreateWizard({ show, onClose, onSuccess, user, branches = [], in
       setVehicleJobCardCount(jobCardCount)
       
       if (hasExistingJobCards) {
-        // Only pre-fill from the last job card, not from vehicle's odometer_reading
-        const lastJobCard = response.data.data?.[0] || response.data?.[0]
-        if (lastJobCard?.odometer_reading) {
-          setFormData(prev => ({ ...prev, odometer_reading: lastJobCard.odometer_reading }))
+        // Get current odometer reading from vehicle
+        const currentVehicle = response.data.data?.[0]?.vehicle || response.data?.[0]?.vehicle
+        if (currentVehicle?.odometer_reading) {
+          setFormData(prev => ({ ...prev, odometer_reading: currentVehicle.odometer_reading }))
         } else {
           setFormData(prev => ({ ...prev, odometer_reading: '' }))
         }
@@ -260,7 +260,7 @@ function JobCardCreateWizard({ show, onClose, onSuccess, user, branches = [], in
     }
   }
 
-  const generateJobCardNumber = () => {
+  const generateJobCardNumber = async () => {
     const year = new Date().getFullYear()
     
     // Get the branch code from current branch selection (only first 3 letters)
@@ -273,10 +273,41 @@ function JobCardCreateWizard({ show, onClose, onSuccess, user, branches = [], in
       }
     }
     
-    // Generate temporary sequence (will be replaced by actual backend number on creation)
-    const tempSequence = Math.floor(Math.random() * 10000).toString().padStart(4, '0')
-    const formattedCode = branchCode ? `${branchCode}` : ''
-    setJobCardNumber(`JC-${formattedCode}-${year}-${tempSequence}`)
+    // Generate next sequential job card number
+    try {
+      const token = localStorage.getItem('token')
+      // Fetch all job cards for this branch (no limit to find the latest)
+      const response = await axiosClient.get(`/job-cards?branch_id=${formData.branch_id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      
+      const allJobCards = response.data.data || response.data || []
+      const prefix = `JC-${branchCode}-${year}-`
+      
+      // Filter job cards with matching prefix (same branch and year)
+      const matchingCards = allJobCards.filter(card => 
+        card.job_card_number && card.job_card_number.startsWith(prefix)
+      )
+      
+      let nextSequence = 1
+      if (matchingCards.length > 0) {
+        // Find the highest number and increment it
+        const numbers = matchingCards.map(card => {
+          const num = parseInt(card.job_card_number.slice(-4))
+          return isNaN(num) ? 0 : num
+        })
+        const maxNumber = Math.max(...numbers)
+        nextSequence = maxNumber + 1
+      }
+      
+      const nextJobCardNumber = `JC-${branchCode}-${year}-${String(nextSequence).padStart(4, '0')}`
+      setJobCardNumber(nextJobCardNumber)
+      console.log('Next job card number set:', nextJobCardNumber)
+    } catch (error) {
+      console.error('Error generating job card number:', error)
+      // Fallback to a simple sequential placeholder if API fails
+      setJobCardNumber(`JC-${branchCode}-${year}-0001`)
+    }
   }
 
   const handleCustomerChange = (customerId) => {
@@ -765,6 +796,8 @@ function JobCardCreateWizard({ show, onClose, onSuccess, user, branches = [], in
                 if (currentStep === 1 && !formData.customer_id) { showNotification('error', 'Missing Customer', 'Please select a customer'); return }
                 if (currentStep === 1 && !formData.vehicle_id) { showNotification('error', 'Missing Vehicle', 'Please select a vehicle'); return }
                 if (currentStep === 1 && !formData.details.trim()) { showNotification('error', 'Missing Information', 'Please fill in the Customer Complaint field'); return }
+                if (currentStep === 1 && !formData.expected_completion_date) { showNotification('error', 'Missing Date', 'Please select an Expected Completion Date'); return }
+                if (currentStep === 1 && isRepeatVehicle && !formData.odometer_reading) { showNotification('error', 'Missing Odometer Reading', 'Please enter the odometer reading for this vehicle'); return }
                 setCurrentStep(currentStep + 1)
               }}
                 className="inline-flex items-center gap-2 px-5 py-2 bg-[#2563A8] hover:bg-[#1E4E7E] text-white rounded-lg text-sm font-bold transition-all shadow-sm hover:shadow-md hover:-translate-y-px"

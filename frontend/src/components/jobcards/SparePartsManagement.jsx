@@ -248,7 +248,7 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
         {canAdd && (
           <button
             onClick={() => setShowAddModal(true)}
-            className="inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm hover:shadow-md hover:-translate-y-px"
+            className="inline-flex items-center gap-2 bg-[#2563A8] hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm hover:shadow-md hover:-translate-y-px"
             style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
           >
             <span className="flex items-center justify-center w-4 h-4 bg-white/25 rounded">

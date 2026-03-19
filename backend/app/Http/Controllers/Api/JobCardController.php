@@ -216,7 +216,6 @@ class JobCardController extends Controller
             'created_by' => $user->id,
             'estimated_completion_date' => $validated['expected_completion_date'] ?? null,
             'customer_complaint' => $validated['details'] ?? '',
-            'odometer_reading' => $validated['odometer_reading'] ?? null,
             'status' => 'pending', // Automatically set status to pending
         ]);
 
@@ -285,11 +284,15 @@ class JobCardController extends Controller
             'advance_payment' => 'nullable|numeric|min:0',
         ]);
 
+        // Extract odometer_reading before updating job card (don't save to job_card table)
+        $odometerReading = $validated['odometer_reading'] ?? null;
+        unset($validated['odometer_reading']);
+
         $jobCard->update($validated);
 
         // Update vehicle's odometer reading if provided
-        if (!empty($validated['odometer_reading'])) {
-            Vehicle::where('id', $jobCard->vehicle_id)->update(['odometer_reading' => $validated['odometer_reading']]);
+        if (!empty($odometerReading)) {
+            Vehicle::where('id', $jobCard->vehicle_id)->update(['odometer_reading' => $odometerReading]);
         }
 
         // Recalculate totals if pricing fields updated

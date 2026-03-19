@@ -268,7 +268,7 @@ function TaskManagement({ jobCard, onUpdate, user }) {
               className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm ${
                 ['completed', 'inspected'].includes(jobCard?.status)
                   ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-60'
-                  : 'bg-primary hover:bg-primary-dark text-white hover:shadow-md hover:-translate-y-px'
+                  : 'bg-[#2563A8] hover:bg-blue-700 text-white hover:shadow-md hover:-translate-y-px'
               }`}
               style={!['completed', 'inspected'].includes(jobCard?.status) ? { textShadow: '0 1px 2px rgba(0,0,0,0.2)' } : {}}
             >
@@ -410,7 +410,7 @@ function TaskManagement({ jobCard, onUpdate, user }) {
                           className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 rounded-lg text-xs font-semibold transition-colors animate-pulse"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 01-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
                           </svg>
                           Pause
                         </button>
@@ -543,7 +543,7 @@ function TaskManagement({ jobCard, onUpdate, user }) {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 text-sm bg-primary hover:bg-primary-dark text-white rounded-lg font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-px"
+                  className="px-5 py-2.5 text-sm bg-[#2563A8] hover:bg-blue-700 text-white rounded-lg font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-px"
                   style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
                 >
                   Add Task
