@@ -47,6 +47,7 @@ function UserManagement({ user, roleFilter }) {
     profile_image: null
   })
   const [showPassword, setShowPassword] = useState(false)
+  const [existingProfileImage, setExistingProfileImage] = useState(null)
 
   const canAdd = user.role.name === 'super_admin' || user.permissions.includes('add_users')
   const canUpdate = user.role.name === 'super_admin' || user.permissions.includes('update_users')
@@ -138,7 +139,7 @@ function UserManagement({ user, roleFilter }) {
     const selectedBranch = branches.find(b => String(b.id) === String(branchId))
     if (!selectedBranch) return ''
     
-    const branchCode = selectedBranch.code ? selectedBranch.code.toLowerCase().substring(0, 3) : selectedBranch.name.toLowerCase().substring(0, 3)
+    const branchCode = selectedBranch.code ? selectedBranch.code.toUpperCase().substring(0, 3) : selectedBranch.name.toUpperCase().substring(0, 3)
     const branchUsers = users.filter(u => u.branch_id === parseInt(branchId))
     let highestNumber = 0
     branchUsers.forEach(u => {
@@ -202,11 +203,13 @@ function UserManagement({ user, roleFilter }) {
 
   const openEditModal = (userToEdit) => {
     setEditingUser(userToEdit)
+    setExistingProfileImage(userToEdit.profile_image || null)
     setFormData({
       name: userToEdit.name,
       first_name: userToEdit.first_name || '',
       email: userToEdit.email,
       phone: userToEdit.phone || '',
+      employee_code: userToEdit.employee_code || '',
       password: '',
       passwordConfirm: '',
       role_id: userToEdit.role_id,
@@ -320,6 +323,7 @@ function UserManagement({ user, roleFilter }) {
       }
 
       setShowModal(false)
+      setExistingProfileImage(null)
       setTimeout(fetchUsers, 500)
     } catch (error) {
       console.error('Submit error:', error)
@@ -395,10 +399,19 @@ function UserManagement({ user, roleFilter }) {
   }
 
   const getRoleBadgeStyle = (roleName) => {
-    const name = (roleName || '').toLowerCase()
-    if (name.includes('super') || name.includes('admin')) return 'bg-purple-100 text-purple-700 border border-purple-200'
-    if (name.includes('supervisor') || name.includes('manager')) return 'bg-amber-100 text-amber-700 border border-amber-200'
-    return 'bg-blue-100 text-blue-700 border border-blue-200'
+    const name = (roleName || '').toLowerCase().trim()
+    
+    // Specific role colors
+    const roleColors = {
+      'super_admin': 'bg-red-100 text-red-700 border border-red-200',
+      'admin': 'bg-purple-100 text-purple-700 border border-purple-200',
+      'branch_admin': 'bg-indigo-100 text-indigo-700 border border-indigo-200',
+      'technician': 'bg-green-100 text-green-700 border border-green-200',
+      'accountant': 'bg-orange-100 text-orange-700 border border-orange-200'
+      
+    }
+    
+    return roleColors[name] || 'bg-blue-100 text-blue-700 border border-blue-200'
   }
 
   const pageTitle = roleFilter ? roleFilter.displayName : 'All Users'
@@ -627,11 +640,7 @@ function UserManagement({ user, roleFilter }) {
                             </span>
                           )}
                         </div>
-                        {u.technician_type && (
-                          <span className="text-xs text-gray-500 font-medium">
-                            {u.technician_type === 'employee' ? 'Employee' : u.technician_type === 'supervisor' ? 'Supervisor' : u.technician_type}
-                          </span>
-                        )}
+                        
                       </div>
                     </td>
                     <td className="px-5 py-4 text-gray-600 text-sm">{u.email}</td>
@@ -641,23 +650,14 @@ function UserManagement({ user, roleFilter }) {
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${getRoleBadgeStyle(u.role?.name)}`}>
                           {u.role?.display_name}
                         </span>
-                      </td>
-                    )}
-                    {roleFilter?.name === 'employee' && (
-                      <td className="px-5 py-4">
-                        {u.technician_type === 'employee' ? (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-100">
-                            Employee
+                        {u.technician_type && (
+                          <span className="block text-center text-[11px] text-gray-500 font-medium">
+                            {u.technician_type === 'employee' ? 'Employee' : u.technician_type === 'supervisor' ? 'Supervisor' : u.technician_type}
                           </span>
-                        ) : u.technician_type === 'supervisor' ? (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-100">
-                            Supervisor
-                          </span>
-                        ) : (
-                          <span className="text-gray-300">—</span>
                         )}
                       </td>
                     )}
+                    
                     <td className="px-5 py-4 text-gray-600 text-sm">
                       {u.branch?.name || <span className="text-gray-300">—</span>}
                     </td>
@@ -790,7 +790,10 @@ function UserManagement({ user, roleFilter }) {
       {showModal && (
         <div
           className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-          onClick={() => setShowModal(false)}
+          onClick={() => {
+            setShowModal(false)
+            setExistingProfileImage(null)
+          }}
         >
           <div
             className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
@@ -807,7 +810,10 @@ function UserManagement({ user, roleFilter }) {
                 )}
               </div>
               <button
-                onClick={() => setShowModal(false)}
+                onClick={() => {
+                  setShowModal(false)
+                  setExistingProfileImage(null)
+                }}
                 className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors flex-shrink-0 ml-2"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -879,10 +885,10 @@ function UserManagement({ user, roleFilter }) {
                     type="text"
                     value={formData.employee_code}
                     readOnly
-                    placeholder="Auto-generated"
+                    placeholder={editingUser ? 'Auto-assigned' : 'Auto-generated'}
                     className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed read-only:opacity-75"
                   />
-                  <p className="text-xs text-gray-400">Auto-generated based on branch</p>
+                  <p className="text-xs text-gray-400">{editingUser ? 'Cannot be changed' : 'Auto-generated based on branch'}</p>
                 </div>
 
                 {/* Password */}
@@ -1114,13 +1120,29 @@ function UserManagement({ user, roleFilter }) {
                 {/* Profile Image */}
                 <div className="col-span-2 space-y-1.5">
                   <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Profile Image</label>
+                  
+                  {existingProfileImage && !formData.profile_image && (
+                    <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg mb-3">
+                      <img 
+                        src={`http://localhost:8000/storage/${existingProfileImage}`}
+                        alt="Current profile"
+                        className="w-12 h-12 rounded-full object-cover border border-blue-300"
+                      />
+                      <div className="flex-1">
+                        <p className="text-xs font-semibold text-blue-900">Current Image</p>
+                        <p className="text-xs text-blue-700">Upload a new image to replace</p>
+                      </div>
+                    </div>
+                  )}
+                  
                   <input
                     type="file"
                     accept="image/*"
                     onChange={(e) => setFormData({...formData, profile_image: e.target.files?.[0] || null})}
                     className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all file:mr-2 file:py-1 file:px-3 file:rounded file:border file:border-gray-400 file:text-xs file:font-semibold file:bg-primary file:text-black"
                   />
-                  {formData.profile_image && <p className="text-xs text-green-600 font-semibold">Image selected: {formData.profile_image.name}</p>}
+                  {formData.profile_image && <p className="text-xs text-green-600 font-semibold">New image selected: {formData.profile_image.name}</p>}
+                  {existingProfileImage && !formData.profile_image && <p className="text-xs text-blue-600 font-semibold">Current image will be kept if no new image is selected</p>}
                 </div>
 
                 {/* Special Notes */}
@@ -1142,7 +1164,10 @@ function UserManagement({ user, roleFilter }) {
               <div className="flex justify-end gap-3 pt-5 border-t border-gray-100">
                 <button
                   type="button"
-                  onClick={() => setShowModal(false)}
+                  onClick={() => {
+                    setShowModal(false)
+                    setExistingProfileImage(null)
+                  }}
                   className="px-5 py-2.5 text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold transition-colors border border-red-700 shadow-sm"
                 >
                   Cancel

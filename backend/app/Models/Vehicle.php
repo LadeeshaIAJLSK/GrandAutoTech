@@ -50,7 +50,7 @@ public function jobCards()
     return $this->hasMany(JobCard::class);
 }
 
-// Helper methods
+// Helper methods not used 
 public function getLastServiceDate()
 {
     return $this->jobCards()
@@ -60,15 +60,15 @@ public function getLastServiceDate()
         ?->actual_completion_date;
 }
 
-public function getServiceHistoryCount()
+public function getServiceHistoryCount()//not used
 {
     return $this->jobCards()->count();
 }
 
-public function updateMileage($newMileage)
+public function updateOdometer($newOdometerReading)//not used 
 {
-    if ($newMileage > $this->mileage) {
-        $this->mileage = $newMileage;
+    if ($newOdometerReading > $this->odometer_reading) {
+        $this->odometer_reading = $newOdometerReading;
         $this->save();
     }
 }

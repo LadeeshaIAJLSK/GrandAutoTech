@@ -55,6 +55,11 @@ class JobCardController extends Controller
             $query->where('status', $request->status);
         }
 
+        // Vehicle filter
+        if ($request->has('vehicle_id')) {
+            $query->where('vehicle_id', $request->vehicle_id);
+        }
+
         $jobCards = $query->select('job_cards.*')->orderBy('created_at', 'desc')->paginate(15);
 
         // Manually attach otherCharges and compute advance from payments (source of truth)
@@ -181,7 +186,7 @@ class JobCardController extends Controller
             'expected_completion_date' => 'nullable|date',
             'test_run_required' => 'required|boolean',
             'details' => 'nullable|string',
-            'current_mileage' => 'nullable|integer',
+            'odometer_reading' => 'nullable|integer|min:0',
             'tasks' => 'nullable|array',
             'tasks.*.description' => 'required|string',
             'tasks.*.category' => 'required|string',
@@ -211,9 +216,14 @@ class JobCardController extends Controller
             'created_by' => $user->id,
             'estimated_completion_date' => $validated['expected_completion_date'] ?? null,
             'customer_complaint' => $validated['details'] ?? '',
-            'current_mileage' => $validated['current_mileage'] ?? null,
+            'odometer_reading' => $validated['odometer_reading'] ?? null,
             'status' => 'pending', // Automatically set status to pending
         ]);
+
+        // Update vehicle's odometer reading if provided
+        if (!empty($validated['odometer_reading'])) {
+            Vehicle::where('id', $validated['vehicle_id'])->update(['odometer_reading' => $validated['odometer_reading']]);
+        }
 
         // Create tasks if provided
         if (!empty($validated['tasks'])) {
@@ -264,7 +274,7 @@ class JobCardController extends Controller
         }
 
         $validated = $request->validate([
-            'current_mileage' => 'nullable|integer|min:0',
+            'odometer_reading' => 'nullable|integer|min:0',
             'customer_complaint' => 'sometimes|string',
             'initial_inspection_notes' => 'nullable|string',
             'recommendations' => 'nullable|string',
@@ -276,6 +286,11 @@ class JobCardController extends Controller
         ]);
 
         $jobCard->update($validated);
+
+        // Update vehicle's odometer reading if provided
+        if (!empty($validated['odometer_reading'])) {
+            Vehicle::where('id', $jobCard->vehicle_id)->update(['odometer_reading' => $validated['odometer_reading']]);
+        }
 
         // Recalculate totals if pricing fields updated
         if ($request->hasAny(['parts_cost', 'other_charges', 'discount', 'advance_payment'])) {

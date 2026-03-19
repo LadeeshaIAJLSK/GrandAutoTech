@@ -20,9 +20,12 @@ function JobCardCreateWizard({ show, onClose, onSuccess, user, branches = [], in
     expected_completion_date: '',
     test_run_required: false,
     details: '',
-    current_mileage: '',
+    odometer_reading: '',
     additional_details: '',
   })
+
+  const [isRepeatVehicle, setIsRepeatVehicle] = useState(false)
+  const [vehicleJobCardCount, setVehicleJobCardCount] = useState(0)
 
   const [images, setImages] = useState({
     front: null, back: null, right: null, left: null,
@@ -72,7 +75,7 @@ function JobCardCreateWizard({ show, onClose, onSuccess, user, branches = [], in
           expected_completion_date: jobCard.estimated_completion_date ? jobCard.estimated_completion_date.split('T')[0] : '',
           test_run_required: jobCard.test_run_required ? true : false,
           details: jobCard.details || jobCard.complaint || jobCard.customer_complaint || '',
-          current_mileage: jobCard.current_mileage || '',
+          odometer_reading: jobCard.odometer_reading || '',
           additional_details: jobCard.additional_details || jobCard.notes || '',
         })
         console.log('Form data set to:', { details: jobCard.details || jobCard.complaint || jobCard.customer_complaint || '' })
@@ -138,12 +141,14 @@ function JobCardCreateWizard({ show, onClose, onSuccess, user, branches = [], in
           expected_completion_date: '',
           test_run_required: false,
           details: '',
-          current_mileage: '',
+          odometer_reading: '',
           additional_details: '',
         })
         setImages({ front: null, back: null, right: null, left: null, interior1: null, interior2: null, dashboard: null, top: null, other1: null, other2: null })
         setExistingImages({})
         setTasks([{ description: '', category: '' }])
+        setIsRepeatVehicle(false)
+        setVehicleJobCardCount(0)
       }
     }
   }, [show, jobCard])
@@ -187,10 +192,43 @@ function JobCardCreateWizard({ show, onClose, onSuccess, user, branches = [], in
 
   const handleVehicleCreated = (newVehicle) => {
     setShowVehicleCreateForm(false)
-    setFormData({ ...formData, vehicle_id: newVehicle.id })
     setVehicleModalData({ customer_id: '', license_plate: '', make: '', model: '', year: new Date().getFullYear(), branch_id: initialBranchId || '' })
-    // Refetch vehicles to ensure new vehicle is in the list
+    setIsRepeatVehicle(false)
+    setVehicleJobCardCount(0)
+    // Refetch vehicles to ensure we have complete data with all fields
     fetchVehicles(formData.customer_id)
+  }
+
+  const checkVehicleJobCardHistory = async (vehicleId) => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await axiosClient.get(`/job-cards?vehicle_id=${vehicleId}&limit=1`, { headers: { Authorization: `Bearer ${token}` } })
+      console.log('API Response for vehicle', vehicleId, ':', response.data)
+      const jobCardCount = response.data.data?.length || response.data?.length || 0
+      console.log('Job card count:', jobCardCount)
+      const hasExistingJobCards = jobCardCount > 0
+      console.log('Has existing job cards:', hasExistingJobCards)
+      setIsRepeatVehicle(hasExistingJobCards)
+      setVehicleJobCardCount(jobCardCount)
+      
+      if (hasExistingJobCards) {
+        // Only pre-fill from the last job card, not from vehicle's odometer_reading
+        const lastJobCard = response.data.data?.[0] || response.data?.[0]
+        if (lastJobCard?.odometer_reading) {
+          setFormData(prev => ({ ...prev, odometer_reading: lastJobCard.odometer_reading }))
+        } else {
+          setFormData(prev => ({ ...prev, odometer_reading: '' }))
+        }
+      } else {
+        // Newly created vehicle with no job cards - don't show or pre-fill odometer field
+        setFormData(prev => ({ ...prev, odometer_reading: '' }))
+      }
+    } catch (error) {
+      console.error('Error checking vehicle history:', error)
+      setIsRepeatVehicle(false)
+      setVehicleJobCardCount(0)
+      setFormData(prev => ({ ...prev, odometer_reading: '' }))
+    }
   }
 
   const handleCustomerModalSubmit = async () => {
@@ -212,7 +250,10 @@ function JobCardCreateWizard({ show, onClose, onSuccess, user, branches = [], in
       const response = await axiosClient.post('/vehicles', vehicleModalData, { headers: { Authorization: `Bearer ${token}` } })
       const newVehicle = response.data.data || response.data
       handleVehicleCreated(newVehicle)
-      showNotification('success', 'Vehicle Created', `${newVehicle.make} ${newVehicle.model} (${newVehicle.license_plate}) has been created successfully!`)
+      const vehicleLabel = newVehicle.license_plate 
+        ? `${newVehicle.make || ''} ${newVehicle.model || ''} (${newVehicle.license_plate})`.trim() 
+        : (newVehicle.id ? `Vehicle ${newVehicle.id}` : 'New Vehicle')
+      showNotification('success', 'Vehicle Created', `${vehicleLabel} has been created successfully!`)
     } catch (error) {
       console.error('Error creating vehicle:', error)
       showNotification('error', 'Creation Failed', error.response?.data?.message || 'Error creating vehicle')
@@ -241,6 +282,8 @@ function JobCardCreateWizard({ show, onClose, onSuccess, user, branches = [], in
   const handleCustomerChange = (customerId) => {
     setFormData({ ...formData, customer_id: customerId, vehicle_id: '' })
     setShowCustomerDropdown(false)
+    setIsRepeatVehicle(false)
+    setVehicleJobCardCount(0)
     if (customerId) fetchVehicles(customerId); else setVehicles([])
   }
 
@@ -335,10 +378,12 @@ function JobCardCreateWizard({ show, onClose, onSuccess, user, branches = [], in
 
   const resetForm = () => {
     setCurrentStep(1)
-    setFormData({ customer_id: '', vehicle_id: '', branch_id: initialBranchId || '', expected_completion_date: '', test_run_required: false, details: '', current_mileage: '', additional_details: '' })
+    setFormData({ customer_id: '', vehicle_id: '', branch_id: initialBranchId || '', expected_completion_date: '', test_run_required: false, details: '', odometer_reading: '', additional_details: '' })
     setImages({ front: null, back: null, right: null, left: null, interior1: null, interior2: null, dashboard: null, top: null, other1: null, other2: null })
     setExistingImages({})
     setTasks([{ description: '', category: '' }])
+    setIsRepeatVehicle(false)
+    setVehicleJobCardCount(0)
     generateJobCardNumber()
   }
 
@@ -523,9 +568,12 @@ function JobCardCreateWizard({ show, onClose, onSuccess, user, branches = [], in
                   <label className={labelCls}>Vehicle <span className="text-red-400">*</span></label>
                   <p className="text-xs text-gray-400 mb-1.5">{isEditMode ? 'Vehicle selected at creation' : 'Select a customer first'}</p>
                   <div className="flex gap-2">
-                    <select value={formData.vehicle_id} onChange={e => setFormData({...formData, vehicle_id: e.target.value})} required disabled={!formData.customer_id || isEditMode} className={`flex-1 ${inputCls} disabled:cursor-not-allowed disabled:bg-gray-100`}>
+                    <select value={formData.vehicle_id} onChange={e => { const vehicleId = parseInt(e.target.value); setFormData({...formData, vehicle_id: vehicleId}); if (vehicleId) checkVehicleJobCardHistory(vehicleId) }} required disabled={!formData.customer_id || isEditMode} className={`flex-1 ${inputCls} disabled:cursor-not-allowed disabled:bg-gray-100`}>
                       <option value="">Select vehicle...</option>
-                      {vehicles.map(v => <option key={`vehicle-${v.id}`} value={v.id}>{v.license_plate} — {v.make} {v.model}</option>)}
+                      {vehicles.map(v => {
+                        const displayText = v.license_plate ? `${v.license_plate} — ${v.make || ''} ${v.model || ''}`.trim() : `Vehicle ${v.id}`
+                        return <option key={`vehicle-${v.id}`} value={v.id}>{displayText}</option>
+                      })}
                     </select>
                     {!isEditMode && formData.customer_id && (
                       <button
@@ -564,6 +612,14 @@ function JobCardCreateWizard({ show, onClose, onSuccess, user, branches = [], in
                 <label className={labelCls}>Additional Details</label>
                 <textarea value={formData.additional_details} onChange={e => setFormData({...formData, additional_details: e.target.value})} placeholder="Any other additional notes..." rows="3" className={`${inputCls} resize-none`} />
               </div>
+
+              {!isEditMode && isRepeatVehicle && (
+                <div>
+                  <label className={labelCls}>Odometer Reading <span className="text-red-400">*</span></label>
+                  <p className="text-xs text-gray-400 mb-1.5">Current vehicle mileage in kilometers</p>
+                  <input type="number" value={formData.odometer_reading} onChange={e => setFormData({...formData, odometer_reading: e.target.value})} placeholder="Enter odometer reading in km..." min="0" className={inputCls} />
+                </div>
+              )}
             </div>
           )}
 

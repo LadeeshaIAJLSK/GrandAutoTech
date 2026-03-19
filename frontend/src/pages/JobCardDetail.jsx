@@ -349,7 +349,7 @@ function JobCardDetail({ jobCardId, onClose, user } = {}) {
                 {[
                   { label: 'Make & Model', value: `${jobCard.vehicle?.make} ${jobCard.vehicle?.model} (${jobCard.vehicle?.year})` },
                   { label: 'Color', value: jobCard.vehicle?.color || '—' },
-                  { label: 'Mileage', value: jobCard.current_mileage ? `${jobCard.current_mileage.toLocaleString()} km` : '—' },
+                  { label: 'Odometer Reading', value: jobCard.odometer_reading ? `${jobCard.odometer_reading.toLocaleString()} km` : '—' },
                 ].map(row => (
                   <div key={row.label} className="flex justify-between items-start gap-4">
                     <span className="text-xs text-gray-400 uppercase tracking-wide flex-shrink-0">{row.label}</span>

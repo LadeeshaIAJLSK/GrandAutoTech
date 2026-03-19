@@ -139,8 +139,8 @@ const JobCardPrint = forwardRef(({ jobCard }, ref) => {
                   <span>{jobCard.vehicle?.year || '—'}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ fontWeight: '600' }}>Mileage:</span>
-                  <span>{jobCard.current_mileage ? jobCard.current_mileage.toLocaleString() + ' km' : '—'}</span>
+                  <span style={{ fontWeight: '600' }}>Odometer Reading:</span>
+                  <span>{jobCard.odometer_reading ? jobCard.odometer_reading.toLocaleString() + ' km' : '—'}</span>
                 </div>
               </div>
             </div>

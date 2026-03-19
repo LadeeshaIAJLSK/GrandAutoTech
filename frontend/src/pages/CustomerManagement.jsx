@@ -647,7 +647,9 @@ function CustomerManagement({ user }) {
                 </div>
                 <div>
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Customer</p>
-                  <p className="text-sm font-medium text-gray-900">{viewingVehicle.customer?.name || 'Not assigned'}</p>
+                  <p className="text-sm font-medium text-gray-900">
+                    {viewingVehicle.customer?.name || customers.find(c => c.id === viewingVehicle.customer_id)?.name || 'Not assigned'}
+                  </p>
                 </div>
                 {viewingVehicle.notes && (
                   <div className="col-span-2">
