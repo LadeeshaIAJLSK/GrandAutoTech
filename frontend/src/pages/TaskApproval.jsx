@@ -13,13 +13,14 @@ function TaskApproval({ user }) {
   const [inspectionLoading, setInspectionLoading] = useState({})
   const [activeTab, setActiveTab] = useState('tasks')
   const [branches, setBranches] = useState([])
-  // For super_admin, default to all branches (empty string); for others, default to their branch
   const [selectedBranch, setSelectedBranch] = useState(
     user?.role?.name === 'super_admin' ? '' : (user?.branch_id || '')
   )
   const [branchDropdownOpen, setBranchDropdownOpen] = useState(false)
   const [notification, setNotification] = useState(null)
   const [confirmAction, setConfirmAction] = useState(null)
+  const [selectedTasks, setSelectedTasks] = useState(new Set())
+  const [selectedJobCards, setSelectedJobCards] = useState(new Set())
   const branchDropdownRef = useRef(null)
 
   useEffect(() => {
@@ -149,6 +150,47 @@ function TaskApproval({ user }) {
     setConfirmAction({ type: 'reject', taskId })
   }
 
+  const confirmApproveAll = async () => {
+    const { jobCardId } = confirmAction
+    try {
+      const jobCardGroup = groupedByJobCard[jobCardId]
+      if (!jobCardGroup) return
+
+      const token = localStorage.getItem('token')
+      let approvedCount = 0
+
+      for (const task of jobCardGroup.tasks) {
+        try {
+          await axiosClient.post(`/tasks/${task.id}/approve`, {}, {
+            headers: { Authorization: `Bearer ${token}` }
+          })
+          approvedCount++
+        } catch (error) {
+          console.error(`Error approving task ${task.id}:`, error)
+        }
+      }
+
+      if (approvedCount > 0) {
+        setNotification({
+          type: 'success',
+          title: 'Success',
+          message: `${approvedCount} task${approvedCount !== 1 ? 's' : ''} approved successfully!`
+        })
+        setSelectedTasks(new Set())
+        fetchPendingTasks(selectedBranch)
+        fetchCompleteJobCards()
+      }
+      setConfirmAction(null)
+    } catch (error) {
+      setNotification({
+        type: 'error',
+        title: 'Error',
+        message: 'Error approving tasks'
+      })
+      setConfirmAction(null)
+    }
+  }
+
   const confirmRejectTask = async () => {
     try {
       const token = localStorage.getItem('token')
@@ -190,6 +232,61 @@ function TaskApproval({ user }) {
     const hours = Math.floor(minutes / 60)
     const mins = minutes % 60
     return `${hours}h ${mins}m`
+  }
+
+  // Group tasks by job card
+  const groupedByJobCard = tasks.filter(task => task.job_card && task.job_card.id).reduce((acc, task) => {
+    const jobCardId = task.job_card.id
+    if (!acc[jobCardId]) {
+      acc[jobCardId] = {
+        jobCard: task.job_card,
+        tasks: []
+      }
+    }
+    acc[jobCardId].tasks.push(task)
+    return acc
+  }, {})
+
+  const jobCardGroups = Object.values(groupedByJobCard).sort((a, b) => {
+    // Sort by job card number for consistent ordering
+    return (a.jobCard.job_card_number || '').localeCompare(b.jobCard.job_card_number || '')
+  })
+
+  // Handle task checkbox
+  const toggleTaskSelection = (taskId) => {
+    const newSelected = new Set(selectedTasks)
+    if (newSelected.has(taskId)) {
+      newSelected.delete(taskId)
+    } else {
+      newSelected.add(taskId)
+    }
+    setSelectedTasks(newSelected)
+  }
+
+  // Handle job card checkbox
+  const toggleJobCardSelection = (jobCardId) => {
+    const jobCardGroup = groupedByJobCard[jobCardId]
+    if (!jobCardGroup) return
+
+    const newSelected = new Set(selectedTasks)
+    const jobCardTaskIds = jobCardGroup.tasks.map(t => t.id)
+    const allSelected = jobCardTaskIds.every(id => newSelected.has(id))
+
+    if (allSelected) {
+      // Deselect all
+      jobCardTaskIds.forEach(id => newSelected.delete(id))
+    } else {
+      // Select all
+      jobCardTaskIds.forEach(id => newSelected.add(id))
+    }
+    setSelectedTasks(newSelected)
+  }
+
+  // Check if all tasks in a job card are selected
+  const isJobCardFullySelected = (jobCardId) => {
+    const jobCardGroup = groupedByJobCard[jobCardId]
+    if (!jobCardGroup || jobCardGroup.tasks.length === 0) return false
+    return jobCardGroup.tasks.every(task => selectedTasks.has(task.id))
   }
 
   if (loading) {
@@ -334,79 +431,123 @@ function TaskApproval({ user }) {
           </div>
         ) : (
           <div className="space-y-3">
-            {tasks.map(task => {
-              const totalTime = task.time_tracking?.reduce((sum, t) => sum + (t.duration_minutes || 0), 0) || 0
-
+            {jobCardGroups.map(jobCardGroup => {
+              const jobCardTasks = jobCardGroup.tasks
+              const totalJobCardTime = jobCardTasks.reduce((sum, task) => sum + (task.time_tracking?.reduce((s, t) => s + (t.duration_minutes || 0), 0) || 0), 0)
+              const isJobCardSelected = isJobCardFullySelected(jobCardGroup.jobCard.id)
+              
               return (
-                <div key={task.id} className="bg-white rounded-xl border border-blue-200 shadow-sm p-5">
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2.5 flex-wrap mb-1.5">
-                        <h4 className="font-bold text-gray-900">{task.task_name}</h4>
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-                          <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-                          Pending Approval
-                        </span>
-                      </div>
-                      {task.description && <p className="text-sm text-gray-500 mb-2">{task.description}</p>}
-                      <div className="flex flex-wrap gap-3 text-xs text-gray-500">
-                        <span className="inline-flex items-center gap-1 font-semibold text-primary">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
-                          {task.job_card.job_card_number}
-                        </span>
-                        <span className="inline-flex items-center gap-1">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-                          {task.job_card.customer.name}
-                        </span>
-                        <span className="inline-flex items-center gap-1 font-mono tracking-wide">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
-                          {task.job_card.vehicle.license_plate}
-                        </span>
-                        {task.assigned_employees && task.assigned_employees.length > 0 ? (
-                          task.assigned_employees.map((employee, idx) => (
-                            <span key={idx} className="inline-flex items-center gap-1 font-semibold text-blue-600">
-                              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                              {employee.name}
-                            </span>
-                          ))
-                        ) : task.assigned_to_user && (
-                          <span className="inline-flex items-center gap-1 font-semibold text-blue-600">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                            {task.assigned_to_user.name}
-                          </span>
-                        )}
+                <div key={jobCardGroup.jobCard.id} className="bg-white rounded-xl border border-blue-200 shadow-sm overflow-hidden">
+                  {/* Job Card Header */}
+                  <div className="bg-[#2563A8] text-white p-4 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 flex-1">
+                      <input
+                        type="checkbox"
+                        checked={isJobCardSelected}
+                        onChange={() => toggleJobCardSelection(jobCardGroup.jobCard.id)}
+                        className="w-4 h-4 rounded cursor-pointer flex-shrink-0"
+                        style={{
+                          accentColor: '#ffffff',
+                          borderColor: '#ffffff'
+                        }}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-bold text-lg">{jobCardGroup.jobCard.job_card_number}</h4>
+                        <p className="text-sm text-blue-100">{jobCardGroup.jobCard.customer?.name} • {jobCardGroup.jobCard.vehicle?.license_plate}</p>
                       </div>
                     </div>
-                    <div className="text-right flex-shrink-0 ml-4">
-                      <p className="text-xs text-gray-400 uppercase tracking-wide">Time Spent</p>
-                      <p className="text-2xl font-bold text-blue-600">{formatTime(totalTime)}</p>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/20 rounded-full text-sm font-semibold">
+                        <span className="w-2 h-2 rounded-full bg-white" />
+                        {jobCardTasks.length} task{jobCardTasks.length !== 1 ? 's' : ''}
+                      </span>
+                      {isJobCardSelected && jobCardTasks.length > 1 && (
+                        <button
+                          onClick={() => setConfirmAction({ type: 'approve_all', jobCardId: jobCardGroup.jobCard.id })}
+                          className="inline-flex items-center gap-1 bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded text-xs font-bold transition-all whitespace-nowrap"
+                          title="Approve all tasks in this job card"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                          Approve All
+                        </button>
+                      )}
                     </div>
                   </div>
 
-                  <div className="mt-4 p-4 bg-blue-50 border border-blue-100 rounded-lg">
-                    <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-3">Review & Approve Task</p>
-                    <div className="flex gap-2.5">
-                      <button
-                        onClick={() => handleApproveTask(task.id)}
-                        className="flex-1 inline-flex items-center justify-center gap-1.5 bg-green-500 hover:bg-green-600 text-white py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm hover:shadow"
-                        style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                        Approve
-                      </button>
-                      <button
-                        onClick={() => handleRejectTask(task.id)}
-                        className="flex-1 inline-flex items-center justify-center gap-1.5 bg-red-500 hover:bg-red-600 text-white py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm hover:shadow"
-                        style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                        </svg>
-                        Reject
-                      </button>
-                    </div>
+                  {/* Tasks List */}
+                  <div className="divide-y divide-blue-100">
+                    {jobCardTasks.map(task => {
+                      const isTaskSelected = selectedTasks.has(task.id)
+                      const totalTime = task.time_tracking?.reduce((sum, t) => sum + (t.duration_minutes || 0), 0) || 0
+
+                      return (
+                        <div key={task.id} className={`p-4 transition-colors ${isTaskSelected ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
+                          <div className="flex items-start gap-3">
+                            {/* Checkbox */}
+                            <input
+                              type="checkbox"
+                              checked={isTaskSelected}
+                              onChange={() => toggleTaskSelection(task.id)}
+                              className="w-4 h-4 rounded cursor-pointer mt-1 flex-shrink-0"
+                              style={{
+                                accentColor: '#2563A8',
+                                borderColor: '#93c5fd'
+                              }}
+                            />
+
+                            {/* Task Details */}
+                            <div className="flex-1 min-w-0">
+                              <h5 className="font-bold text-gray-900 mb-1">{task.task_name}</h5>
+                              {task.description && <p className="text-sm text-gray-500 mb-2">{task.description}</p>}
+                              <div className="flex flex-wrap gap-2 text-xs text-gray-600">
+                                {task.assigned_employees && task.assigned_employees.length > 0 ? (
+                                  task.assigned_employees.map((employee, idx) => (
+                                    <span key={idx} className="inline-flex items-center gap-1 text-blue-600 font-semibold">
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                                      {employee.name}
+                                    </span>
+                                  ))
+                                ) : task.assigned_to_user && (
+                                  <span className="inline-flex items-center gap-1 text-blue-600 font-semibold">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                                    {task.assigned_to_user.name}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Time & Buttons */}
+                            <div className="text-right flex-shrink-0 ml-4">
+                              <p className="text-xs text-gray-400 mb-2">{formatTime(totalTime)}</p>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => handleApproveTask(task.id)}
+                                  className="inline-flex items-center gap-1 bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-xs font-bold transition-all"
+                                  title="Approve task"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                  </svg>
+                                  Approve
+                                </button>
+                                <button
+                                  onClick={() => handleRejectTask(task.id)}
+                                  className="inline-flex items-center gap-1 bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs font-bold transition-all"
+                                  title="Reject task"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                  </svg>
+                                  Reject
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               )
@@ -526,6 +667,16 @@ function TaskApproval({ user }) {
         onConfirm={confirmApproveTask}
         onCancel={() => setConfirmAction(null)}
         confirmText="Approve"
+        cancelText="Cancel"
+      />
+      <ConfirmDialog
+        show={confirmAction?.type === 'approve_all' ? true : false}
+        type="warning"
+        title="Approve All Tasks"
+        message={`Are you sure you want to approve all ${groupedByJobCard[confirmAction?.jobCardId]?.tasks?.length || 0} tasks in this job card?`}
+        onConfirm={confirmApproveAll}
+        onCancel={() => setConfirmAction(null)}
+        confirmText="Approve All"
         cancelText="Cancel"
       />
       <ConfirmDialog
