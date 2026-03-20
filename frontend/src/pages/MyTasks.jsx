@@ -474,14 +474,14 @@ function MyTasks({ user, selectedBranchId, onBranchChange }) {
             onClick={() => setTaskStatusFilter(f.id)}
             className={`inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
               taskStatusFilter === f.id
-                ? 'bg-primary text-white shadow-sm'
+                ? 'bg-[#2563A8] text-white shadow-sm'
                 : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
             }`}
           >
             {f.icon}
             <span className="hidden sm:inline">{f.label}</span>
             <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
-              taskStatusFilter === f.id ? 'bg-white/25 text-white' : 'bg-gray-100 text-gray-600'
+              taskStatusFilter === f.id ? 'bg-white/30 text-white' : 'bg-gray-100 text-gray-600'
             }`}>
               {filterCounts[f.id]}
             </span>
@@ -495,7 +495,7 @@ function MyTasks({ user, selectedBranchId, onBranchChange }) {
           {jobCardGroups.map(group => (
             <div key={group.jobCard.id} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
               {/* Job Card Header - Responsive */}
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 px-4 py-3 sm:px-5 sm:py-3.5 bg-gradient-to-r from-blue-600 to-blue-700">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 px-4 py-3 sm:px-5 sm:py-3.5 bg-[#2563A8]">
                 <div className="flex items-start gap-3 flex-1 min-w-0">
                   <div className="flex items-center justify-center w-8 h-8 bg-white/20 rounded-lg flex-shrink-0">
                     <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -764,7 +764,7 @@ function MyTasks({ user, selectedBranchId, onBranchChange }) {
               </div>
               <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-5 border-t border-gray-100">
                 <button type="button" onClick={() => setShowRequestPartsModal(false)} className="px-5 py-2.5 text-sm bg-white hover:bg-gray-50 text-gray-700 rounded-lg font-semibold border border-gray-300 shadow-sm transition-colors order-2 sm:order-1">Cancel</button>
-                <button type="submit" className="px-5 py-2.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-px order-1 sm:order-2" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>Request Parts</button>
+                <button type="submit" className="px-5 py-2.5 text-sm bg-[#2563A8] hover:bg-[#1d4a8f] text-white rounded-lg font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-px order-1 sm:order-2" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>Request Parts</button>
               </div>
             </form>
           </div>

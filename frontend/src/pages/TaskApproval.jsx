@@ -13,15 +13,20 @@ function TaskApproval({ user }) {
   const [inspectionLoading, setInspectionLoading] = useState({})
   const [activeTab, setActiveTab] = useState('tasks')
   const [branches, setBranches] = useState([])
-  const [selectedBranch, setSelectedBranch] = useState(user?.branch_id || '')
+  // For super_admin, default to all branches (empty string); for others, default to their branch
+  const [selectedBranch, setSelectedBranch] = useState(
+    user?.role?.name === 'super_admin' ? '' : (user?.branch_id || '')
+  )
   const [branchDropdownOpen, setBranchDropdownOpen] = useState(false)
   const [notification, setNotification] = useState(null)
   const [confirmAction, setConfirmAction] = useState(null)
   const branchDropdownRef = useRef(null)
 
   useEffect(() => {
+    // Clear branch filtering from localStorage so interceptor doesn't add branch_id
+    localStorage.removeItem('selectedBranchId')
     fetchBranches()
-    fetchPendingTasks()
+    fetchPendingTasks(selectedBranch)
     fetchCompleteJobCards()
   }, [selectedBranch])
 
@@ -48,13 +53,14 @@ function TaskApproval({ user }) {
     }
   }
 
-  const fetchPendingTasks = async () => {
+  const fetchPendingTasks = async (branchId) => {
     try {
       const token = localStorage.getItem('token')
       const params = {}
-      if (selectedBranch) {
-        params.branch_id = selectedBranch
+      if (branchId) {
+        params.branch_id = branchId
       }
+      // Fetch awaiting approval tasks, optionally filtered by branch
       const response = await axiosClient.get('/all-tasks', {
         headers: { Authorization: `Bearer ${token}` },
         params
@@ -62,7 +68,7 @@ function TaskApproval({ user }) {
       let pendingTasks = response.data.filter(t => t.status === 'awaiting_approval')
       setTasks(pendingTasks)
     } catch (error) {
-      console.error('Error:', error)
+      console.error('Error fetching tasks:', error)
     } finally {
       setLoading(false)
     }
@@ -131,7 +137,7 @@ function TaskApproval({ user }) {
       })
       setNotification({ type: 'success', title: 'Success', message: 'Task approved successfully!' })
       setConfirmAction(null)
-      fetchPendingTasks()
+      fetchPendingTasks(selectedBranch)
       fetchCompleteJobCards()
     } catch (error) {
       setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error approving task' })
@@ -151,7 +157,7 @@ function TaskApproval({ user }) {
       })
       setNotification({ type: 'success', title: 'Success', message: 'Task rejected!' })
       setConfirmAction(null)
-      fetchPendingTasks()
+      fetchPendingTasks(selectedBranch)
     } catch (error) {
       setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error rejecting task' })
       setConfirmAction(null)
@@ -199,7 +205,7 @@ function TaskApproval({ user }) {
     <div className="space-y-6">
 
       {/* Branch Filter */}
-      {!user?.branch_id ? (
+      {(user?.role?.name === 'super_admin' || !user?.branch_id) ? (
         <div ref={branchDropdownRef} className="relative w-fit">
           <button
             onClick={() => setBranchDropdownOpen(!branchDropdownOpen)}
@@ -356,7 +362,14 @@ function TaskApproval({ user }) {
                           <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
                           {task.job_card.vehicle.license_plate}
                         </span>
-                        {task.assigned_to_user && (
+                        {task.assigned_employees && task.assigned_employees.length > 0 ? (
+                          task.assigned_employees.map((employee, idx) => (
+                            <span key={idx} className="inline-flex items-center gap-1 font-semibold text-blue-600">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                              {employee.name}
+                            </span>
+                          ))
+                        ) : task.assigned_to_user && (
                           <span className="inline-flex items-center gap-1 font-semibold text-blue-600">
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                             {task.assigned_to_user.name}
