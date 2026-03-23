@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import Notification from '../common/Notification'
 import ConfirmDialog from '../common/ConfirmDialog'
 import axiosClient from '../../api/axios'
@@ -15,11 +15,16 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
   const [notification, setNotification] = useState(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deletePartId, setDeletePartId] = useState(null)
+  const [taskApprovedParts, setTaskApprovedParts] = useState(new Set())
+  const [orderedParts, setOrderedParts] = useState(new Set())
+
+  const sparePartsRef = useRef(null)
 
   const [partForm, setPartForm] = useState({
     task_id: '',
     part_name: '',
     part_number: '',
+    quantity: '',
     description: '',
   })
 
@@ -60,8 +65,8 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
       await axiosClient.post(`/job-cards/${jobCard.id}/spare-parts`, partForm, { headers: { Authorization: `Bearer ${token}` } })
       setNotification({ type: 'success', title: 'Success', message: 'Spare part requested successfully!' })
       setShowAddModal(false)
-      setPartForm({ task_id: '', part_name: '', part_number: '', description: '' })
-      setTimeout(() => onUpdate(), 2000)
+      setPartForm({ task_id: '', part_name: '', part_number: '', quantity: '', description: '' })
+      setTimeout(() => { onUpdate(); scrollToSparePartsSection(); }, 2000)
     } catch (error) {
       setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error requesting part' })
     }
@@ -76,7 +81,7 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
       const token = localStorage.getItem('token')
       await axiosClient.post(`/spare-parts/${selectedPart.id}/approve/${approvalLevel}`, { status, notes: approvalNotes }, { headers: { Authorization: `Bearer ${token}` } })
       setNotification({ type: 'success', title: 'Success', message: `${status === 'approved' ? 'Approved' : 'Rejected'} successfully!` })
-      setShowApprovalModal(false); setTimeout(() => onUpdate(), 2000)
+      setShowApprovalModal(false); setTimeout(() => { onUpdate(); scrollToSparePartsSection(); }, 2000)
     } catch (error) {
       setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error processing approval' })
     }
@@ -87,7 +92,7 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
       const token = localStorage.getItem('token')
       await axiosClient.post(`/spare-parts/${partId}/approve/admin`, { status, notes: '' }, { headers: { Authorization: `Bearer ${token}` } })
       setNotification({ type: 'success', title: 'Success', message: `Part ${status === 'approved' ? 'approved' : 'rejected'} by Admin!` })
-      setTimeout(() => onUpdate(), 2000)
+      setTimeout(() => { onUpdate(); scrollToSparePartsSection(); }, 2000)
     } catch (error) {
       setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error processing approval' })
     }
@@ -98,7 +103,7 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
       const token = localStorage.getItem('token')
       await axiosClient.post(`/spare-parts/${partId}/approve/customer`, { status, notes: '' }, { headers: { Authorization: `Bearer ${token}` } })
       setNotification({ type: 'success', title: 'Success', message: `Part ${status === 'approved' ? 'approved' : 'rejected'} by Customer!` })
-      setTimeout(() => onUpdate(), 2000)
+      setTimeout(() => { onUpdate(); scrollToSparePartsSection(); }, 2000)
     } catch (error) {
       setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error processing approval' })
     }
@@ -108,7 +113,7 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
     try {
       const token = localStorage.getItem('token')
       await axiosClient.patch(`/spare-parts/${partId}/status`, { overall_status: newStatus }, { headers: { Authorization: `Bearer ${token}` } })
-      setNotification({ type: 'success', title: 'Success', message: `Status updated to ${newStatus}` }); setTimeout(() => onUpdate(), 2000)
+      setNotification({ type: 'success', title: 'Success', message: `Status updated to ${newStatus}` }); setTimeout(() => { onUpdate(); scrollToSparePartsSection(); }, 2000)
     } catch (error) {
       setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error updating status' })
     }
@@ -126,7 +131,7 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
       setNotification({ type: 'success', title: 'Success', message: 'Spare part deleted successfully!' })
       setShowDeleteConfirm(false)
       setDeletePartId(null)
-      setTimeout(() => onUpdate(), 2000)
+      setTimeout(() => { onUpdate(); scrollToSparePartsSection(); }, 2000)
     } catch (error) {
       setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error deleting part' })
       setShowDeleteConfirm(false)
@@ -139,7 +144,7 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
     try {
       const token = localStorage.getItem('token')
       await axiosClient.post(`/spare-parts/${partId}/confirm-delivery`, {}, { headers: { Authorization: `Bearer ${token}` } })
-      setNotification({ type: 'success', title: 'Success', message: 'Parts delivery confirmed!' }); setTimeout(() => onUpdate(), 2000)
+      setNotification({ type: 'success', title: 'Success', message: 'Parts delivery confirmed!' }); setTimeout(() => { onUpdate(); scrollToSparePartsSection(); }, 2000)
     } catch (error) {
       setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error confirming delivery' })
     }
@@ -147,11 +152,77 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
 
   const openHavePartModal = (part) => { setSelectedPart(part); setShowHavePartModal(true) }
 
+  const toggleTaskApproved = (partId) => {
+    const newSet = new Set(taskApprovedParts)
+    if (newSet.has(partId)) {
+      newSet.delete(partId)
+    } else {
+      newSet.add(partId)
+    }
+    setTaskApprovedParts(newSet)
+  }
+
+  const toggleOrderedPart = (partId) => {
+    const newSet = new Set(orderedParts)
+    if (newSet.has(partId)) {
+      newSet.delete(partId)
+    } else {
+      newSet.add(partId)
+    }
+    setOrderedParts(newSet)
+  }
+
+  const handleBulkUpdateToProcess = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const requests = Array.from(taskApprovedParts).map(partId =>
+        axiosClient.patch(`/spare-parts/${partId}/status`, { overall_status: 'process' }, { headers: { Authorization: `Bearer ${token}` } })
+      )
+      await Promise.all(requests)
+      setNotification({ type: 'success', title: 'Success', message: `${taskApprovedParts.size} part(s) marked as in stock!` })
+      setTaskApprovedParts(new Set())
+      setTimeout(() => { onUpdate(); scrollToSparePartsSection(); }, 1500)
+    } catch (error) {
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error updating parts' })
+    }
+  }
+
+  const handleBulkUpdateToOrdered = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const requests = Array.from(taskApprovedParts).map(partId =>
+        axiosClient.patch(`/spare-parts/${partId}/status`, { overall_status: 'ordered' }, { headers: { Authorization: `Bearer ${token}` } })
+      )
+      await Promise.all(requests)
+      setNotification({ type: 'success', title: 'Success', message: `${taskApprovedParts.size} part(s) marked as ordered!` })
+      setTaskApprovedParts(new Set())
+      setTimeout(() => { onUpdate(); scrollToSparePartsSection(); }, 1500)
+    } catch (error) {
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error updating parts' })
+    }
+  }
+
+  const handleBulkMarkAsReceived = async () => {
+    if (orderedParts.size === 0) return
+    try {
+      const token = localStorage.getItem('token')
+      const requests = Array.from(orderedParts).map(partId =>
+        axiosClient.patch(`/spare-parts/${partId}/status`, { overall_status: 'process' }, { headers: { Authorization: `Bearer ${token}` } })
+      )
+      await Promise.all(requests)
+      setNotification({ type: 'success', title: 'Success', message: `${orderedParts.size} part(s) marked as received!` })
+      setOrderedParts(new Set())
+      setTimeout(() => { onUpdate(); scrollToSparePartsSection(); }, 1500)
+    } catch (error) {
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error updating parts' })
+    }
+  }
+
   const handleMarkAsOrdered = async () => {
     try {
       const token = localStorage.getItem('token')
       await axiosClient.patch(`/spare-parts/${selectedPart.id}/status`, { overall_status: 'ordered' }, { headers: { Authorization: `Bearer ${token}` } })
-      setNotification({ type: 'success', title: 'Success', message: 'Part marked as ordered' }); setShowHavePartModal(false); setTimeout(() => onUpdate(), 2000)
+      setNotification({ type: 'success', title: 'Success', message: 'Part marked as ordered' }); setShowHavePartModal(false); setTimeout(() => { onUpdate(); scrollToSparePartsSection(); }, 2000)
     } catch (error) {
       setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error marking as ordered' })
     }
@@ -161,7 +232,7 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
     try {
       const token = localStorage.getItem('token')
       await axiosClient.patch(`/spare-parts/${selectedPart.id}/status`, { overall_status: 'process' }, { headers: { Authorization: `Bearer ${token}` } })
-      setNotification({ type: 'success', title: 'Success', message: 'Part marked as available!' }); setShowHavePartModal(false); setTimeout(() => onUpdate(), 2000)
+      setNotification({ type: 'success', title: 'Success', message: 'Part marked as available!' }); setShowHavePartModal(false); setTimeout(() => { onUpdate(); scrollToSparePartsSection(); }, 2000)
     } catch (error) {
       setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error marking as available' })
     }
@@ -170,11 +241,14 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
   const openReceivedCostModal = (part) => { setSelectedPart(part); setReceivedCost(''); setShowReceivedCostModal(true) }
 
   const handleMarkAsReceived = async () => {
-    if (!receivedCost || receivedCost <= 0) { setNotification({ type: 'error', title: 'Validation Error', message: 'Please enter the actual cost' }); return }
     try {
       const token = localStorage.getItem('token')
-      await axiosClient.patch(`/spare-parts/${selectedPart.id}/status`, { overall_status: 'process', actual_cost: receivedCost }, { headers: { Authorization: `Bearer ${token}` } })
-      setNotification({ type: 'success', title: 'Success', message: 'Part received from supplier and available!' }); setShowReceivedCostModal(false); setTimeout(() => onUpdate(), 2000)
+      const payload = { overall_status: 'process' }
+      if (receivedCost && receivedCost > 0) {
+        payload.actual_cost = receivedCost
+      }
+      await axiosClient.patch(`/spare-parts/${selectedPart.id}/status`, payload, { headers: { Authorization: `Bearer ${token}` } })
+      setNotification({ type: 'success', title: 'Success', message: 'Part received from supplier and available!' }); setShowReceivedCostModal(false); setTimeout(() => { onUpdate(); scrollToSparePartsSection(); }, 2000)
     } catch (error) {
       setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error marking as received' })
     }
@@ -184,7 +258,7 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
     try {
       const token = localStorage.getItem('token')
       await axiosClient.post(`/spare-parts/${selectedPart.id}/confirm-delivery`, {}, { headers: { Authorization: `Bearer ${token}` } })
-      setNotification({ type: 'success', title: 'Success', message: 'Parts marked as delivered!' }); setShowHavePartModal(false); setTimeout(() => onUpdate(), 2000)
+      setNotification({ type: 'success', title: 'Success', message: 'Parts marked as delivered!' }); setShowHavePartModal(false); setTimeout(() => { onUpdate(); scrollToSparePartsSection(); }, 2000)
     } catch (error) {
       setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error marking as delivered' })
     }
@@ -210,7 +284,13 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
 
   const formatCurrency = (amount) => new Intl.NumberFormat('en-LK', { style: 'currency', currency: 'LKR' }).format(amount)
 
-  const parts = jobCard.spare_parts_requests || []
+  const scrollToSparePartsSection = () => {
+    if (sparePartsRef.current) {
+      sparePartsRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }
+
+  const parts = (jobCard.spare_parts_requests || []).sort((a, b) => b.id - a.id)
 
   const ModalWrapper = ({ children, onClose }) => (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -235,7 +315,7 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
   )
 
   return (
-    <div>
+    <div ref={sparePartsRef}>
       {/* Section Header */}
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-base font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2">
@@ -270,8 +350,86 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
           {canAdd && <p className="text-gray-300 text-xs mt-1">Request parts needed for repairs</p>}
         </div>
       ) : (
-        <div className="space-y-3">
-          {parts.map((part) => {
+        <div>
+          {/* Bulk Action Buttons - For Approved Parts */}
+          {taskApprovedParts.size > 0 && (
+            <div className="mb-6 flex gap-3 items-center justify-between bg-gradient-to-r from-blue-50 to-indigo-50 p-5 rounded-xl border border-blue-200 flex-wrap">
+              <div className="flex items-center gap-3">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-blue-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                <span className="text-sm font-semibold text-blue-900">
+                  {taskApprovedParts.size} part{taskApprovedParts.size !== 1 ? 's' : ''} selected
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setTaskApprovedParts(new Set())}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-white hover:bg-gray-100 text-gray-700 border border-gray-300 rounded-lg text-sm font-semibold transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  Clear
+                </button>
+                <button
+                  onClick={handleBulkUpdateToProcess}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-sm"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  In Stock Deliver
+                </button>
+                <button
+                  onClick={handleBulkUpdateToOrdered}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-sm"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                  </svg>
+                  Need to Order
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Bulk Action Buttons - For Ordered Parts */}
+          {orderedParts.size > 0 && (
+            <div className="mb-6 flex gap-3 items-center justify-between bg-gradient-to-r from-orange-50 to-amber-50 p-5 rounded-xl border border-orange-200 flex-wrap">
+              <div className="flex items-center gap-3">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-orange-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                <span className="text-sm font-semibold text-orange-900">
+                  {orderedParts.size} part{orderedParts.size !== 1 ? 's' : ''} selected
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setOrderedParts(new Set())}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-white hover:bg-gray-100 text-gray-700 border border-gray-300 rounded-lg text-sm font-semibold transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  Clear
+                </button>
+                <button
+                  onClick={handleBulkMarkAsReceived}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-sm"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                  </svg>
+                  Mark All as Received
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-3">
+            {parts.map((part) => {
             const canApproveAdmin = (user.role.name === 'super_admin' || user.permissions.includes('approve_spare_parts')) && part.admin_status === 'pending'
             const canApproveCustomer = (user.role.name === 'super_admin' || user.permissions.includes('approve_spare_parts')) && part.customer_status === 'pending' && part.admin_status === 'approved'
             const adminStyle = getApprovalStyle(part.admin_status)
@@ -283,6 +441,24 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2.5 flex-wrap">
+                      {part.overall_status === 'approved' && (
+                        <input 
+                          type="checkbox" 
+                          checked={taskApprovedParts.has(part.id)}
+                          onChange={() => toggleTaskApproved(part.id)}
+                          className="w-5 h-5 cursor-pointer accent-blue-600"
+                          title="Mark task status as approved"
+                        />
+                      )}
+                      {part.overall_status === 'ordered' && (
+                        <input 
+                          type="checkbox" 
+                          checked={orderedParts.has(part.id)}
+                          onChange={() => toggleOrderedPart(part.id)}
+                          className="w-5 h-5 cursor-pointer accent-orange-600"
+                          title="Mark as received"
+                        />
+                      )}
                       <h4 className="font-bold text-gray-900">{part.part_name}</h4>
                       <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border capitalize ${getOverallStatusStyle(part.overall_status)}`}>
                         {part.overall_status}
@@ -465,6 +641,50 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
               </div>
             )
           })}
+          </div>
+
+          {/* Bulk Action Buttons */}
+          {taskApprovedParts.size > 0 && (
+            <div className="mt-6 flex gap-3 items-center justify-between bg-gradient-to-r from-blue-50 to-indigo-50 p-5 rounded-xl border border-blue-200 flex-wrap">
+              <div className="flex items-center gap-3">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-blue-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                <span className="text-sm font-semibold text-blue-900">
+                  {taskApprovedParts.size} part{taskApprovedParts.size !== 1 ? 's' : ''} selected
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setTaskApprovedParts(new Set())}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-white hover:bg-gray-100 text-gray-700 border border-gray-300 rounded-lg text-sm font-semibold transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  Clear
+                </button>
+                <button
+                  onClick={handleBulkUpdateToProcess}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-sm"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  In Stock Deliver
+                </button>
+                <button
+                  onClick={handleBulkUpdateToOrdered}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-sm"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                  </svg>
+                  Need to Order
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -487,10 +707,17 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
                 <input type="text" value={partForm.part_name} onChange={(e) => setPartForm({...partForm, part_name: e.target.value})} required placeholder="e.g., Brake Pads Front"
                   className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all" />
               </div>
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Part Number</label>
-                <input type="text" value={partForm.part_number} onChange={(e) => setPartForm({...partForm, part_number: e.target.value})} placeholder="e.g., BP-12345"
-                  className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Part Number</label>
+                  <input type="text" value={partForm.part_number} onChange={(e) => setPartForm({...partForm, part_number: e.target.value})} placeholder="e.g., BP-12345"
+                    className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Quantity</label>
+                  <input type="number" value={partForm.quantity} onChange={(e) => setPartForm({...partForm, quantity: e.target.value})} placeholder="e.g., 4" min="1"
+                    className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all" />
+                </div>
               </div>
               <div className="space-y-1.5">
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Description</label>
@@ -569,7 +796,7 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
                 <p className="text-sm text-gray-700"><span className="font-semibold">Quantity:</span> {selectedPart?.quantity} units</p>
               </div>
               <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Actual Cost Paid (Per Unit) <span className="text-red-400">*</span></label>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Actual Cost Paid (Per Unit)</label>
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-gray-500 font-medium">LKR</span>
                   <input type="number" value={receivedCost} onChange={(e) => setReceivedCost(e.target.value)} placeholder="Enter amount" step="0.01" min="0"

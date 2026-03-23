@@ -11,9 +11,7 @@ function TaskApproval({ user }) {
   const [jobCardTasks, setJobCardTasks] = useState({})
   const [loading, setLoading] = useState(true)
   const [inspectionLoading, setInspectionLoading] = useState({})
-  const [activeTab, setActiveTab] = useState(() => {
-    return localStorage.getItem('taskApprovalActiveTab') || 'tasks'
-  })
+  const [activeTab, setActiveTab] = useState('tasks')
   const [branches, setBranches] = useState([])
   const [selectedBranch, setSelectedBranch] = useState(
     user?.role?.name === 'super_admin' ? '' : (user?.branch_id || '')
@@ -43,10 +41,6 @@ function TaskApproval({ user }) {
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
-
-  useEffect(() => {
-    localStorage.setItem('taskApprovalActiveTab', activeTab)
-  }, [activeTab])
 
   const fetchBranches = async () => {
     try {
@@ -94,38 +88,34 @@ function TaskApproval({ user }) {
       })
       const allJobCards = response.data.data || response.data
 
-      const jobCardsToProcess = allJobCards.filter(jobCard => !['inspected'].includes(jobCard.status))
-
-      // Fetch all tasks in parallel instead of sequentially
-      const tasksFetchPromises = jobCardsToProcess.map(jobCard =>
-        axiosClient.get(`/job-cards/${jobCard.id}/tasks`, {
-          headers: { Authorization: `Bearer ${token}` }
-        }).then(tasksResponse => ({
-          jobCardId: jobCard.id,
-          jobCard: jobCard,
-          tasks: tasksResponse.data || []
-        })).catch(error => {
-          console.error(`Error fetching tasks for job card ${jobCard.id}:`, error)
-          return { jobCardId: jobCard.id, jobCard: jobCard, tasks: [] }
-        })
-      )
-
-      const allTasksResults = await Promise.all(tasksFetchPromises)
-
       const completeCards = []
       const tasksMap = {}
+      
+      for (const jobCard of allJobCards) {
+        
+        if (['inspected'].includes(jobCard.status)) {
+          continue
+        }
 
-      for (const result of allTasksResults) {
-        tasksMap[result.jobCardId] = result.tasks
+        try {
+          const tasksResponse = await axiosClient.get(`/job-cards/${jobCard.id}/tasks`, {
+            headers: { Authorization: `Bearer ${token}` }
+          })
+          const jobCardTasksList = tasksResponse.data || []
+          
+          tasksMap[jobCard.id] = jobCardTasksList
 
-        const allTasksApproved = result.tasks.length > 0 && result.tasks.every(task => 
-          task.status === 'approved' || task.status === 'completed' || task.status === 'cancelled'
-        )
+          const allTasksApproved = jobCardTasksList.length > 0 && jobCardTasksList.every(task => 
+            task.status === 'approved' || task.status === 'completed' || task.status === 'cancelled'
+          )
 
-        const noAwaitingApproval = !result.tasks.some(task => task.status === 'awaiting_approval')
+          const noAwaitingApproval = !jobCardTasksList.some(task => task.status === 'awaiting_approval')
 
-        if (allTasksApproved && noAwaitingApproval && result.tasks.length > 0) {
-          completeCards.push(result.jobCard)
+          if (allTasksApproved && noAwaitingApproval && jobCardTasksList.length > 0) {
+            completeCards.push(jobCard)
+          }
+        } catch (error) {
+          console.error(`Error fetching tasks for job card ${jobCard.id}:`, error)
         }
       }
 
@@ -224,10 +214,10 @@ function TaskApproval({ user }) {
     try {
       setInspectionLoading(prev => ({ ...prev, [confirmAction.jobCardId]: true }))
       const token = localStorage.getItem('token')
-      await axiosClient.post(`/job-cards/${confirmAction.jobCardId}/mark-inspected`, {}, {
+      await axiosClient.post(`/job-cards/${confirmAction.jobCardId}/approve`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      setNotification({ type: 'success', title: 'Success', message: 'Job card marked as inspected!' })
+      setNotification({ type: 'success', title: 'Success', message: 'Job card marked as completed!' })
       setConfirmAction(null)
       fetchCompleteJobCards()
     } catch (error) {
@@ -474,7 +464,7 @@ function TaskApproval({ user }) {
                       {isJobCardSelected && jobCardTasks.length > 1 && (
                         <button
                           onClick={() => setConfirmAction({ type: 'approve_all', jobCardId: jobCardGroup.jobCard.id })}
-                          className="inline-flex items-center gap-1 bg-[#1a3a6b] hover:bg-[#0f2444] text-white px-3 py-1.5 rounded text-xs font-bold transition-all whitespace-nowrap"
+                          className="inline-flex items-center gap-1 bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded text-xs font-bold transition-all whitespace-nowrap"
                           title="Approve all tasks in this job card"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
@@ -534,7 +524,7 @@ function TaskApproval({ user }) {
                               <div className="flex gap-2">
                                 <button
                                   onClick={() => handleApproveTask(task.id)}
-                                  className="inline-flex items-center gap-1 bg-[#2563A8] hover:bg-[#2563A8]/90 text-white px-2 py-1 rounded text-xs font-bold transition-all"
+                                  className="inline-flex items-center gap-1 bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-xs font-bold transition-all"
                                   title="Approve task"
                                 >
                                   <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
@@ -653,7 +643,7 @@ function TaskApproval({ user }) {
                         <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
-                        Mark as Inspected
+                        Mark as JobCard Completed
                       </>
                     )}
                   </button>
@@ -702,11 +692,11 @@ function TaskApproval({ user }) {
       <ConfirmDialog
         show={confirmAction?.type === 'inspection' ? true : false}
         type="warning"
-        title="Mark as Inspected"
-        message="Are you sure you want to mark this job card as inspected? (This will hide it from the Work Completed tab)"
+        title="Complete Inspection"
+        message="Are you sure you want to mark this inspection as completed?"
         onConfirm={confirmMarkInspectionCompleted}
         onCancel={() => setConfirmAction(null)}
-        confirmText="Mark as Inspected"
+        confirmText="Complete"
         cancelText="Cancel"
       />
     </div>

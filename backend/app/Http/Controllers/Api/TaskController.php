@@ -126,13 +126,12 @@ class TaskController extends Controller
             }
         }
         
-        // Stop any active time tracking
-        $activeTracking = TaskTimeTracking::where('task_id', $id)
-            ->where('user_id', $user->id)
+        // Stop all active time tracking for this task (for all assigned employees)
+        $activeTrackings = TaskTimeTracking::where('task_id', $id)
             ->whereNull('end_time')
-            ->first();
+            ->get();
         
-        if ($activeTracking) {
+        foreach ($activeTrackings as $activeTracking) {
             $activeTracking->update([
                 'end_time' => now(),
                 'duration_minutes' => floor($activeTracking->start_time->diffInMinutes(now()))
@@ -155,11 +154,6 @@ class TaskController extends Controller
         $task->update([
             'status' => 'awaiting_approval',
             'actual_duration_minutes' => $totalMinutes
-        ]);
-        
-        // Update assignment
-        $assignment->update([
-            'status' => 'awaiting_approval'
         ]);
         
         return response()->json([
@@ -255,18 +249,20 @@ class TaskController extends Controller
             return response()->json(['message' => 'Task is not awaiting approval'], 400);
         }
 
+        // Stop any remaining active time tracking for this task
+        TaskTimeTracking::where('task_id', $id)
+            ->whereNull('end_time')
+            ->update([
+                'end_time' => now(),
+                'duration_minutes' => TaskTimeTracking::raw('FLOOR(TIMESTAMPDIFF(MINUTE, start_time, NOW()))')
+            ]);
+
         $task->update([
             'status' => 'completed',
             'completed_at' => now(),
             'approval_notes' => $validated['approval_notes'] ?? null,
             'approved_by' => $user->id,
             'approved_at' => now(),
-        ]);
-
-        // Update all assignments for this task
-        TaskAssignment::where('task_id', $id)->update([
-            'status' => 'completed',
-            'completed_at' => now(),
         ]);
 
         // Check if all tasks in job card are completed
@@ -312,11 +308,6 @@ class TaskController extends Controller
             'rejection_reason' => $validated['rejection_reason'],
             'rejected_by' => $user->id,
             'rejected_at' => now(),
-        ]);
-
-        // Update assignments
-        TaskAssignment::where('task_id', $id)->update([
-            'status' => 'in_progress',
         ]);
 
         return response()->json([
@@ -442,7 +433,7 @@ class TaskController extends Controller
             'task_name' => 'sometimes|string|max:255',
             'description' => 'nullable|string',
             'category' => 'sometimes|in:mechanical,electrical,bodywork,painting,diagnostic,maintenance,other',
-            'status' => 'sometimes|in:pending,assigned,in_progress,completed,on_hold,cancelled',
+            'status' => 'sometimes|in:pending,assigned,accepted,in_progress,awaiting_approval,completed,rejected,cancelled',
             'cost_price' => 'sometimes|numeric|min:0',
             'amount' => 'sometimes|numeric|min:0',
             'priority' => 'nullable|integer|in:0,1,2',
@@ -541,7 +532,6 @@ class TaskController extends Controller
                 'user_id' => $employeeId,
                 'assigned_by' => $user->id,
                 'assigned_at' => now(),
-                'status' => 'assigned',
             ]);
         }
 

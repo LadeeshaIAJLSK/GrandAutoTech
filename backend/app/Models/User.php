@@ -94,7 +94,7 @@ public function taskAssignments()
 public function assignedTasks()
 {
     return $this->belongsToMany(Task::class, 'task_assignments')
-        ->withPivot('status', 'assigned_at', 'started_at', 'completed_at')
+        ->withPivot('assigned_at', 'started_at', 'completed_at')
         ->withTimestamps();
 }
 

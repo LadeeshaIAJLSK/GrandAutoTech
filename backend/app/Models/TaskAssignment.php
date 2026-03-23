@@ -16,7 +16,6 @@ class TaskAssignment extends Model
         'assigned_at',
         'started_at',
         'completed_at',
-        'status',
         'notes',
     ];
 

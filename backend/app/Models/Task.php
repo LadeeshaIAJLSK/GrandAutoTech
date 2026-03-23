@@ -50,7 +50,7 @@ class Task extends Model
     public function assignedEmployees()
     {
         return $this->belongsToMany(User::class, 'task_assignments')
-            ->withPivot('status', 'assigned_at', 'started_at', 'completed_at', 'notes')
+            ->withPivot('assigned_at', 'started_at', 'completed_at', 'notes')
             ->withTimestamps();
     }
 

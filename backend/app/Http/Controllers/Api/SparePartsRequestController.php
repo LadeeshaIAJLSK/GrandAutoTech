@@ -39,7 +39,7 @@ class SparePartsRequestController extends Controller
             'part_name' => 'required|string|max:255',
             'part_number' => 'nullable|string|max:100',
             'description' => 'nullable|string',
-            'quantity' => 'required|integer|min:1',
+            'quantity' => 'nullable|integer|min:1',
         ]);
 
         $jobCard = JobCard::findOrFail($jobCardId);

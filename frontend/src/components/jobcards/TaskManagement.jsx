@@ -195,8 +195,11 @@ function TaskManagement({ jobCard, onUpdate, user }) {
     const styles = {
       pending:     'bg-yellow-50 text-yellow-700 border-yellow-200',
       assigned:    'bg-blue-50 text-blue-700 border-blue-200',
+      accepted:    'bg-cyan-50 text-cyan-700 border-cyan-200',
       in_progress: 'bg-purple-50 text-purple-700 border-purple-200',
+      awaiting_approval: 'bg-orange-50 text-orange-700 border-orange-200',
       completed:   'bg-green-50 text-green-700 border-green-200',
+      rejected:    'bg-red-50 text-red-700 border-red-200',
     }
     return styles[status] || 'bg-gray-50 text-gray-700 border-gray-200'
   }
@@ -205,8 +208,11 @@ function TaskManagement({ jobCard, onUpdate, user }) {
     const dots = {
       pending:     'bg-yellow-400',
       assigned:    'bg-blue-500',
+      accepted:    'bg-cyan-500',
       in_progress: 'bg-purple-500',
+      awaiting_approval: 'bg-orange-400',
       completed:   'bg-green-500',
+      rejected:    'bg-red-500',
     }
     return dots[status] || 'bg-gray-400'
   }
@@ -404,41 +410,29 @@ function TaskManagement({ jobCard, onUpdate, user }) {
                         </button>
                       )}
 
-                      {hasActiveTimer && (
-                        <button
-                          onClick={() => handlePauseTask(task.id)}
-                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 rounded-lg text-xs font-semibold transition-colors animate-pulse"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 01-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                          </svg>
-                          Pause
-                        </button>
-                      )}
-
-                      {!hasActiveTimer && task.status === 'in_progress' && (
-                        <button
-                          onClick={() => handleResumeTask(task.id)}
-                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-xs font-semibold transition-colors"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                          </svg>
-                          Resume
-                        </button>
-                      )}
-
                       {task.status === 'in_progress' && (
-                        <button
-                          onClick={() => handleCompleteTask(task.id)}
-                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-primary hover:bg-primary-dark text-white rounded-lg text-xs font-semibold transition-all shadow-sm hover:shadow"
-                          style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                          Complete
-                        </button>
+                        <>
+                          <button
+                            onClick={() => handlePauseTask(task.id)}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 rounded-lg text-xs font-semibold transition-colors"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 01-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                            </svg>
+                            Pause
+                          </button>
+
+                          <button
+                            onClick={() => handleCompleteTask(task.id)}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-primary hover:bg-primary-dark text-white rounded-lg text-xs font-semibold transition-all shadow-sm hover:shadow"
+                            style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                            Complete
+                          </button>
+                        </>
                       )}
                     </>
                   )}

@@ -44,8 +44,9 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef, onPric
   const [advancePaymentForm, setAdvancePaymentForm] = useState({
     amount: '',
     payment_method: 'cash',
-    reference_number: '',
-    bank_name: '',
+    card_number: '',
+    cheque_number: '',
+    bank_transaction_id: '',
     payment_date: new Date().toISOString().slice(0, 10),
     notes: '',
   })
@@ -155,15 +156,30 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef, onPric
     if (e) e.preventDefault()
     try {
       const token = localStorage.getItem('token')
+      
+      // Map method-specific fields to reference_number
+      let referenceNumber = ''
+      if (advancePaymentForm.payment_method === 'card') {
+        referenceNumber = advancePaymentForm.card_number
+      } else if (advancePaymentForm.payment_method === 'cheque') {
+        referenceNumber = advancePaymentForm.cheque_number
+      } else if (advancePaymentForm.payment_method === 'bank_transfer') {
+        referenceNumber = advancePaymentForm.bank_transaction_id
+      }
+
       await axiosClient.post('/payments', {
-        ...advancePaymentForm,
+        amount: advancePaymentForm.amount,
+        payment_method: advancePaymentForm.payment_method,
+        reference_number: referenceNumber,
+        payment_date: advancePaymentForm.payment_date,
+        notes: advancePaymentForm.notes,
         payment_type: 'advance',
         job_card_id: jobCard.id,
         invoice_id: null
       }, { headers: { Authorization: `Bearer ${token}` } })
       setNotification({ type: 'success', title: 'Success', message: 'Advance payment recorded successfully!' })
       setShowAdvancePaymentModal(false)
-      setAdvancePaymentForm({ amount: '', payment_method: 'cash', reference_number: '', bank_name: '', payment_date: new Date().toISOString().slice(0, 10), notes: '' })
+      setAdvancePaymentForm({ amount: '', payment_method: 'cash', card_number: '', cheque_number: '', bank_transaction_id: '', payment_date: new Date().toISOString().slice(0, 10), notes: '' })
       setTimeout(() => onUpdate(), 2000)
     } catch (error) {
       setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error recording advance payment' })
@@ -421,6 +437,75 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef, onPric
       </div>
     </>
   )
+
+  const AdvancePaymentMethodFields = (form, setForm) => {
+    if (form.payment_method === 'cash') {
+      return (
+        <div>
+          <label className={labelCls}>Notes</label>
+          <textarea value={form.notes} onChange={(e) => setForm({...form, notes: e.target.value})}
+            placeholder="Any additional notes..." rows="2"
+            className={`${inputCls} resize-none`} />
+        </div>
+      )
+    }
+
+    if (form.payment_method === 'card') {
+      return (
+        <>
+          <div>
+            <label className={labelCls}>Card Number <span className="text-red-400">*</span></label>
+            <input type="text" value={form.card_number} onChange={(e) => setForm({...form, card_number: e.target.value})}
+              placeholder="Enter card number" required className={inputCls} />
+          </div>
+          <div>
+            <label className={labelCls}>Notes</label>
+            <textarea value={form.notes} onChange={(e) => setForm({...form, notes: e.target.value})}
+              placeholder="Any additional notes..." rows="2"
+              className={`${inputCls} resize-none`} />
+          </div>
+        </>
+      )
+    }
+
+    if (form.payment_method === 'cheque') {
+      return (
+        <>
+          <div>
+            <label className={labelCls}>Cheque Number <span className="text-red-400">*</span></label>
+            <input type="text" value={form.cheque_number} onChange={(e) => setForm({...form, cheque_number: e.target.value})}
+              placeholder="Enter cheque number" required className={inputCls} />
+          </div>
+          <div>
+            <label className={labelCls}>Notes</label>
+            <textarea value={form.notes} onChange={(e) => setForm({...form, notes: e.target.value})}
+              placeholder="Any additional notes..." rows="2"
+              className={`${inputCls} resize-none`} />
+          </div>
+        </>
+      )
+    }
+
+    if (form.payment_method === 'bank_transfer') {
+      return (
+        <>
+          <div>
+            <label className={labelCls}>Bank Transaction ID <span className="text-red-400">*</span></label>
+            <input type="text" value={form.bank_transaction_id} onChange={(e) => setForm({...form, bank_transaction_id: e.target.value})}
+              placeholder="Enter transaction ID" required className={inputCls} />
+          </div>
+          <div>
+            <label className={labelCls}>Notes</label>
+            <textarea value={form.notes} onChange={(e) => setForm({...form, notes: e.target.value})}
+              placeholder="Any additional notes..." rows="2"
+              className={`${inputCls} resize-none`} />
+          </div>
+        </>
+      )
+    }
+
+    return null
+  }
 
   const bankOptions = [
     { value: '', label: 'Select a Bank' },
@@ -1312,10 +1397,10 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef, onPric
                   <label className={labelCls}>Payment Method <span className="text-red-400">*</span></label>
                   <select value={advancePaymentForm.payment_method} onChange={(e) => setAdvancePaymentForm({...advancePaymentForm, payment_method: e.target.value})} className={inputCls}>
                     <option value="">Select payment method</option>
-                    {paymentMethodOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    {paymentMethodOptions.filter(o => ['cash', 'card', 'cheque', 'bank_transfer'].includes(o.value)).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
-                {PaymentMethodFields(advancePaymentForm, setAdvancePaymentForm)}
+                {AdvancePaymentMethodFields(advancePaymentForm, setAdvancePaymentForm)}
                 {advancePaymentForm.amount && (
                   <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 flex justify-between items-center">
                     <span className="text-sm text-gray-600">Advance Amount to Record</span>
