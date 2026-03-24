@@ -47,6 +47,13 @@ class InvoiceController extends Controller
             'sparePartsRequests',
         ])->findOrFail($jobCardId);
 
+        // Check if job card is finalized
+        if ($jobCard->status !== 'finalized') {
+            return response()->json([
+                'message' => 'Job card must be finalized before generating an invoice. Current status: ' . $jobCard->status
+            ], 400);
+        }
+
         // Prevent duplicate invoices
         $existing = Invoice::where('job_card_id', $jobCardId)->first();
         if ($existing) {

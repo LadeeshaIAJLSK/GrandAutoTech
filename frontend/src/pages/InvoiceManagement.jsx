@@ -47,7 +47,7 @@ function InvoiceManagement({ user, selectedBranchId }) {
     try {
       setLoading(true)
       const token = localStorage.getItem('token')
-      const params = { status: 'inspected' }
+      const params = { status: 'finalized' }
       if (branchFilter) {
         params.branch_id = branchFilter
       }
@@ -170,7 +170,7 @@ function InvoiceManagement({ user, selectedBranchId }) {
           </svg>
           Invoice Management
         </h1>
-        <p className="text-xs text-gray-400">Generate &amp; manage invoices for completed job cards</p>
+        <p className="text-xs text-gray-400">Generate &amp; manage invoices for finalized job cards</p>
       </div>
 
       {/* Stats Cards */}
@@ -215,7 +215,7 @@ function InvoiceManagement({ user, selectedBranchId }) {
         <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
-        <p className="text-xs text-gray-500">Generate and manage invoices for completed job cards with pricing information. Advance payments are automatically deducted from total amounts.</p>
+        <p className="text-xs text-gray-500">Generate and manage invoices for finalized job cards with completed pricing information. Advance payments are automatically deducted from total amounts.</p>
       </div>
 
       {/* Filters */}

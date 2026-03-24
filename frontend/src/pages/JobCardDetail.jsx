@@ -196,8 +196,11 @@ function JobCardDetail({ jobCardId, onClose, user } = {}) {
 
     try {
       setSavingPrices(true)
+      // First mark as inspected
       await axiosClient.post(`/job-cards/${jobCard.id}/mark-inspected`, {})
-      setNotification({ type: 'success', title: 'Success', message: 'Prices saved and job card marked as inspected!' })
+      // Then mark as finalized
+      await axiosClient.post(`/job-cards/${jobCard.id}/mark-finalized`, {})
+      setNotification({ type: 'success', title: 'Success', message: 'Prices saved! Job card finalized and ready for invoicing.' })
       fetchJobCard()
     } catch (error) {
       setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error saving prices' })
@@ -440,8 +443,8 @@ function JobCardDetail({ jobCardId, onClose, user } = {}) {
                   </svg>
                 </div>
                 <div>
-                  <h3 className="font-bold text-gray-900">Save Prices & Mark as Inspected</h3>
-                  <p className="text-sm text-gray-600">Review all prices for services, spare parts, and additional charges before completing.</p>
+                  <h3 className="font-bold text-gray-900">Save Prices & Finalize Job Card</h3>
+                  <p className="text-sm text-gray-600">Review all prices for services, spare parts, and additional charges. Finalizing enables invoice generation.</p>
                 </div>
               </div>
 
@@ -471,7 +474,7 @@ function JobCardDetail({ jobCardId, onClose, user } = {}) {
                           <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                           </svg>
-                          Save Prices & Mark as Inspected
+                          Save Prices & Finalize
                         </>
                       )}
                     </button>

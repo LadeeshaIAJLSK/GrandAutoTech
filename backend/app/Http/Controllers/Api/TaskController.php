@@ -271,6 +271,15 @@ class TaskController extends Controller
             ->whereNotIn('status', ['completed', 'cancelled'])
             ->exists();
 
+        // If all tasks are completed, update job card status to completed
+        if ($allTasksCompleted) {
+            $jobCard->update([
+                'status' => 'completed',
+                'completed_at' => now(),
+            ]);
+            $jobCard->refresh();
+        }
+
         return response()->json([
             'message' => 'Task approved',
             'task' => $task->fresh(),
@@ -381,7 +390,38 @@ class TaskController extends Controller
         ]);
 
         return response()->json([
-            'message' => 'Job card marked as inspected. Ready for invoicing.',
+            'message' => 'Job card marked as inspected. Ready for pricing.',
+            'job_card' => $jobCard->fresh()
+        ]);
+    }
+
+    /**
+     * Mark job card as finalized (after all prices are saved)
+     */
+    public function markJobCardAsFinalized(Request $request, $jobCardId)
+    {
+        $user = $request->user();
+        
+        if (!$user->hasPermission('approve_tasks') && !in_array($user->role->name, ['super_admin', 'branch_admin'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $jobCard = JobCard::findOrFail($jobCardId);
+
+        // Check if job card is in inspected status (ready for finalization)
+        if ($jobCard->status !== 'inspected') {
+            return response()->json([
+                'message' => 'Job card must be in inspected status to mark as finalized.'
+            ], 400);
+        }
+
+        // Mark as finalized
+        $jobCard->update([
+            'status' => 'finalized'
+        ]);
+
+        return response()->json([
+            'message' => 'Job card finalized and ready for invoicing.',
             'job_card' => $jobCard->fresh()
         ]);
     }

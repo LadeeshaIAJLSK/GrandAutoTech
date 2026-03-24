@@ -637,4 +637,48 @@ class JobCardController extends Controller
             ]
         ]);
     }
+
+    /**
+     * Update an other charge (for pricing updates)
+     */
+    public function updateCharge(Request $request, $id)
+    {
+        $user = $request->user();
+        
+        $permissions = DB::table('permissions')
+            ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
+            ->where('role_permissions.role_id', $user->role_id)
+            ->pluck('permissions.name')
+            ->toArray();
+        
+        if (!in_array('add_job_cards', $permissions)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $charge = OtherCharge::findOrFail($id);
+        
+        $validated = $request->validate([
+            'cost_price' => 'nullable|numeric|min:0',
+            'amount' => 'nullable|numeric|min:0',
+            'description' => 'nullable|string|max:255',
+        ]);
+
+        // Get old amount for job card update
+        $oldAmount = $charge->amount;
+
+        // Update charge
+        $charge->update($validated);
+
+        // Update job card total if amount changed
+        if (isset($validated['amount']) && $oldAmount != $validated['amount']) {
+            $jobCard = $charge->jobCard;
+            $jobCard->other_charges = ($jobCard->other_charges - $oldAmount) + $validated['amount'];
+            $jobCard->save();
+        }
+
+        return response()->json([
+            'message' => 'Charge updated successfully',
+            'charge' => $charge
+        ]);
+    }
 }

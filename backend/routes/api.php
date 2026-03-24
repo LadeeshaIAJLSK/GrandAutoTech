@@ -117,6 +117,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/all-tasks', [TaskController::class, 'getAllTasks']);//used
     Route::post('/tasks/{id}/mark-done', [TaskController::class, 'markAsDone']);
     Route::post('/job-cards/{jobCardId}/mark-inspected', [TaskController::class, 'markJobCardAsInspected']);
+    Route::post('/job-cards/{jobCardId}/mark-finalized', [TaskController::class, 'markJobCardAsFinalized']);
 
 
 

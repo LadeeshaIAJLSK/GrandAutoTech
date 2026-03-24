@@ -376,6 +376,19 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef, onPric
     setSavedAdditionalCharges(true)
   }
 
+  const handleFinalizeJobCard = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      await axiosClient.post(`/job-cards/${jobCard.id}/mark-finalized`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      setNotification({ type: 'success', title: 'Success', message: 'Job card finalized! Ready for invoicing.' })
+      setTimeout(() => onUpdate(), 2000)
+    } catch (error) {
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error finalizing job card' })
+    }
+  }
+
   const formatCurrency = (amount) => new Intl.NumberFormat('en-LK', { style: 'currency', currency: 'LKR' }).format(amount)
 
   const payments = jobCard.payments || []
@@ -755,7 +768,7 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef, onPric
             </tbody>
           </table>
         </div>
-        {jobCard.tasks && jobCard.tasks.length > 0 && jobCard.status === 'completed' && (
+        {jobCard.tasks && jobCard.tasks.length > 0 && jobCard.status === 'inspected' && (
           <>
             <div className="flex justify-between items-center px-5 py-4 border-t border-gray-100 bg-gray-50/50">
               <span className="text-sm font-semibold text-gray-700">Total Services Cost</span>
@@ -890,7 +903,7 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef, onPric
             </tbody>
           </table>
         </div>
-        {jobCard.spare_parts_requests && jobCard.spare_parts_requests.length > 0 && jobCard.status === 'completed' && (
+        {jobCard.spare_parts_requests && jobCard.spare_parts_requests.length > 0 && jobCard.status === 'inspected' && (
           <>
             <div className="flex justify-between items-center px-5 py-4 border-t border-gray-100 bg-gray-50/50">
               <span className="text-sm font-semibold text-gray-700">Total Spare Parts Cost</span>
@@ -1036,7 +1049,7 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef, onPric
               <span className="text-xs text-gray-500">Total ({jobCard.otherCharges?.length || 0} charges)</span>
               <span className="font-semibold text-orange-600">{formatCurrency(jobCard.otherCharges?.reduce((sum, charge) => sum + parseFloat(charge.amount || 0), 0) || 0)}</span>
             </div>
-            {jobCard.status === 'completed' && (
+            {jobCard.status === 'inspected' && (
               <button
                 onClick={handleSaveAdditionalCharges}
                 className={`w-full mt-4 py-2.5 rounded-lg font-semibold text-white transition-all flex items-center justify-center gap-2 ${
@@ -1610,6 +1623,102 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef, onPric
               <button type="submit" form="editSparePartForm" className="px-5 py-2 text-sm bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-bold shadow-md transition-all" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>Update</button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Finalize Job Card Section */}
+      {(jobCard.status === 'inspected') && (
+        <div className="bg-gradient-to-r from-emerald-50 to-green-50 rounded-xl border-2 border-emerald-200 shadow-sm p-6">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="font-bold text-gray-900">Ready to Finalize Job Card</h3>
+              <p className="text-sm text-gray-600">All prices are set. Finalize to enable invoice generation.</p>
+            </div>
+          </div>
+
+          {/* Pricing Status Checkmarks */}
+          <div className="grid gap-3 mb-5">
+            {jobCard.tasks && jobCard.tasks.length > 0 && (
+              <div className={`p-3 rounded-lg border flex items-center gap-2.5 ${savedServicesPrices ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
+                <svg xmlns="http://www.w3.org/2000/svg" className={`w-5 h-5 flex-shrink-0 ${savedServicesPrices ? 'text-green-600' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <div>
+                  <p className={`text-xs font-semibold uppercase tracking-wide ${savedServicesPrices ? 'text-green-700' : 'text-gray-600'}`}>Services</p>
+                  <p className={`text-xs ${savedServicesPrices ? 'text-green-600' : 'text-gray-500'}`}>{savedServicesPrices ? 'Prices Saved' : 'Not Saved'}</p>
+                </div>
+              </div>
+            )}
+
+            {jobCard.spare_parts_requests && jobCard.spare_parts_requests.length > 0 && (
+              <div className={`p-3 rounded-lg border flex items-center gap-2.5 ${savedSparePartsPrices ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
+                <svg xmlns="http://www.w3.org/2000/svg" className={`w-5 h-5 flex-shrink-0 ${savedSparePartsPrices ? 'text-green-600' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <div>
+                  <p className={`text-xs font-semibold uppercase tracking-wide ${savedSparePartsPrices ? 'text-green-700' : 'text-gray-600'}`}>Spare Parts</p>
+                  <p className={`text-xs ${savedSparePartsPrices ? 'text-green-600' : 'text-gray-500'}`}>{savedSparePartsPrices ? 'Prices Saved' : 'Not Saved'}</p>
+                </div>
+              </div>
+            )}
+
+            {jobCard.otherCharges && jobCard.otherCharges.length > 0 && (
+              <div className={`p-3 rounded-lg border flex items-center gap-2.5 ${savedAdditionalCharges ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
+                <svg xmlns="http://www.w3.org/2000/svg" className={`w-5 h-5 flex-shrink-0 ${savedAdditionalCharges ? 'text-green-600' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <div>
+                  <p className={`text-xs font-semibold uppercase tracking-wide ${savedAdditionalCharges ? 'text-green-700' : 'text-gray-600'}`}>Charges</p>
+                  <p className={`text-xs ${savedAdditionalCharges ? 'text-green-600' : 'text-gray-500'}`}>{savedAdditionalCharges ? 'Prices Saved' : 'Not Saved'}</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Finalize Button */}
+          <button
+            onClick={handleFinalizeJobCard}
+            disabled={
+              (jobCard.tasks?.length > 0 && !savedServicesPrices) ||
+              (jobCard.spare_parts_requests?.length > 0 && !savedSparePartsPrices) ||
+              (jobCard.otherCharges?.length > 0 && !savedAdditionalCharges)
+            }
+            className={`w-full py-3 rounded-lg font-bold text-white transition-all flex items-center justify-center gap-2 ${
+              ((jobCard.tasks?.length > 0 && !savedServicesPrices) ||
+              (jobCard.spare_parts_requests?.length > 0 && !savedSparePartsPrices) ||
+              (jobCard.otherCharges?.length > 0 && !savedAdditionalCharges))
+                ? 'bg-gray-300 cursor-not-allowed opacity-60'
+                : 'bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 shadow-md hover:shadow-lg'
+            }`}
+            style={{
+              textShadow: !((jobCard.tasks?.length > 0 && !savedServicesPrices) || (jobCard.spare_parts_requests?.length > 0 && !savedSparePartsPrices) || (jobCard.otherCharges?.length > 0 && !savedAdditionalCharges)) ? '0 1px 2px rgba(0,0,0,0.2)' : 'none'
+            }}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            Finalize Job Card & Ready for Invoice
+          </button>
+
+          {(
+            (jobCard.tasks?.length > 0 && !savedServicesPrices) ||
+            (jobCard.spare_parts_requests?.length > 0 && !savedSparePartsPrices) ||
+            (jobCard.otherCharges?.length > 0 && !savedAdditionalCharges)
+          ) && (
+            <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-xs font-semibold text-yellow-700 uppercase tracking-wide">⚠️ Complete All Pricing</p>
+              <ul className="text-sm text-yellow-700 mt-2 space-y-1">
+                {jobCard.tasks?.length > 0 && !savedServicesPrices && <li>• Save Services Prices</li>}
+                {jobCard.spare_parts_requests?.length > 0 && !savedSparePartsPrices && <li>• Save Spare Parts Prices</li>}
+                {jobCard.otherCharges?.length > 0 && !savedAdditionalCharges && <li>• Save Additional Charges</li>}
+              </ul>
+            </div>
+          )}
         </div>
       )}
 
