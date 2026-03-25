@@ -57,13 +57,22 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef, onPric
     amount: '',
   })
 
-  const [notification, setNotification] = useState(null)
+  const [showEditChargeModal, setShowEditChargeModal] = useState(false)
+  const [editChargeForm, setEditChargeForm] = useState({
+    id: null,
+    description: '',
+    cost_price: '',
+    amount: '',
+  })
+  const [showDeleteChargeConfirm, setShowDeleteChargeConfirm] = useState(false)
+  const [deleteChargeId, setDeleteChargeId] = useState(null)
 
-  // Track which pricing sections have been saved
-  const [savedServicesPrices, setSavedServicesPrices] = useState(false)
-  const [savedSparePartsPrices, setSavedSparePartsPrices] = useState(false)
-  const [savedAdditionalCharges, setSavedAdditionalCharges] = useState(false)
-  const [savingPricingSection, setSavingPricingSection] = useState(null)
+  const [showZeroValueModal, setShowZeroValueModal] = useState(false)
+  const [zeroValueRecords, setZeroValueRecords] = useState([])
+  const [selectedZeroRecords, setSelectedZeroRecords] = useState([])
+  const [isConfirmingZeros, setIsConfirmingZeros] = useState(false)
+
+  const [notification, setNotification] = useState(null)
 
   const canAddPayments = user?.role?.name === 'super_admin' || user?.permissions?.includes('add_payments')
   const canDeletePayments = user?.role?.name === 'super_admin' || user?.permissions?.includes('delete_payments')
@@ -118,16 +127,7 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef, onPric
     console.log('  - Full jobCard:', jobCard)
   }, [jobCard])
 
-  // Notify parent component when pricing status changes
-  useEffect(() => {
-    if (onPricingStatusChange) {
-      onPricingStatusChange({
-        savedServices: savedServicesPrices,
-        savedSpareParts: savedSparePartsPrices,
-        savedCharges: savedAdditionalCharges
-      })
-    }
-  }, [savedServicesPrices, savedSparePartsPrices, savedAdditionalCharges, onPricingStatusChange])
+
 
   const handleGenerateInvoice = async () => {
     try {
@@ -323,60 +323,72 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef, onPric
     }
   }
 
-  // Handler to check for zero prices and confirm with user
-  const handleSaveServicesPrices = () => {
-    const hasZeroPrices = (jobCard.tasks || []).some(task => 
-      task.amount === 0 || task.cost_price === 0
-    )
-    
-    if (hasZeroPrices) {
-      const zeroItems = (jobCard.tasks || [])
-        .filter(task => task.amount === 0 || task.cost_price === 0)
-        .map(t => `"${t.description || t.name}"`)
-        .join(', ')
-      
-    }
-    
-    setSavedServicesPrices(true)
+  const handleEditCharge = (charge) => {
+    setEditChargeForm({
+      id: charge.id,
+      description: charge.description,
+      cost_price: charge.cost_price,
+      amount: charge.amount,
+    })
+    setShowEditChargeModal(true)
   }
 
-  const handleSaveSparePartsPrices = () => {
-    const hasZeroPrices = (jobCard.spare_parts_requests || []).some(part =>
-      (part.overall_status === 'delivered' || part.overall_status === 'installed') &&
-      (part.unit_cost === 0 || part.selling_price === 0)
-    )
-    
-    if (hasZeroPrices) {
-      const zeroItems = (jobCard.spare_parts_requests || [])
-        .filter(part => 
-          (part.overall_status === 'delivered' || part.overall_status === 'installed') &&
-          (part.unit_cost === 0 || part.selling_price === 0)
-        )
-        .map(p => `"${p.part_name}"`)
-        .join(', ')
+  const handleUpdateCharge = async (e) => {
+    if (e) e.preventDefault()
+    try {
+      const response = await axiosClient.put(`/charges/${editChargeForm.id}`, {
+        description: editChargeForm.description,
+        cost_price: parseFloat(editChargeForm.cost_price),
+        amount: parseFloat(editChargeForm.amount),
+      })
       
+      setNotification({ type: 'success', title: 'Success', message: 'Charge updated successfully!' })
+      setShowEditChargeModal(false)
+      setTimeout(() => onUpdate(), 1000)
+    } catch (error) {
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error updating charge' })
     }
-    
-    setSavedSparePartsPrices(true)
   }
 
-  const handleSaveAdditionalCharges = () => {
-    const hasZeroPrices = (jobCard.otherCharges || []).some(charge =>
-      charge.amount === 0
-    )
-    
-    if (hasZeroPrices) {
-      const zeroItems = (jobCard.otherCharges || [])
-        .filter(charge => charge.amount === 0)
-        .map(c => `"${c.description}"`)
-        .join(', ')
-      
-    }
-    
-    setSavedAdditionalCharges(true)
+  const handleDeleteChargeClick = (chargeId) => {
+    setDeleteChargeId(chargeId)
+    setShowDeleteChargeConfirm(true)
   }
+
+  const confirmDeleteCharge = async () => {
+    try {
+      await axiosClient.delete(`/charges/${deleteChargeId}`)
+      
+      setNotification({ type: 'success', title: 'Success', message: 'Charge deleted successfully!' })
+      setShowDeleteChargeConfirm(false)
+      setDeleteChargeId(null)
+      setTimeout(() => onUpdate(), 1000)
+    } catch (error) {
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error deleting charge' })
+    }
+  }
+
+
 
   const handleFinalizeJobCard = async () => {
+    const zeros = checkForZeroValues()
+    console.log('[FINALIZE] Zero values found:', zeros)
+
+    if (zeros.length > 0) {
+      console.log('[FINALIZE] Showing zero value modal with', zeros.length, 'records')
+      // Show modal with zero values
+      setZeroValueRecords(zeros)
+      setSelectedZeroRecords([])
+      setIsConfirmingZeros(false)
+      setShowZeroValueModal(true)
+    } else {
+      console.log('[FINALIZE] No zeros found, proceeding with finalization')
+      // No zeros found, proceed with finalization
+      await proceedWithFinalization()
+    }
+  }
+
+  const proceedWithFinalization = async () => {
     try {
       const token = localStorage.getItem('token')
       await axiosClient.post(`/job-cards/${jobCard.id}/mark-finalized`, {}, {
@@ -387,6 +399,104 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef, onPric
     } catch (error) {
       setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error finalizing job card' })
     }
+  }
+
+  const handleConfirmZeroValues = async () => {
+    if (selectedZeroRecords.length !== zeroValueRecords.length) {
+      setNotification({ type: 'error', title: 'Error', message: 'Please select all records with zero values to proceed.' })
+      return
+    }
+    setIsConfirmingZeros(true)
+  }
+
+  const handleFinalizeWithZeros = async () => {
+    setShowZeroValueModal(false)
+    await proceedWithFinalization()
+  }
+
+  const toggleZeroRecordSelection = (recordId) => {
+    setSelectedZeroRecords(prev => {
+      if (prev.includes(recordId)) {
+        return prev.filter(id => id !== recordId)
+      } else {
+        return [...prev, recordId]
+      }
+    })
+  }
+
+  const checkForZeroValues = () => {
+    const zeros = []
+    const tasks = jobCard.tasks || []
+    const parts = jobCard.spare_parts_requests || []
+    const charges = jobCard.otherCharges || []
+
+    console.log('[CHECK] Starting check with:', { tasksCount: tasks.length, partsCount: parts.length, chargesCount: charges.length })
+
+    // Check tasks for zero cost_price or amount
+    for (let i = 0; i < tasks.length; i++) {
+      const task = tasks[i]
+      if (task && task.status === 'completed') {
+        const costPrice = parseFloat(task.cost_price) || 0
+        const amount = parseFloat(task.amount) || 0
+        console.log('[CHECK] Task:', task.description, 'costPrice:', costPrice, 'amount:', amount)
+        if (costPrice === 0 || amount === 0) {
+          console.log('[CHECK] Found zero in task!')
+          zeros.push({
+            type: 'task',
+            id: task.id,
+            name: task.description || task.name || 'Unnamed Task',
+            cost_price: costPrice,
+            amount: amount,
+            zeroFields: (costPrice === 0 ? ['Cost Price'] : []).concat(amount === 0 ? ['Amount'] : [])
+          })
+        }
+      }
+    }
+
+    // Check spare parts for zero cost price or selling price (regardless of status)
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i]
+      if (part) {
+        const unitCost = parseFloat(part.unit_cost) || 0
+        const sellingPrice = parseFloat(part.selling_price) || 0
+        console.log('[CHECK] Spare Part:', part.part_name, 'status:', part.overall_status, 'unitCost:', unitCost, 'sellingPrice:', sellingPrice)
+        if (unitCost === 0 || sellingPrice === 0) {
+          console.log('[CHECK] Found zero in spare part!')
+          zeros.push({
+            type: 'spare_part',
+            id: part.id,
+            name: part.part_name || 'Unnamed Part',
+            unit_cost: unitCost,
+            selling_price: sellingPrice,
+            zeroFields: (unitCost === 0 ? ['Cost Price'] : []).concat(sellingPrice === 0 ? ['Selling Price'] : [])
+          })
+        }
+      }
+    }
+
+    // Check charges for zero cost_price or amount
+    for (let i = 0; i < charges.length; i++) {
+      const charge = charges[i]
+      if (charge) {
+        const costPrice = parseFloat(charge.cost_price) || 0
+        const chargeAmount = parseFloat(charge.amount) || 0
+        console.log('[CHECK] Charge:', charge.description, 'costPrice:', costPrice, 'amount:', chargeAmount)
+        if (costPrice === 0 || chargeAmount === 0) {
+          console.log('[CHECK] Found zero in charge!')
+          zeros.push({
+            type: 'charge',
+            id: charge.id,
+            name: charge.description || 'Unnamed Charge',
+            cost_price: costPrice,
+            amount: chargeAmount,
+            zeroFields: (costPrice === 0 ? ['Cost Price'] : []).concat(chargeAmount === 0 ? ['Amount'] : [])
+          })
+        }
+      }
+    }
+
+    console.log('[CHECK] Total zeros found:', zeros.length, 'Records:', zeros)
+    return zeros
   }
 
   const formatCurrency = (amount) => new Intl.NumberFormat('en-LK', { style: 'currency', currency: 'LKR' }).format(amount)
@@ -774,21 +884,6 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef, onPric
               <span className="text-sm font-semibold text-gray-700">Total Services Cost</span>
               <span className="text-lg font-bold text-primary">{formatCurrency(jobCard.tasks.reduce((sum, task) => sum + parseFloat(task.amount || task.cost_price || 0), 0))}</span>
             </div>
-            <div className="px-5 py-4 border-t border-gray-100 bg-white">
-              <button
-                onClick={handleSaveServicesPrices}
-                className={`w-full py-2.5 rounded-lg font-semibold text-white transition-all flex items-center justify-center gap-2 ${
-                  savedServicesPrices
-                    ? 'bg-green-600 hover:bg-green-700'
-                    : 'bg-blue-600 hover:bg-blue-700'
-                }`}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                {savedServicesPrices ? '✓ Services Prices Saved' : 'Save Services Prices'}
-              </button>
-            </div>
           </>
         )}
       </div>
@@ -909,21 +1004,6 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef, onPric
               <span className="text-sm font-semibold text-gray-700">Total Spare Parts Cost</span>
               <span className="text-lg font-bold text-primary">{formatCurrency(jobCard.spare_parts_requests.reduce((sum, part) => sum + parseFloat(part.selling_price || part.cost_price || 0), 0))}</span>
             </div>
-            <div className="px-5 py-4 border-t border-gray-100 bg-white">
-              <button
-                onClick={handleSaveSparePartsPrices}
-                className={`w-full py-2.5 rounded-lg font-semibold text-white transition-all flex items-center justify-center gap-2 ${
-                  savedSparePartsPrices
-                    ? 'bg-green-600 hover:bg-green-700'
-                    : 'bg-blue-600 hover:bg-blue-700'
-                }`}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                {savedSparePartsPrices ? '✓ Spare Parts Prices Saved' : 'Save Spare Parts Prices'}
-              </button>
-            </div>
           </>
         )}
       </div>
@@ -1031,11 +1111,24 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef, onPric
                         <td className="py-3 text-right font-semibold text-gray-900">{formatCurrency(charge.amount)}</td>
                         <td className="py-3 text-xs text-gray-500 pl-4">{new Date(charge.created_at).toLocaleDateString('en-US', { year: '2-digit', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
                         <td className="py-3 text-center">
-                          <button className="p-1.5 rounded-md text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
+                          <div className="flex items-center justify-center gap-1">
+                            <button 
+                              onClick={() => handleEditCharge(charge)}
+                              className="p-1.5 rounded-md text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors"
+                              title="Edit charge">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </button>
+                            <button 
+                              onClick={() => handleDeleteChargeClick(charge.id)}
+                              className="p-1.5 rounded-md text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                              title="Delete charge">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -1049,21 +1142,6 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef, onPric
               <span className="text-xs text-gray-500">Total ({jobCard.otherCharges?.length || 0} charges)</span>
               <span className="font-semibold text-orange-600">{formatCurrency(jobCard.otherCharges?.reduce((sum, charge) => sum + parseFloat(charge.amount || 0), 0) || 0)}</span>
             </div>
-            {jobCard.status === 'inspected' && (
-              <button
-                onClick={handleSaveAdditionalCharges}
-                className={`w-full mt-4 py-2.5 rounded-lg font-semibold text-white transition-all flex items-center justify-center gap-2 ${
-                  savedAdditionalCharges
-                    ? 'bg-green-600 hover:bg-green-700'
-                    : 'bg-blue-600 hover:bg-blue-700'
-                }`}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                {savedAdditionalCharges ? '✓ Additional Charges Saved' : 'Save Additional Charges'}
-              </button>
-            )}
           </div>
         )}
       </div>
@@ -1626,101 +1704,248 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef, onPric
         </div>
       )}
 
-      {/* Finalize Job Card Section */}
-      {(jobCard.status === 'inspected') && (
-        <div className="bg-gradient-to-r from-emerald-50 to-green-50 rounded-xl border-2 border-emerald-200 shadow-sm p-6">
-          <div className="flex items-center gap-3 mb-5">
-            <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0">
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
+      {/* Edit Charge Modal */}
+      {showEditChargeModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full flex flex-col">
+            <ModalHeader
+              title="Edit Charge"
+              subtitle={`Charge ID: ${editChargeForm.id || 'N/A'}`}
+              onClose={() => setShowEditChargeModal(false)}
+              colorClass='bg-blue-50/50'
+            />
+            <div className="px-7 py-5 space-y-4">
+              <form id="editChargeForm" onSubmit={handleUpdateCharge} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className={labelCls}>Description <span className="text-red-400">*</span></label>
+                  <input 
+                    type="text" 
+                    required 
+                    value={editChargeForm.description}
+                    onChange={(e) => setEditChargeForm({...editChargeForm, description: e.target.value})}
+                    placeholder="e.g., Labor, Inspection, Materials" 
+                    className={inputCls} 
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className={labelCls}>Cost Price <span className="text-red-400">*</span></label>
+                  <input 
+                    type="number" 
+                    step="0.01" 
+                    required 
+                    value={editChargeForm.cost_price}
+                    onChange={(e) => setEditChargeForm({...editChargeForm, cost_price: e.target.value})}
+                    placeholder="0.00" 
+                    className={inputCls} 
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className={labelCls}>Amount <span className="text-red-400">*</span></label>
+                  <input 
+                    type="number" 
+                    step="0.01" 
+                    required 
+                    value={editChargeForm.amount}
+                    onChange={(e) => setEditChargeForm({...editChargeForm, amount: e.target.value})}
+                    placeholder="0.00" 
+                    className={inputCls} 
+                  />
+                </div>
+              </form>
             </div>
-            <div>
-              <h3 className="font-bold text-gray-900">Ready to Finalize Job Card</h3>
-              <p className="text-sm text-gray-600">All prices are set. Finalize to enable invoice generation.</p>
+            <div className="flex justify-end gap-3 px-7 py-4 border-t border-gray-100 bg-gray-50/50 rounded-b-2xl">
+              <button type="button" onClick={() => setShowEditChargeModal(false)} className="px-5 py-2 text-sm bg-white hover:bg-gray-50 text-gray-700 rounded-lg font-semibold border border-gray-300 shadow-sm">Cancel</button>
+              <button type="submit" form="editChargeForm" className="px-5 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-md transition-all" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>Update</button>
             </div>
           </div>
-
-          {/* Pricing Status Checkmarks */}
-          <div className="grid gap-3 mb-5">
-            {jobCard.tasks && jobCard.tasks.length > 0 && (
-              <div className={`p-3 rounded-lg border flex items-center gap-2.5 ${savedServicesPrices ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
-                <svg xmlns="http://www.w3.org/2000/svg" className={`w-5 h-5 flex-shrink-0 ${savedServicesPrices ? 'text-green-600' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                <div>
-                  <p className={`text-xs font-semibold uppercase tracking-wide ${savedServicesPrices ? 'text-green-700' : 'text-gray-600'}`}>Services</p>
-                  <p className={`text-xs ${savedServicesPrices ? 'text-green-600' : 'text-gray-500'}`}>{savedServicesPrices ? 'Prices Saved' : 'Not Saved'}</p>
-                </div>
-              </div>
-            )}
-
-            {jobCard.spare_parts_requests && jobCard.spare_parts_requests.length > 0 && (
-              <div className={`p-3 rounded-lg border flex items-center gap-2.5 ${savedSparePartsPrices ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
-                <svg xmlns="http://www.w3.org/2000/svg" className={`w-5 h-5 flex-shrink-0 ${savedSparePartsPrices ? 'text-green-600' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                <div>
-                  <p className={`text-xs font-semibold uppercase tracking-wide ${savedSparePartsPrices ? 'text-green-700' : 'text-gray-600'}`}>Spare Parts</p>
-                  <p className={`text-xs ${savedSparePartsPrices ? 'text-green-600' : 'text-gray-500'}`}>{savedSparePartsPrices ? 'Prices Saved' : 'Not Saved'}</p>
-                </div>
-              </div>
-            )}
-
-            {jobCard.otherCharges && jobCard.otherCharges.length > 0 && (
-              <div className={`p-3 rounded-lg border flex items-center gap-2.5 ${savedAdditionalCharges ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
-                <svg xmlns="http://www.w3.org/2000/svg" className={`w-5 h-5 flex-shrink-0 ${savedAdditionalCharges ? 'text-green-600' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                <div>
-                  <p className={`text-xs font-semibold uppercase tracking-wide ${savedAdditionalCharges ? 'text-green-700' : 'text-gray-600'}`}>Charges</p>
-                  <p className={`text-xs ${savedAdditionalCharges ? 'text-green-600' : 'text-gray-500'}`}>{savedAdditionalCharges ? 'Prices Saved' : 'Not Saved'}</p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Finalize Button */}
-          <button
-            onClick={handleFinalizeJobCard}
-            disabled={
-              (jobCard.tasks?.length > 0 && !savedServicesPrices) ||
-              (jobCard.spare_parts_requests?.length > 0 && !savedSparePartsPrices) ||
-              (jobCard.otherCharges?.length > 0 && !savedAdditionalCharges)
-            }
-            className={`w-full py-3 rounded-lg font-bold text-white transition-all flex items-center justify-center gap-2 ${
-              ((jobCard.tasks?.length > 0 && !savedServicesPrices) ||
-              (jobCard.spare_parts_requests?.length > 0 && !savedSparePartsPrices) ||
-              (jobCard.otherCharges?.length > 0 && !savedAdditionalCharges))
-                ? 'bg-gray-300 cursor-not-allowed opacity-60'
-                : 'bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 shadow-md hover:shadow-lg'
-            }`}
-            style={{
-              textShadow: !((jobCard.tasks?.length > 0 && !savedServicesPrices) || (jobCard.spare_parts_requests?.length > 0 && !savedSparePartsPrices) || (jobCard.otherCharges?.length > 0 && !savedAdditionalCharges)) ? '0 1px 2px rgba(0,0,0,0.2)' : 'none'
-            }}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-            Finalize Job Card & Ready for Invoice
-          </button>
-
-          {(
-            (jobCard.tasks?.length > 0 && !savedServicesPrices) ||
-            (jobCard.spare_parts_requests?.length > 0 && !savedSparePartsPrices) ||
-            (jobCard.otherCharges?.length > 0 && !savedAdditionalCharges)
-          ) && (
-            <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-xs font-semibold text-yellow-700 uppercase tracking-wide">⚠️ Complete All Pricing</p>
-              <ul className="text-sm text-yellow-700 mt-2 space-y-1">
-                {jobCard.tasks?.length > 0 && !savedServicesPrices && <li>• Save Services Prices</li>}
-                {jobCard.spare_parts_requests?.length > 0 && !savedSparePartsPrices && <li>• Save Spare Parts Prices</li>}
-                {jobCard.otherCharges?.length > 0 && !savedAdditionalCharges && <li>• Save Additional Charges</li>}
-              </ul>
-            </div>
-          )}
         </div>
       )}
+
+      {/* Finalize Job Card Section */}
+      {(jobCard.status === 'inspected') && (
+        <button
+          onClick={handleFinalizeJobCard}
+          className="w-full py-3 rounded-lg font-bold text-white bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+          style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+          Finalize Job Card & Ready for Invoice
+        </button>
+      )}
+
+      {/* Zero Value Records Modal */}
+      {showZeroValueModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[85vh] flex flex-col overflow-hidden">
+            <ModalHeader
+              title="Zero Values Detected"
+              subtitle="Some pricing fields contain zero values. Please review and confirm."
+              onClose={() => {
+                setShowZeroValueModal(false)
+                setSelectedZeroRecords([])
+              }}
+              colorClass='bg-yellow-50/50'
+            />
+            
+            <div className="flex-1 overflow-y-auto px-7 py-5">
+              <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm text-yellow-800">
+                  <span className="font-semibold">⚠️ Warning:</span> The following records have zero values in their pricing fields. Please review them carefully before confirming.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                {zeroValueRecords.map((record) => (
+                  <div
+                    key={`${record.type}-${record.id}`}
+                    className={`p-4 border rounded-lg transition-all ${
+                      selectedZeroRecords.includes(`${record.type}-${record.id}`)
+                        ? 'bg-blue-50 border-blue-300'
+                        : 'bg-gray-50 border-gray-200'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedZeroRecords.includes(`${record.type}-${record.id}`)}
+                        onChange={() => toggleZeroRecordSelection(`${record.type}-${record.id}`)}
+                        className="mt-1 w-5 h-5 text-blue-600 rounded cursor-pointer"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-semibold text-gray-900 text-sm">
+                            {record.type === 'task' && '📋 Service: '}
+                            {record.type === 'spare_part' && '⚙️ Spare Part: '}
+                            {record.type === 'charge' && '💰 Charge: '}
+                            {record.name}
+                          </h4>
+                          <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded font-semibold">
+                            {record.zeroFields.join(', ')} = 0
+                          </span>
+                        </div>
+                        
+                        <div className="grid grid-cols-3 gap-3 text-xs">
+                          {record.type === 'task' && (
+                            <>
+                              <div>
+                                <span className="text-gray-500">Cost Price:</span>
+                                <p className={`font-semibold ${Number(record.cost_price || 0) === 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                                  {formatCurrency(record.cost_price || 0)}
+                                </p>
+                              </div>
+                              <div>
+                                <span className="text-gray-500">Amount:</span>
+                                <p className={`font-semibold ${Number(record.amount || 0) === 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                                  {formatCurrency(record.amount || 0)}
+                                </p>
+                              </div>
+                            </>
+                          )}
+                          
+                          {record.type === 'spare_part' && (
+                            <>
+                              <div>
+                                <span className="text-gray-500">Cost Price:</span>
+                                <p className={`font-semibold ${Number(record.unit_cost || 0) === 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                                  {formatCurrency(record.unit_cost || 0)}
+                                </p>
+                              </div>
+                              <div>
+                                <span className="text-gray-500">Selling Price:</span>
+                                <p className={`font-semibold ${Number(record.selling_price || 0) === 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                                  {formatCurrency(record.selling_price || 0)}
+                                </p>
+                              </div>
+                            </>
+                          )}
+                          
+                          {record.type === 'charge' && (
+                            <div>
+                              <span className="text-gray-500">Amount:</span>
+                              <p className={`font-semibold ${Number(record.amount || 0) === 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                                {formatCurrency(record.amount || 0)}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {!isConfirmingZeros && (
+                <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-900">
+                    <span className="font-semibold">Instructions:</span> Check the checkbox for each record that you have reviewed and verified. Once you have checked all records, click "Confirm & Proceed" to continue.
+                  </p>
+                </div>
+              )}
+
+              {isConfirmingZeros && (
+                <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <p className="text-sm text-green-900 font-semibold">
+                    ✓ All records reviewed. Ready to finalize.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="px-7 py-4 border-t border-gray-100 bg-gray-50/50 rounded-b-2xl flex justify-between items-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowZeroValueModal(false)
+                  setSelectedZeroRecords([])
+                  setIsConfirmingZeros(false)
+                }}
+                className="px-5 py-2 text-sm bg-white hover:bg-gray-50 text-gray-700 rounded-lg font-semibold border border-gray-300 shadow-sm transition-colors"
+              >
+                Cancel
+              </button>
+              
+              <div className="flex gap-3">
+                {!isConfirmingZeros ? (
+                  <button
+                    type="button"
+                    onClick={handleConfirmZeroValues}
+                    disabled={selectedZeroRecords.length !== zeroValueRecords.length}
+                    className="px-5 py-2 text-sm bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg font-bold transition-all shadow-md"
+                    style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
+                  >
+                    Confirm & Proceed ({selectedZeroRecords.length}/{zeroValueRecords.length})
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleFinalizeWithZeros}
+                    className="px-6 py-2 text-sm bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white rounded-lg font-bold transition-all shadow-md"
+                    style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
+                  >
+                    I am sure these fields are zero - Finalize
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ConfirmDialog
+        show={showDeleteChargeConfirm}
+        type="danger"
+        title="Delete Charge"
+        message="Are you sure you want to delete this charge? This action cannot be undone."
+        onConfirm={confirmDeleteCharge}
+        onCancel={() => {
+          setShowDeleteChargeConfirm(false)
+          setDeleteChargeId(null)
+        }}
+        confirmText="Delete Charge"
+        cancelText="Cancel"
+      />
 
       <ConfirmDialog
         show={showDeleteConfirm}

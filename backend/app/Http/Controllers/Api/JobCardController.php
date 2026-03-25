@@ -681,4 +681,35 @@ class JobCardController extends Controller
             'charge' => $charge
         ]);
     }
+
+    /**
+     * Delete an other charge
+     */
+    public function deleteCharge(Request $request, $id)
+    {
+        $user = $request->user();
+        
+        $permissions = DB::table('permissions')
+            ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
+            ->where('role_permissions.role_id', $user->role_id)
+            ->pluck('permissions.name')
+            ->toArray();
+        
+        if (!in_array('add_job_cards', $permissions)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $charge = OtherCharge::findOrFail($id);
+        $jobCard = $charge->jobCard;
+        
+        // Update job card total before deleting
+        $jobCard->other_charges -= $charge->amount;
+        $jobCard->save();
+
+        $charge->delete();
+
+        return response()->json([
+            'message' => 'Charge deleted successfully'
+        ]);
+    }
 }

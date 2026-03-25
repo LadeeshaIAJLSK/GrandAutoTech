@@ -86,6 +86,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Job Card Charges
     Route::post('/job-cards/{id}/charges', [JobCardController::class, 'addCharge']);//used
+    Route::put('/charges/{id}', [JobCardController::class, 'updateCharge']);//update charge
+    Route::delete('/charges/{id}', [JobCardController::class, 'deleteCharge']);//delete charge
 
 
 
