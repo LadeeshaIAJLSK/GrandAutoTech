@@ -405,10 +405,10 @@ function QuotationManagement({ user }) {
             })
             setShowCreateModal(true)
           }}
-          className="inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm hover:shadow-md hover:-translate-y-px"
+          className="inline-flex items-center gap-2 bg-[#2563A8] hover:bg-[#2563A8] text-white px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm hover:shadow-md hover:-translate-y-px"
           style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
         >
-          <span className="flex items-center justify-center w-4 h-4 bg-white/25 rounded">
+          <span className="flex items-center justify-center w-4 h-4 bg-[#2563A8] rounded">
             <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
             </svg>
@@ -655,7 +655,7 @@ function QuotationManagement({ user }) {
                   Cancel
                 </button>
                 <button type="submit"
-                  className="px-5 py-2.5 text-sm bg-primary hover:bg-primary-dark text-white rounded-lg font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-px"
+                  className="px-5 py-2.5 text-sm bg-[#2563A8] hover:bg-[#2563A8] text-white rounded-lg font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-px"
                   style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>
                   Create Quotation
                 </button>
@@ -737,7 +737,11 @@ function QuotationManagement({ user }) {
                               </td>
                               <td className="px-4 py-3 text-gray-900 font-medium">{item.description}</td>
                               <td className="px-4 py-3 text-gray-700 capitalize">{item.category || '—'}</td>
-                              <td className="px-4 py-3 text-right text-gray-900 font-medium">{parseFloat(item.quantity_or_hours).toFixed(2)}</td>
+                              <td className="px-4 py-3 text-right text-gray-900 font-medium">
+                                {Number(item.quantity_or_hours) % 1 === 0
+                                  ? Number(item.quantity_or_hours)
+                                  : parseFloat(item.quantity_or_hours)
+                              }</td>
                               <td className="px-4 py-3 text-right text-gray-900 font-medium">{formatCurrency(item.unit_price)}</td>
                               <td className="px-4 py-3 text-right text-gray-900 font-bold">{formatCurrency(amount)}</td>
                               <td className="px-4 py-3 text-center">

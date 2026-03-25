@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import Notification from '../common/Notification'
 import ConfirmDialog from '../common/ConfirmDialog'
 import axiosClient from '../../api/axios'
+import { FaClipboardList, FaCog, FaDollarSign, FaExclamationTriangle } from 'react-icons/fa'
 
 function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef, onPricingStatusChange }) {
   const [showPaymentModal, setShowPaymentModal] = useState(false)
@@ -1791,9 +1792,12 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef, onPric
             
             <div className="flex-1 overflow-y-auto px-7 py-5">
               <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <p className="text-sm text-yellow-800">
-                  <span className="font-semibold">⚠️ Warning:</span> The following records have zero values in their pricing fields. Please review them carefully before confirming.
-                </p>
+                <p className="text-sm text-yellow-800 flex items-start gap-1.5">
+  <FaExclamationTriangle size={14} className="text-yellow-600 flex-shrink-0 mt-0.5" />
+  <span>
+    <span className="font-semibold">Warning:</span> The following records have zero values in their pricing fields. Please review them carefully before confirming.
+  </span>
+</p>
               </div>
 
               <div className="space-y-3">
@@ -1814,17 +1818,26 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef, onPric
                         className="mt-1 w-5 h-5 text-blue-600 rounded cursor-pointer"
                       />
                       <div className="flex-1">
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-semibold text-gray-900 text-sm">
-                            {record.type === 'task' && '📋 Service: '}
-                            {record.type === 'spare_part' && '⚙️ Spare Part: '}
-                            {record.type === 'charge' && '💰 Charge: '}
-                            {record.name}
-                          </h4>
-                          <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded font-semibold">
-                            {record.zeroFields.join(', ')} = 0
-                          </span>
-                        </div>
+  <div className="flex items-center justify-between mb-2">
+    <h4 className="font-semibold text-gray-900 text-sm flex items-center gap-1.5">
+      {record.type === 'task' && (
+        <FaClipboardList size={13} className="text-blue-500 flex-shrink-0" />
+      )}
+      {record.type === 'spare_part' && (
+        <FaCog size={13} className="text-gray-500 flex-shrink-0" />
+      )}
+      {record.type === 'charge' && (
+        <FaDollarSign size={13} className="text-green-500 flex-shrink-0" />
+      )}
+      {record.type === 'task' && 'Service: '}
+      {record.type === 'spare_part' && 'Spare Part: '}
+      {record.type === 'charge' && 'Charge: '}
+      {record.name}
+    </h4>
+    <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded font-semibold">
+      {record.zeroFields.join(', ')} = 0
+    </span>
+  </div>
                         
                         <div className="grid grid-cols-3 gap-3 text-xs">
                           {record.type === 'task' && (

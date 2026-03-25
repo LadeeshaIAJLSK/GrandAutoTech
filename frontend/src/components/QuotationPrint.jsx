@@ -67,7 +67,7 @@ function QuotationPrint({ showPrintPreview, setShowPrintPreview, currentQuotatio
             <div className="flex gap-2">
               <button
                 onClick={() => window.print()}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg text-sm font-bold transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-[#2563A8] hover:bg-[#2563A8] text-white rounded-lg text-sm font-bold transition-colors"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
@@ -164,7 +164,12 @@ function QuotationPrint({ showPrintPreview, setShowPrintPreview, currentQuotatio
                         return (
                           <tr key={item.id} className="border-b border-gray-200">
                             <td className="px-4 py-3">{item.description}</td>
-                            <td className="px-4 py-3 text-right">{parseFloat(item.quantity_or_hours).toFixed(2)} hrs</td>
+                            <td className="px-4 py-3 text-right">
+                              {
+                                Number(item.quantity_or_hours) % 1 === 0
+                                  ? Number(item.quantity_or_hours)
+                                  : parseFloat(item.quantity_or_hours)
+                              } hrs</td>
                             <td className="px-4 py-3 text-right">{formatCurrency(item.unit_price)}</td>
                             <td className="px-4 py-3 text-right font-bold">{formatCurrency(amount)}</td>
                           </tr>
@@ -183,7 +188,12 @@ function QuotationPrint({ showPrintPreview, setShowPrintPreview, currentQuotatio
                         return (
                           <tr key={item.id} className="border-b border-gray-200">
                             <td className="px-4 py-3">{item.description}</td>
-                            <td className="px-4 py-3 text-right">{parseFloat(item.quantity_or_hours).toFixed(2)} qty</td>
+                            <td className="px-4 py-3 text-right">
+                              {
+                                Number(item.quantity_or_hours) % 1 === 0
+                                  ? Number(item.quantity_or_hours)
+                                  : parseFloat(item.quantity_or_hours)
+                              } qty</td>
                             <td className="px-4 py-3 text-right">{formatCurrency(item.unit_price)}</td>
                             <td className="px-4 py-3 text-right font-bold">{formatCurrency(amount)}</td>
                           </tr>
@@ -202,7 +212,13 @@ function QuotationPrint({ showPrintPreview, setShowPrintPreview, currentQuotatio
                         return (
                           <tr key={item.id} className="border-b border-gray-200">
                             <td className="px-4 py-3">{item.description}</td>
-                            <td className="px-4 py-3 text-right">{parseFloat(item.quantity_or_hours).toFixed(2)}</td>
+                            <td className="px-4 py-3 text-right">
+                              {
+                                Number(item.quantity_or_hours) % 1 === 0
+                                  ? Number(item.quantity_or_hours)
+                                  : parseFloat(item.quantity_or_hours)
+                              }
+                            </td>
                             <td className="px-4 py-3 text-right">{formatCurrency(item.unit_price)}</td>
                             <td className="px-4 py-3 text-right font-bold">{formatCurrency(amount)}</td>
                           </tr>
