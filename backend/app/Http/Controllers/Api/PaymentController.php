@@ -35,7 +35,9 @@ class PaymentController extends Controller
             'payment_type' => 'required|in:advance,partial,full,refund',
             'payment_method' => 'required|in:cash,card,bank_transfer,cheque,mobile_payment,other',
             'bank_name' => 'nullable|string',
-            'reference_number' => 'nullable|string',
+            'card_number' => 'nullable|string',
+            'cheque_number' => 'nullable|string',
+            'bank_transaction_id' => 'nullable|string',
             'payment_date' => 'required|date',
             'notes' => 'nullable|string',
         ]);
@@ -62,7 +64,9 @@ class PaymentController extends Controller
             'payment_type' => $validated['payment_type'],
             'payment_method' => $validated['payment_method'],
             'bank_name' => $validated['bank_name'] ?? null,
-            'reference_number' => $validated['reference_number'] ?? null,
+            'card_number' => $validated['card_number'] ?? null,
+            'cheque_number' => $validated['cheque_number'] ?? null,
+            'bank_transaction_id' => $validated['bank_transaction_id'] ?? null,
             'payment_date' => $validated['payment_date'],
             'notes' => $validated['notes'] ?? null,
         ]);

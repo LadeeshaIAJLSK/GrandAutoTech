@@ -5,21 +5,35 @@ import axiosClient from '../api/axios'
 function InvoiceManagement({ user, selectedBranchId }) {
   const navigate = useNavigate()
   const [jobCards, setJobCards] = useState([])
+  const [allJobCards, setAllJobCards] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [customerFilter, setCustomerFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState('')
+  const [dateRangeFilter, setDateRangeFilter] = useState('all')
   const [resultsPerPage, setResultsPerPage] = useState(10)
   const [currentPage, setCurrentPage] = useState(1)
   const [branches, setBranches] = useState([])
   const [branchFilter, setBranchFilter] = useState(user?.branch_id || '')
   const [branchDropdownOpen, setBranchDropdownOpen] = useState(false)
+  // For super admin branch filter dropdown
+  const [filterBranch, setFilterBranch] = useState('')
   const branchDropdownRef = useRef(null)
 
   useEffect(() => {
     fetchBranches()
+  }, [])
+
+  // Fetch data when branch or date range changes (API calls)
+  useEffect(() => {
     fetchInvoiceData()
-  }, [search, customerFilter, statusFilter, branchFilter])
+  }, [branchFilter, filterBranch, dateRangeFilter])
+
+  // Apply local filters when search/status/payment filters change (no API call)
+  useEffect(() => {
+    applyLocalFilters()
+  }, [search, customerFilter, statusFilter, paymentStatusFilter])
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -48,15 +62,19 @@ function InvoiceManagement({ user, selectedBranchId }) {
       setLoading(true)
       const token = localStorage.getItem('token')
       const params = { status: 'finalized' }
-      if (branchFilter) {
-        params.branch_id = branchFilter
+      // For super admins, use the dropdown selection; for others, use assigned branch
+      const branchToUse = user.role.name === 'super_admin' ? filterBranch : branchFilter
+      if (branchToUse) {
+        params.branch_id = branchToUse
       }
+      console.log('Fetching job cards with params:', params)
       const response = await axiosClient.get('/job-cards', {
         headers: { Authorization: `Bearer ${token}` },
         params
       })
       let data = response.data.data || response.data || []
       data = Array.isArray(data) ? data : []
+      console.log('Job cards fetched:', data.length)
       const jobCardsWithInvoices = await Promise.all(
         data.map(async (jc) => {
           try {
@@ -67,30 +85,79 @@ function InvoiceManagement({ user, selectedBranchId }) {
           } catch { return { ...jc, invoice: null } }
         })
       )
-      let filtered = jobCardsWithInvoices
-      if (search) filtered = filtered.filter(jc => jc.job_card_number?.toLowerCase().includes(search.toLowerCase()))
-      if (customerFilter) filtered = filtered.filter(jc => jc.customer?.name?.toLowerCase().includes(customerFilter.toLowerCase()))
-      if (statusFilter) {
-        filtered = filtered.filter(jc => {
-          if (statusFilter === 'pending_invoice') return !jc.invoice
-          if (statusFilter === 'generated') return jc.invoice && ['sent', 'partially_paid'].includes(jc.invoice.status)
-          if (statusFilter === 'paid') return jc.invoice && jc.invoice.status === 'paid'
-          return true
-        })
-      }
-      setJobCards(filtered)
+      console.log('Job cards with invoices:', jobCardsWithInvoices.length)
+      setAllJobCards(jobCardsWithInvoices)
+      setJobCards(jobCardsWithInvoices)
     } catch (error) {
       console.error('Error fetching invoice data:', error)
       setJobCards([])
+      setAllJobCards([])
     } finally { setLoading(false) }
+  }
+
+  const applyLocalFilters = () => {
+    if (allJobCards.length === 0) return
+    console.log('Applying local filters to', allJobCards.length, 'cards')
+    
+    let filtered = allJobCards
+    
+    // Apply date range filter
+    if (dateRangeFilter !== 'all') {
+      const now = new Date()
+      filtered = filtered.filter(jc => {
+        if (!jc.invoice?.invoice_date) return false
+        const invDate = new Date(jc.invoice.invoice_date)
+        const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+        const weekStart = new Date(dayStart)
+        weekStart.setDate(dayStart.getDate() - dayStart.getDay())
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+        const yearStart = new Date(now.getFullYear(), 0, 1)
+        
+        if (dateRangeFilter === 'today') return invDate >= dayStart
+        if (dateRangeFilter === 'week') return invDate >= weekStart
+        if (dateRangeFilter === 'month') return invDate >= monthStart
+        if (dateRangeFilter === 'year') return invDate >= yearStart
+        return true
+      })
+      console.log('After date filter:', filtered.length)
+    }
+    
+    if (search) {
+      filtered = filtered.filter(jc => jc.job_card_number?.toLowerCase().includes(search.toLowerCase()))
+      console.log('After search filter:', filtered.length)
+    }
+    if (customerFilter) {
+      filtered = filtered.filter(jc => jc.customer?.name?.toLowerCase().includes(customerFilter.toLowerCase()))
+      console.log('After customer filter:', filtered.length)
+    }
+    if (statusFilter) {
+      filtered = filtered.filter(jc => {
+        if (statusFilter === 'pending') return !jc.invoice
+        if (statusFilter === 'generated') return jc.invoice
+        return true
+      })
+      console.log('After status filter:', filtered.length)
+    }
+    if (paymentStatusFilter) {
+      filtered = filtered.filter(jc => {
+        if (!jc.invoice) return false
+        if (paymentStatusFilter === 'paid') return jc.invoice.status === 'paid'
+        if (paymentStatusFilter === 'partially_paid') return jc.invoice.status === 'partially_paid'
+        if (paymentStatusFilter === 'pending_payment') return jc.invoice.status === 'sent'
+        return true
+      })
+      console.log('After payment status filter:', filtered.length)
+    }
+    console.log('Final filtered count:', filtered.length, 'Setting to jobCards')
+    setJobCards(filtered)
   }
 
   const getPaymentStatus = (jobCard) => {
     if (!jobCard.invoice) return { status: 'pending_invoice', label: 'PENDING INVOICE', color: 'bg-yellow-50 text-yellow-700 border-yellow-200' }
-    const invoice = jobCard.invoice
-    if (invoice.status === 'paid') return { status: 'paid', label: 'FULLY PAID', color: 'bg-green-50 text-green-700 border-green-200' }
-    if (invoice.status === 'partially_paid') return { status: 'partially', label: 'PARTIALLY PAID', color: 'bg-orange-50 text-orange-700 border-orange-200' }
-    return { status: 'pending', label: 'PENDING', color: 'bg-red-50 text-red-600 border-red-200' }
+    const invoice = jobCard.invoice//correct
+    if (invoice.status === 'paid') return { status: 'paid', label: 'FULLY PAID', color: 'bg-green-50 text-green-700 border-green-200' }//correct
+    if (invoice.status === 'partially_paid') return { status: 'partially', label: 'PARTIALLY PAID', color: 'bg-orange-50 text-orange-700 border-orange-200' }//correct
+    return { status: 'pending', label: 'PENDING', color: 'bg-red-50 text-red-600 border-red-200' }//correct
   }
 
   const formatCurrency = (amount) => new Intl.NumberFormat('en-LK', { style: 'currency', currency: 'LKR', minimumFractionDigits: 2 }).format(amount || 0)
@@ -99,9 +166,56 @@ function InvoiceManagement({ user, selectedBranchId }) {
     return new Date(date).toLocaleDateString('en-LK', { year: 'numeric', month: 'short', day: 'numeric' })
   }
 
+  const downloadReport = () => {
+    if (jobCards.length === 0) {
+      alert('No data to download')
+      return
+    }
+
+    // Prepare CSV header
+    const headers = ['Date', 'Job Card Number', 'Invoice Number', 'Customer', 'Vehicle', 'Total Amount', 'Paid Amount', 'Due Amount', 'Payment Status']
+    
+    // Prepare rows
+    const rows = jobCards.map(jc => {
+      const invoice = jc.invoice
+      const paymentStatus = getPaymentStatus(jc)
+      
+      // Calculate paid amount correctly: Total - Due = Paid
+      const totalAmount = parseFloat(invoice?.total_amount || 0)
+      const dueAmount = parseFloat(invoice?.balance_due || 0)
+      const paidAmount = totalAmount - dueAmount
+      
+      return [
+        `'${formatDate(invoice?.invoice_date || jc.created_at)}`,
+        jc.job_card_number || '',
+        invoice?.invoice_number || 'N/A',
+        jc.customer?.name || '',
+        jc.vehicle?.license_plate || '',
+        totalAmount.toFixed(2),
+        paidAmount.toFixed(2),
+        dueAmount.toFixed(2),
+        paymentStatus.label
+      ]
+    })
+
+    // Create CSV content
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n')
+
+    // Download CSV
+    const blob = new Blob([csvContent], { type: 'text/csv' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = `invoice-report-${new Date().toISOString().split('T')[0]}.csv`
+    link.click()
+  }
+
   const totalPages = Math.ceil(jobCards.length / resultsPerPage)
   const startIndex = (currentPage - 1) * resultsPerPage
   const paginatedData = jobCards.slice(startIndex, startIndex + resultsPerPage)
+  console.log('RENDER - jobCards length:', jobCards.length, 'paginatedData length:', paginatedData.length, 'loading:', loading)
 
   const inputCls = "w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all"
   const labelCls = "block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
@@ -120,8 +234,8 @@ function InvoiceManagement({ user, selectedBranchId }) {
   return (
     <div className="space-y-5">
 
-      {/* Branch Filter */}
-      {!user?.branch_id ? (
+      {/* Branch Filter - Only for Super Admin */}
+      {user.role.name === 'super_admin' && (
         <div ref={branchDropdownRef} className="relative w-fit">
           <button
             onClick={() => setBranchDropdownOpen(!branchDropdownOpen)}
@@ -130,9 +244,9 @@ function InvoiceManagement({ user, selectedBranchId }) {
             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-[#2563A8] flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
               <path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
             </svg>
-            <div className="w-px h-5 bg-[#2563A8]/30" />
+            <div className="w-px h-5 bg-[#2563A8]/50" />
             <span className="text-sm font-bold text-[#2563A8] flex-1 text-left">
-              {branchFilter ? branches.find(b => b.id === parseInt(branchFilter))?.name : 'All Branches'}
+              {filterBranch ? branches.find(b => b.id === parseInt(filterBranch))?.name : 'All Branches'}
             </span>
             <svg xmlns="http://www.w3.org/2000/svg" className={`w-4 h-4 text-[#2563A8] transition-transform duration-200 flex-shrink-0 ${branchDropdownOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="currentColor">
               <path d="M7 10l5 5 5-5z" />
@@ -140,27 +254,61 @@ function InvoiceManagement({ user, selectedBranchId }) {
           </button>
 
           {branchDropdownOpen && (
-            <div className="absolute top-full mt-2 w-full bg-white border border-[#2563A8]/50 rounded-xl shadow-lg z-50 overflow-hidden">
-              <button
-                onClick={() => { setBranchFilter(''); setBranchDropdownOpen(false) }}
-                className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-[#2563A8]/10 border-b border-[#2563A8]/20 font-medium"
-              >
-                All Branches
-              </button>
-              {branches.map(branch => (
+            <div className="absolute top-full left-0 mt-2 w-[320px] bg-white border border-[#2563A8]/50 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+              {/* Search in dropdown */}
+              <div className="p-3 border-b border-[#2563A8]/30 bg-gradient-to-r from-[#2563A8]/10 to-[#2563A8]/20">
+                <input
+                  type="text"
+                  placeholder="Search branches..."
+                  className="w-full px-3.5 py-2.5 text-sm border border-[#2563A8]/200 rounded-lg focus:border-[#2563A8]/500 focus:outline-none focus:ring-2 focus:ring-[#2563A8]/500/20 transition-all"
+                />
+              </div>
+
+              {/* Dropdown options */}
+              <div className="max-h-72 overflow-y-auto">
                 <button
-                  key={branch.id}
-                  onClick={() => { setBranchFilter(branch.id); setBranchDropdownOpen(false) }}
-                  className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-[#2563A8]/10 flex items-center justify-between"
+                  onClick={() => {
+                    setFilterBranch('')
+                    localStorage.setItem('selectedBranchId', '')
+                    setBranchDropdownOpen(false)
+                  }}
+                  className={`w-full text-left px-4 py-3.5 text-sm font-semibold transition-all ${
+                    filterBranch === ''
+                      ? 'bg-gradient-to-r from-[#2563A8] to-[#2563A8]/80 text-white'
+                      : 'text-gray-700 hover:bg-[#2563A8]/10'
+                  }`}
                 >
-                  <span className="font-medium">{branch.name}</span>
-                  <span className="text-xs text-gray-400">{branch.city}</span>
+                  <div className="flex items-center gap-3">
+                    <div className={`w-2.5 h-2.5 rounded-full ${filterBranch === '' ? 'bg-white' : 'bg-[#2563A8]/30'}`} />
+                    All Branches
+                  </div>
                 </button>
-              ))}
+
+                {branches.map(branch => (
+                  <button
+                    key={branch.id}
+                    onClick={() => {
+                      setFilterBranch(String(branch.id))
+                      localStorage.setItem('selectedBranchId', String(branch.id))
+                      setBranchDropdownOpen(false)
+                    }}
+                    className={`w-full text-left px-4 py-3.5 text-sm font-semibold transition-all ${
+                      filterBranch === String(branch.id)
+                        ? 'bg-gradient-to-r from-[#2563A8] to-[#2563A8]/80 text-white'
+                        : 'text-gray-700 hover:bg-[#2563A8]/10'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-2.5 h-2.5 rounded-full ${filterBranch === String(branch.id) ? 'bg-white' : 'bg-[#2563A8]/30'}`} />
+                      {branch.name}
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </div>
-      ) : null}
+      )}
 
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -173,27 +321,55 @@ function InvoiceManagement({ user, selectedBranchId }) {
         <p className="text-xs text-gray-400">Generate &amp; manage invoices for finalized job cards</p>
       </div>
 
+      {/* Date Range Filters */}
+      <div className="flex gap-2 flex-wrap">
+        {[
+          { value: 'all', label: 'All Time' },
+          { value: 'today', label: 'Today' },
+          { value: 'week', label: 'This Week' },
+          { value: 'month', label: 'This Month' },
+          { value: 'year', label: 'This Year' },
+        ].map(range => (
+          <button
+            key={range.value}
+            onClick={() => { setDateRangeFilter(range.value); setCurrentPage(1) }}
+            className={`px-4 py-2 rounded-full text-sm font-semibold transition-all ${
+              dateRangeFilter === range.value
+                ? 'bg-primary text-white shadow-md'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            {range.label}
+          </button>
+        ))}
+      </div>
+
       {/* Stats Cards */}
       <div className="grid grid-cols-3 gap-4">
         {[
           {
             label: "Today's Invoices",
             accent: 'border-teal-400', iconBg: 'bg-teal-50', iconColor: 'text-teal-600',
-            value: jobCards.filter(jc => { const d = new Date(jc.invoice?.invoice_date).toLocaleDateString(); return jc.invoice && d === new Date().toLocaleDateString() }).length,
+            value: allJobCards.filter(jc => { const d = new Date(jc.invoice?.invoice_date).toLocaleDateString(); return jc.invoice && d === new Date().toLocaleDateString() }).length,
             valueColor: 'text-gray-900',
             icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           },
           {
             label: 'This Month',
             accent: 'border-orange-400', iconBg: 'bg-orange-50', iconColor: 'text-orange-600',
-            value: jobCards.filter(jc => jc.invoice).length,
+            value: allJobCards.filter(jc => {
+              if (!jc.invoice) return false;
+              const date = new Date(jc.invoice.invoice_date);
+              const now = new Date();
+              return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+            }).length,
             valueColor: 'text-gray-900',
             icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
           },
           {
             label: 'Total Revenue',
             accent: 'border-purple-400', iconBg: 'bg-purple-50', iconColor: 'text-purple-600',
-            value: formatCurrency(jobCards.filter(jc => jc.invoice).reduce((s, jc) => s + parseFloat(jc.invoice.total_amount || 0), 0)),
+            value: formatCurrency(allJobCards.filter(jc => jc.invoice).reduce((s, jc) => s + parseFloat(jc.invoice.total_amount || 0), 0)),
             valueColor: 'text-purple-600',
             icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           },
@@ -226,7 +402,7 @@ function InvoiceManagement({ user, selectedBranchId }) {
           </svg>
           Filters &amp; Search
         </h3>
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-5 gap-4">
           <div>
             <label className={labelCls}>Job Card Number</label>
             <input type="text" placeholder="Search job card..." value={search}
@@ -240,10 +416,18 @@ function InvoiceManagement({ user, selectedBranchId }) {
           <div>
             <label className={labelCls}>Invoice Status</label>
             <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setCurrentPage(1) }} className={inputCls}>
-              <option value="">All Statuses</option>
-              <option value="pending_invoice">Pending Invoice</option>
-              <option value="generated">Invoice Generated</option>
+              <option value="">All Invoices</option>
+              <option value="pending">Pending (Not Generated)</option>
+              <option value="generated">Generated</option>
+            </select>
+          </div>
+          <div>
+            <label className={labelCls}>Payment Status</label>
+            <select value={paymentStatusFilter} onChange={e => { setPaymentStatusFilter(e.target.value); setCurrentPage(1) }} className={inputCls}>
+              <option value="">All Payment Status</option>
               <option value="paid">Fully Paid</option>
+              <option value="partially_paid">Partially Paid</option>
+              <option value="pending_payment">Pending Payment</option>
             </select>
           </div>
           <div>
@@ -260,10 +444,19 @@ function InvoiceManagement({ user, selectedBranchId }) {
           <p className="text-xs text-gray-400">
             Showing <span className="font-semibold text-gray-600">{paginatedData.length > 0 ? startIndex + 1 : 0}–{Math.min(startIndex + resultsPerPage, jobCards.length)}</span> of <span className="font-semibold text-gray-600">{jobCards.length}</span> results
           </p>
-          <button onClick={() => { setSearch(''); setCustomerFilter(''); setStatusFilter(''); setCurrentPage(1) }}
-            className="px-3.5 py-1.5 bg-white hover:bg-gray-100 text-gray-600 border border-gray-200 rounded-lg text-xs font-semibold transition-colors">
-            Clear All
-          </button>
+          <div className="flex gap-2">
+            <button onClick={downloadReport}
+              className="px-3.5 py-1.5 bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 rounded-lg text-xs font-semibold transition-colors flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2m0 0v-8m0 8H3m6-15h6" />
+              </svg>
+              Download Report
+            </button>
+            <button onClick={() => { setSearch(''); setCustomerFilter(''); setStatusFilter(''); setPaymentStatusFilter(''); setDateRangeFilter('all'); setCurrentPage(1) }}
+              className="px-3.5 py-1.5 bg-white hover:bg-gray-100 text-gray-600 border border-gray-200 rounded-lg text-xs font-semibold transition-colors">
+              Clear All
+            </button>
+          </div>
         </div>
       </div>
 
