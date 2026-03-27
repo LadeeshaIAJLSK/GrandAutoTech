@@ -7,6 +7,9 @@ function FinancialReports({ user }) {
   const [paymentMethods, setPaymentMethods] = useState([])
   const [bankBreakdown, setBankBreakdown] = useState([])
   const [paymentTransactions, setPaymentTransactions] = useState([])
+  const [tasksReport, setTasksReport] = useState([])
+  const [sparePartsReport, setSparePartsReport] = useState([])
+  const [otherChargesReport, setOtherChargesReport] = useState([])
   const [outstandingDues, setOutstandingDues] = useState(null)
   const [loading, setLoading] = useState(true)
   const [notification, setNotification] = useState(null)
@@ -16,6 +19,8 @@ function FinancialReports({ user }) {
   const [periodFilter, setPeriodFilter] = useState('month')
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('')
   const [selectedBank, setSelectedBank] = useState('')
+  const [selectedTaskCategory, setSelectedTaskCategory] = useState('')
+  const [taskCategories, setTaskCategories] = useState([])
   const [branches, setBranches] = useState([])
   const [selectedBranch, setSelectedBranch] = useState(user?.branch_id || '')
   const [branchDropdownOpen, setBranchDropdownOpen] = useState(false)
@@ -93,18 +98,25 @@ function FinancialReports({ user }) {
         params.branch_id = selectedBranch
       }
       
-      const [financial, methods, dues, banks, transactions] = await Promise.all([
+      const [financial, methods, dues, banks, transactions, tasks, spareParts, otherCharges] = await Promise.all([
         axiosClient.get('/reports/financial-summary', { params, headers: { Authorization: `Bearer ${token}` } }),
         axiosClient.get('/reports/payment-methods', { params, headers: { Authorization: `Bearer ${token}` } }),
         axiosClient.get('/reports/outstanding-dues', { headers: { Authorization: `Bearer ${token}` } }),
         axiosClient.get('/reports/bank-breakdown', { params, headers: { Authorization: `Bearer ${token}` } }),
-        axiosClient.get('/reports/payment-transactions', { params, headers: { Authorization: `Bearer ${token}` } })
+        axiosClient.get('/reports/payment-transactions', { params, headers: { Authorization: `Bearer ${token}` } }),
+        axiosClient.get('/reports/tasks', { params: { category: selectedTaskCategory, ...params }, headers: { Authorization: `Bearer ${token}` } }),
+        axiosClient.get('/reports/spare-parts', { params, headers: { Authorization: `Bearer ${token}` } }),
+        axiosClient.get('/reports/other-charges', { params, headers: { Authorization: `Bearer ${token}` } })
       ])
       setFinancialData(financial.data)
       setPaymentMethods(methods.data)
       setOutstandingDues(dues.data)
       setBankBreakdown(banks.data || [])
       setPaymentTransactions(transactions.data || [])
+      setTasksReport(tasks.data?.tasks || [])
+      setTaskCategories(tasks.data?.categories || [])
+      setSparePartsReport(spareParts.data || [])
+      setOtherChargesReport(otherCharges.data || [])
     } catch (error) {
       console.error('Error fetching reports:', error)
     } finally {
@@ -161,9 +173,91 @@ function FinancialReports({ user }) {
     document.body.removeChild(link)
   }
 
+  const downloadTasksReport = () => {
+    if (tasksReport.length === 0) {
+      setNotification({ type: 'error', title: 'No Data', message: 'No tasks to download.' })
+      return
+    }
+
+    const headers = ['Category', 'Cost (LKR)', 'Amount (LKR)', 'Profit (LKR)']
+    const rows = tasksReport.map(t => [
+      t.category,
+      t.total_cost,
+      t.total_amount,
+      t.total_amount - t.total_cost
+    ])
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    ].join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = `tasks_report_${new Date().toISOString().slice(0, 10)}.csv`
+    link.click()
+  }
+
+  const downloadSparePartsReport = () => {
+    if (sparePartsReport.length === 0) {
+      setNotification({ type: 'error', title: 'No Data', message: 'No spare parts to download.' })
+      return
+    }
+
+    const headers = ['Part Name', 'Part Number', 'Quantity', 'Cost (LKR)', 'Selling Price (LKR)', 'Profit (LKR)']
+    const rows = sparePartsReport.map(p => [
+      p.part_name,
+      p.part_number || 'N/A',
+      p.total_quantity,
+      p.total_cost,
+      p.total_selling_price,
+      p.total_selling_price - p.total_cost
+    ])
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    ].join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = `spare_parts_report_${new Date().toISOString().slice(0, 10)}.csv`
+    link.click()
+  }
+
+  const downloadOtherChargesReport = () => {
+    if (otherChargesReport.length === 0) {
+      setNotification({ type: 'error', title: 'No Data', message: 'No other charges to download.' })
+      return
+    }
+
+    const headers = ['Description', 'Cost (LKR)', 'Amount (LKR)', 'Profit (LKR)']
+    const rows = otherChargesReport.map(c => [
+      c.description,
+      c.total_cost,
+      c.total_amount,
+      c.total_amount - c.total_cost
+    ])
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    ].join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = `other_charges_report_${new Date().toISOString().slice(0, 10)}.csv`
+    link.click()
+  }
+
+  const totalAmount = financialData?.total_amount || 0
   const totalCost = financialData?.total_cost || 0
   const totalRevenue = financialData?.total_revenue || 0
-  const totalProfit = totalRevenue - totalCost
+  const totalProfit = totalAmount - totalCost
+  const outstandingDue = financialData?.outstanding_dues || 0
 
   const getMethodIcon = (method) => {
     const icons = {
@@ -297,7 +391,7 @@ function FinancialReports({ user }) {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex items-center gap-4">
           <div className="w-11 h-11 rounded-xl bg-green-50 flex items-center justify-center flex-shrink-0">
             <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -305,8 +399,20 @@ function FinancialReports({ user }) {
             </svg>
           </div>
           <div>
-            <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Total Revenue</p>
+            <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Paid Amount</p>
             <p className="text-xl font-bold text-green-600 mt-0.5">{formatCurrency(totalRevenue)}</p>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex items-center gap-4">
+          <div className="w-11 h-11 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div>
+            <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Total Amount</p>
+            <p className="text-xl font-bold text-blue-600 mt-0.5">{formatCurrency(totalAmount)}</p>
           </div>
         </div>
 
@@ -337,60 +443,163 @@ function FinancialReports({ user }) {
         </div>
 
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex items-center gap-4">
-          <div className="w-11 h-11 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <div className="w-11 h-11 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
           </div>
           <div>
             <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Outstanding Due</p>
-            <p className="text-xl font-bold text-blue-600 mt-0.5">{formatCurrency(outstandingDues?.total_outstanding || 0)}</p>
+            <p className="text-xl font-bold text-red-600 mt-0.5">{formatCurrency(outstandingDue)}</p>
           </div>
         </div>
       </div>
 
-      {/* Payment Methods */}
+      {/* Tasks Report */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5 mb-5">
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-          </svg>
-          Revenue by Payment Method
-        </h3>
-        <div className="space-y-5">
-          {paymentMethods.map((method) => {
-            const percentage = totalRevenue > 0
-              ? (method.total_amount / totalRevenue * 100).toFixed(1)
-              : 0
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            Tasks Report
+          </h3>
+          <button
+            onClick={downloadTasksReport}
+            className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-500 text-white text-xs font-semibold rounded-lg hover:bg-blue-600 transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Download
+          </button>
+        </div>
+        <div className="mb-4 flex gap-3">
+          <select
+            value={selectedTaskCategory}
+            onChange={(e) => setSelectedTaskCategory(e.target.value)}
+            className="px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all"
+          >
+            <option value="">All Categories</option>
+            {taskCategories.map(cat => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-200 bg-gray-50">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Category</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Cost</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Amount</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {tasksReport.map((task, idx) => (
+                <tr key={idx} className="hover:bg-gray-50/70 transition-colors">
+                  <td className="px-4 py-3 font-semibold text-gray-700">{task.category}</td>
+                  <td className="px-4 py-3 text-right font-semibold text-orange-600">{formatCurrency(task.total_cost)}</td>
+                  <td className="px-4 py-3 text-right font-bold text-gray-900">{formatCurrency(task.total_amount)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {tasksReport.length === 0 && (
+            <div className="text-center py-8 text-gray-500">No tasks found.</div>
+          )}
+        </div>
+      </div>
 
-            return (
-              <div key={method.payment_method} className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                      {getMethodIcon(method.payment_method)}
-                    </div>
-                    <span className="text-sm font-semibold text-gray-700 capitalize">
-                      {method.payment_method.replace('_', ' ')}
-                    </span>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-gray-900">{formatCurrency(method.total_amount)}</p>
-                    <p className="text-xs text-gray-400">{method.count} transactions</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-primary rounded-full transition-all duration-500"
-                      style={{ width: `${percentage}%` }}
-                    />
-                  </div>
-                  <span className="text-xs text-gray-400 w-12 text-right">{percentage}%</span>
-                </div>
-              </div>
-            )
-          })}
+      {/* Spare Parts Report */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
+            </svg>
+            Spare Parts Report
+          </h3>
+          <button
+            onClick={downloadSparePartsReport}
+            className="inline-flex items-center gap-2 px-3 py-1.5 bg-purple-500 text-white text-xs font-semibold rounded-lg hover:bg-purple-600 transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Download
+          </button>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-200 bg-gray-50">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Part Name</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Part Number</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Qty</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Cost</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Selling Price</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {sparePartsReport.map((part, idx) => (
+                <tr key={idx} className="hover:bg-gray-50/70 transition-colors">
+                  <td className="px-4 py-3 font-semibold text-gray-700">{part.part_name}</td>
+                  <td className="px-4 py-3 text-xs text-gray-600">{part.part_number || '—'}</td>
+                  <td className="px-4 py-3 text-center text-gray-600">{part.total_quantity}</td>
+                  <td className="px-4 py-3 text-right font-semibold text-orange-600">{formatCurrency(part.total_cost)}</td>
+                  <td className="px-4 py-3 text-right font-bold text-gray-900">{formatCurrency(part.total_selling_price)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {sparePartsReport.length === 0 && (
+            <div className="text-center py-8 text-gray-500">No spare parts found.</div>
+          )}
+        </div>
+      </div>
+
+      {/* Other Charges Report */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Other Charges Report
+          </h3>
+          <button
+            onClick={downloadOtherChargesReport}
+            className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-500 text-white text-xs font-semibold rounded-lg hover:bg-amber-600 transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Download
+          </button>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-200 bg-gray-50">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Description</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Cost</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Amount</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {otherChargesReport.map((charge, idx) => (
+                <tr key={idx} className="hover:bg-gray-50/70 transition-colors">
+                  <td className="px-4 py-3 font-semibold text-gray-700">{charge.description}</td>
+                  <td className="px-4 py-3 text-right font-semibold text-orange-600">{formatCurrency(charge.total_cost)}</td>
+                  <td className="px-4 py-3 text-right font-bold text-gray-900">{formatCurrency(charge.total_amount)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {otherChargesReport.length === 0 && (
+            <div className="text-center py-8 text-gray-500">No other charges found.</div>
+          )}
         </div>
       </div>
 
@@ -401,7 +610,7 @@ function FinancialReports({ user }) {
             <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
             </svg>
-            Bank-wise Revenue Breakdown
+            Bank-wise Paid Amount Breakdown
           </h3>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

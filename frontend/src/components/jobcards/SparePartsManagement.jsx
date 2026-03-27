@@ -328,8 +328,14 @@ function SparePartsManagement({ jobCard, onUpdate, user }) {
         {canAdd && (
           <button
             onClick={() => setShowAddModal(true)}
-            className="inline-flex items-center gap-2 bg-[#2563A8] hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm hover:shadow-md hover:-translate-y-px"
-            style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
+            disabled={jobCard?.status === 'inspected'}
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm ${
+              jobCard?.status === 'inspected'
+                ? 'bg-gray-400 text-gray-600 cursor-not-allowed opacity-60'
+                : 'bg-[#2563A8] hover:bg-blue-700 text-white hover:shadow-md hover:-translate-y-px'
+            }`}
+            style={{ textShadow: jobCard?.status === 'inspected' ? 'none' : '0 1px 2px rgba(0,0,0,0.2)' }}
+            title={jobCard?.status === 'inspected' ? 'Cannot request parts when job card is inspected' : ''}
           >
             <span className="flex items-center justify-center w-4 h-4 bg-white/25 rounded">
               <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">

@@ -27,17 +27,36 @@ class ReportController extends Controller
             // Total revenue from payments
             $totalRevenue = Payment::whereBetween('payment_date', [$startDate, $endDate])->sum('amount');
 
-            // Total cost - simplified approach
-            $totalCost = DB::table('tasks')
+            // Total billable amount (what customers should pay)
+            $tasksAmount = DB::table('tasks')
+                ->where('status', 'completed')
+                ->sum(DB::raw('COALESCE(amount, 0)'));
+
+            $sparePartsAmount = DB::table('spare_parts_requests')
+                ->whereIn('overall_status', ['approved', 'ordered', 'process', 'delivered'])
+                ->sum(DB::raw('CAST(COALESCE(selling_price, 0) AS DECIMAL(10,2)) * CAST(COALESCE(quantity, 1) AS DECIMAL(10,2))'));
+
+            $otherChargesAmount = DB::table('other_charges')
+                ->sum(DB::raw('COALESCE(amount, 0)'));
+
+            $totalAmount = floatval($tasksAmount) + floatval($sparePartsAmount) + floatval($otherChargesAmount);
+
+            // Total cost from all sources
+            $tasksCost = DB::table('tasks')
                 ->where('status', 'completed')
                 ->sum(DB::raw('COALESCE(cost_price, 0)'));
 
-            if ($totalCost == 0) {
-                $totalCost = 0;
-            }
+            $sparePartsCost = DB::table('spare_parts_requests')
+                ->whereIn('overall_status', ['approved', 'ordered', 'process', 'delivered'])
+                ->sum(DB::raw('COALESCE(total_cost, 0)'));
+
+            $otherChargesCost = DB::table('other_charges')
+                ->sum(DB::raw('COALESCE(cost_price, 0)'));
+
+            $totalCost = floatval($tasksCost) + floatval($sparePartsCost) + floatval($otherChargesCost);
 
             // Outstanding dues
-            $outstandingDues = JobCard::where('balance_amount', '>', 0)->sum('balance_amount');
+            $outstandingDues = floatval($totalAmount) - floatval($totalRevenue);
 
             // Paid job cards count
             $paidJobCards = JobCard::where('payment_status', 'paid')
@@ -45,6 +64,7 @@ class ReportController extends Controller
                 ->count();
 
             return response()->json([
+                'total_amount' => floatval($totalAmount) ?? 0,
                 'total_revenue' => floatval($totalRevenue) ?? 0,
                 'total_cost' => floatval($totalCost) ?? 0,
                 'outstanding_dues' => floatval($outstandingDues) ?? 0,
@@ -57,6 +77,7 @@ class ReportController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'error' => $e->getMessage(),
+                'total_amount' => 0,
                 'total_revenue' => 0,
                 'total_cost' => 0,
                 'outstanding_dues' => 0,
@@ -178,5 +199,77 @@ class ReportController extends Controller
             ->get();
 
         return response()->json($dailyRevenue);
+    }
+
+    public function tasksReport(Request $request)
+    {
+        $category = $request->get('category', '');
+        $startDate = $request->get('start_date', now()->startOfMonth()->toDateString());
+        $endDate = $request->get('end_date', now()->endOfMonth()->toDateString());
+
+        $query = DB::table('tasks')
+            ->whereBetween(DB::raw('DATE(created_at)'), [$startDate, $endDate])
+            ->select(
+                'category',
+                DB::raw('COUNT(*) as count'),
+                DB::raw('SUM(COALESCE(cost_price, 0)) as total_cost'),
+                DB::raw('SUM(COALESCE(amount, 0)) as total_amount')
+            )
+            ->groupBy('category');
+
+        if ($category) {
+            $query->where('category', $category);
+        }
+
+        $tasks = $query->orderBy('total_amount', 'desc')->get();
+        $categories = DB::table('tasks')->select('category')->distinct()->orderBy('category')->pluck('category');
+
+        return response()->json([
+            'tasks' => $tasks,
+            'categories' => $categories
+        ]);
+    }
+
+    public function sparePartsReport(Request $request)
+    {
+        $startDate = $request->get('start_date', now()->startOfMonth()->toDateString());
+        $endDate = $request->get('end_date', now()->endOfMonth()->toDateString());
+
+        $query = DB::table('spare_parts_requests')
+            ->whereBetween(DB::raw('DATE(created_at)'), [$startDate, $endDate])
+            ->whereIn('overall_status', ['approved', 'ordered', 'process', 'delivered'])
+            ->select(
+                'part_name',
+                'part_number',
+                DB::raw('COUNT(*) as count'),
+                DB::raw('SUM(COALESCE(quantity, 1)) as total_quantity'),
+                DB::raw('SUM(CAST(COALESCE(unit_cost, 0) AS DECIMAL(10,2)) * CAST(COALESCE(quantity, 1) AS DECIMAL(10,2))) as total_cost'),
+                DB::raw('SUM(CAST(COALESCE(selling_price, 0) AS DECIMAL(10,2)) * CAST(COALESCE(quantity, 1) AS DECIMAL(10,2))) as total_selling_price')
+            )
+            ->groupBy('part_name', 'part_number')
+            ->orderBy('total_selling_price', 'desc')
+            ->get();
+
+        return response()->json($query);
+    }
+
+    public function otherChargesReport(Request $request)
+    {
+        $startDate = $request->get('start_date', now()->startOfMonth()->toDateString());
+        $endDate = $request->get('end_date', now()->endOfMonth()->toDateString());
+
+        $query = DB::table('other_charges')
+            ->whereBetween(DB::raw('DATE(created_at)'), [$startDate, $endDate])
+            ->select(
+                'description',
+                DB::raw('COUNT(*) as count'),
+                DB::raw('SUM(COALESCE(cost_price, 0)) as total_cost'),
+                DB::raw('SUM(COALESCE(amount, 0)) as total_amount')
+            )
+            ->groupBy('description')
+            ->orderBy('total_amount', 'desc')
+            ->get();
+
+        return response()->json($query);
     }
 }

@@ -16,7 +16,6 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             CustomerSeeder::class,
             VehicleSeeder::class,
-            JobCardSeeder::class,
             ActivityLogSeeder::class,
         ]);
     }
