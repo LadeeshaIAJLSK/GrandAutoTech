@@ -22,6 +22,7 @@ function InvoiceDetail({ user }) {
   const [referenceNumber, setReferenceNumber] = useState('')
   const [bankName, setBankName] = useState('')
   const [submittingPayment, setSubmittingPayment] = useState(false)
+  const [updatingDiscount, setUpdatingDiscount] = useState(false)
 
   const token = localStorage.getItem('token')
   const headers = { Authorization: `Bearer ${token}` }
@@ -89,13 +90,37 @@ function InvoiceDetail({ user }) {
   }
 
   const handleUpdateDiscount = async () => {
-    if (!invoice) return
+    if (!invoice) {
+      setMessage({ text: 'No invoice found', type: 'error' })
+      return
+    }
+    if (!invoice.id) {
+      setMessage({ text: 'Invalid invoice ID', type: 'error' })
+      return
+    }
     try {
-      const res = await axiosClient.put(`/invoices/${invoice.id}`, { discount_amount: calcDiscount() }, { headers })
-      setInvoice(res.data)
-      setMessage({ text: 'Discount applied!', type: 'success' })
+      setUpdatingDiscount(true)
+      console.log('Updating discount for invoice', invoice.id, 'with discount amount:', calcDiscount())
+      
+      const discountAmount = calcDiscount()
+      if (discountAmount < 0) {
+        setMessage({ text: 'Discount amount cannot be negative', type: 'error' })
+        return
+      }
+
+      const res = await axiosClient.put(`/invoices/${invoice.id}`, { discount_amount: discountAmount }, { headers })
+      console.log('Discount update response:', res.data)
+      
+      setInvoice(res.data.data || res.data)
+      setMessage({ text: 'Discount applied successfully!', type: 'success' })
       setTimeout(() => setMessage({ text: '', type: '' }), 3000)
-    } catch (err) { setMessage({ text: 'Error applying discount', type: 'error' }) }
+    } catch (err) {
+      console.error('Error updating discount:', err)
+      const errorMsg = err.response?.data?.message || err.message || 'Error applying discount'
+      setMessage({ text: errorMsg, type: 'error' })
+    } finally {
+      setUpdatingDiscount(false)
+    }
   }
 
   const handlePayment = async (e) => {
@@ -450,9 +475,16 @@ function InvoiceDetail({ user }) {
           </div>
 
           {invoice && discountType !== 'none' && parseFloat(discountValue) > 0 && (
-            <button onClick={handleUpdateDiscount}
-              className="w-full py-2.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold rounded-lg transition-colors">
-              Update Discount on Invoice
+            <button onClick={handleUpdateDiscount} disabled={updatingDiscount}
+              className="w-full py-2.5 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-400 text-white text-sm font-bold rounded-lg transition-colors flex items-center justify-center gap-2">
+              {updatingDiscount ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Applying Discount...
+                </>
+              ) : (
+                'Update Discount on Invoice'
+              )}
             </button>
           )}
         </div>
