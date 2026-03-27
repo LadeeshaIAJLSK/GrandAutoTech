@@ -19,39 +19,81 @@ class ReportController extends Controller
             // Date filters - handle both string and date formats
             $startDate = $request->get('start_date', now()->startOfMonth()->toDateString());
             $endDate = $request->get('end_date', now()->endOfMonth()->toDateString());
+            $branchId = $request->get('branch_id');
 
             // Ensure dates are properly formatted
             $startDate = date('Y-m-d', strtotime($startDate));
             $endDate = date('Y-m-d', strtotime($endDate));
 
-            // Total revenue from payments
-            $totalRevenue = Payment::whereBetween('payment_date', [$startDate, $endDate])->sum('amount');
+            // Build branch filter for queries
+            $branchFilter = function($query) use ($branchId) {
+                if ($branchId) {
+                    $query->where('branch_id', $branchId);
+                }
+            };
+
+            // Total revenue from payments (filtered by branch if provided)
+            $paymentQuery = Payment::whereBetween('payment_date', [$startDate, $endDate]);
+            if ($branchId) {
+                $paymentQuery->whereHas('jobCard', $branchFilter);
+            }
+            $totalRevenue = $paymentQuery->sum('amount');
 
             // Total billable amount (what customers should pay)
-            $tasksAmount = DB::table('tasks')
-                ->where('status', 'completed')
-                ->sum(DB::raw('COALESCE(amount, 0)'));
+            $tasksQuery = DB::table('tasks')
+                ->where('tasks.status', 'completed')
+                ->whereBetween(DB::raw('DATE(tasks.created_at)'), [$startDate, $endDate]);
+            if ($branchId) {
+                $tasksQuery->join('job_cards', 'tasks.job_card_id', '=', 'job_cards.id')
+                    ->where('job_cards.branch_id', $branchId);
+            }
+            $tasksAmount = $tasksQuery->sum(DB::raw('COALESCE(tasks.amount, 0)'));
 
-            $sparePartsAmount = DB::table('spare_parts_requests')
-                ->whereIn('overall_status', ['approved', 'ordered', 'process', 'delivered'])
-                ->sum(DB::raw('CAST(COALESCE(selling_price, 0) AS DECIMAL(10,2)) * CAST(COALESCE(quantity, 1) AS DECIMAL(10,2))'));
+            $sparePartsQuery = DB::table('spare_parts_requests')
+                ->whereIn('spare_parts_requests.overall_status', ['approved', 'ordered', 'process', 'delivered'])
+                ->whereBetween(DB::raw('DATE(spare_parts_requests.created_at)'), [$startDate, $endDate]);
+            if ($branchId) {
+                $sparePartsQuery->join('job_cards', 'spare_parts_requests.job_card_id', '=', 'job_cards.id')
+                    ->where('job_cards.branch_id', $branchId);
+            }
+            $sparePartsAmount = $sparePartsQuery->sum(DB::raw('CAST(COALESCE(spare_parts_requests.selling_price, 0) AS DECIMAL(10,2)) * CAST(COALESCE(spare_parts_requests.quantity, 1) AS DECIMAL(10,2))'));
 
-            $otherChargesAmount = DB::table('other_charges')
-                ->sum(DB::raw('COALESCE(amount, 0)'));
+            $otherChargesQuery = DB::table('other_charges')
+                ->whereBetween(DB::raw('DATE(other_charges.created_at)'), [$startDate, $endDate]);
+            if ($branchId) {
+                $otherChargesQuery->join('job_cards', 'other_charges.job_card_id', '=', 'job_cards.id')
+                    ->where('job_cards.branch_id', $branchId);
+            }
+            $otherChargesAmount = $otherChargesQuery->sum(DB::raw('COALESCE(other_charges.amount, 0)'));
 
             $totalAmount = floatval($tasksAmount) + floatval($sparePartsAmount) + floatval($otherChargesAmount);
 
             // Total cost from all sources
-            $tasksCost = DB::table('tasks')
-                ->where('status', 'completed')
-                ->sum(DB::raw('COALESCE(cost_price, 0)'));
+            $tasksCostQuery = DB::table('tasks')
+                ->where('tasks.status', 'completed')
+                ->whereBetween(DB::raw('DATE(tasks.created_at)'), [$startDate, $endDate]);
+            if ($branchId) {
+                $tasksCostQuery->join('job_cards', 'tasks.job_card_id', '=', 'job_cards.id')
+                    ->where('job_cards.branch_id', $branchId);
+            }
+            $tasksCost = $tasksCostQuery->sum(DB::raw('COALESCE(tasks.cost_price, 0)'));
 
-            $sparePartsCost = DB::table('spare_parts_requests')
-                ->whereIn('overall_status', ['approved', 'ordered', 'process', 'delivered'])
-                ->sum(DB::raw('COALESCE(total_cost, 0)'));
+            $sparePartsCostQuery = DB::table('spare_parts_requests')
+                ->whereIn('spare_parts_requests.overall_status', ['approved', 'ordered', 'process', 'delivered'])
+                ->whereBetween(DB::raw('DATE(spare_parts_requests.created_at)'), [$startDate, $endDate]);
+            if ($branchId) {
+                $sparePartsCostQuery->join('job_cards', 'spare_parts_requests.job_card_id', '=', 'job_cards.id')
+                    ->where('job_cards.branch_id', $branchId);
+            }
+            $sparePartsCost = $sparePartsCostQuery->sum(DB::raw('CAST(COALESCE(spare_parts_requests.unit_cost, 0) AS DECIMAL(10,2)) * CAST(COALESCE(spare_parts_requests.quantity, 1) AS DECIMAL(10,2))'));
 
-            $otherChargesCost = DB::table('other_charges')
-                ->sum(DB::raw('COALESCE(cost_price, 0)'));
+            $otherChargesCostQuery = DB::table('other_charges')
+                ->whereBetween(DB::raw('DATE(other_charges.created_at)'), [$startDate, $endDate]);
+            if ($branchId) {
+                $otherChargesCostQuery->join('job_cards', 'other_charges.job_card_id', '=', 'job_cards.id')
+                    ->where('job_cards.branch_id', $branchId);
+            }
+            $otherChargesCost = $otherChargesCostQuery->sum(DB::raw('COALESCE(other_charges.cost_price, 0)'));
 
             $totalCost = floatval($tasksCost) + floatval($sparePartsCost) + floatval($otherChargesCost);
 
@@ -59,9 +101,12 @@ class ReportController extends Controller
             $outstandingDues = floatval($totalAmount) - floatval($totalRevenue);
 
             // Paid job cards count
-            $paidJobCards = JobCard::where('payment_status', 'paid')
-                ->whereBetween('updated_at', [$startDate, $endDate])
-                ->count();
+            $paidJobCardsQuery = JobCard::where('payment_status', 'paid')
+                ->whereBetween('updated_at', [$startDate, $endDate]);
+            if ($branchId) {
+                $paidJobCardsQuery->where('branch_id', $branchId);
+            }
+            $paidJobCards = $paidJobCardsQuery->count();
 
             return response()->json([
                 'total_amount' => floatval($totalAmount) ?? 0,
@@ -153,6 +198,7 @@ class ReportController extends Controller
         $user = $request->user();
         $startDate = $request->get('start_date', now()->startOfMonth());
         $endDate = $request->get('end_date', now()->endOfMonth());
+        $branchId = $request->get('branch_id');
 
         $query = Payment::with(['jobCard.customer'])
             ->whereBetween('payment_date', [$startDate, $endDate]);
@@ -160,8 +206,13 @@ class ReportController extends Controller
         // Branch filter
         $role = DB::table('roles')->where('id', $user->role_id)->first();
         if ($role->name === 'branch_admin' && $user->branch_id) {
-            $query->whereHas('jobCard', function($q) use ($user) {
-                $q->where('branch_id', $user->branch_id);
+            // Branch admin can only see their own branch
+            $branchId = $user->branch_id;
+        }
+
+        if ($branchId) {
+            $query->whereHas('jobCard', function($q) use ($branchId) {
+                $q->where('branch_id', $branchId);
             });
         }
 
@@ -206,23 +257,35 @@ class ReportController extends Controller
         $category = $request->get('category', '');
         $startDate = $request->get('start_date', now()->startOfMonth()->toDateString());
         $endDate = $request->get('end_date', now()->endOfMonth()->toDateString());
+        $branchId = $request->get('branch_id');
 
         $query = DB::table('tasks')
-            ->whereBetween(DB::raw('DATE(created_at)'), [$startDate, $endDate])
+            ->whereBetween(DB::raw('DATE(tasks.created_at)'), [$startDate, $endDate])
             ->select(
-                'category',
+                'tasks.category',
                 DB::raw('COUNT(*) as count'),
-                DB::raw('SUM(COALESCE(cost_price, 0)) as total_cost'),
-                DB::raw('SUM(COALESCE(amount, 0)) as total_amount')
+                DB::raw('SUM(COALESCE(tasks.cost_price, 0)) as total_cost'),
+                DB::raw('SUM(COALESCE(tasks.amount, 0)) as total_amount')
             )
-            ->groupBy('category');
+            ->groupBy('tasks.category');
+
+        if ($branchId) {
+            $query->join('job_cards', 'tasks.job_card_id', '=', 'job_cards.id')
+                ->where('job_cards.branch_id', $branchId);
+        }
 
         if ($category) {
-            $query->where('category', $category);
+            $query->where('tasks.category', $category);
         }
 
         $tasks = $query->orderBy('total_amount', 'desc')->get();
-        $categories = DB::table('tasks')->select('category')->distinct()->orderBy('category')->pluck('category');
+        
+        $categoriesQuery = DB::table('tasks')->select('tasks.category as category')->distinct()->orderBy('category');
+        if ($branchId) {
+            $categoriesQuery->join('job_cards', 'tasks.job_card_id', '=', 'job_cards.id')
+                ->where('job_cards.branch_id', $branchId);
+        }
+        $categories = $categoriesQuery->pluck('category');
 
         return response()->json([
             'tasks' => $tasks,
@@ -234,42 +297,54 @@ class ReportController extends Controller
     {
         $startDate = $request->get('start_date', now()->startOfMonth()->toDateString());
         $endDate = $request->get('end_date', now()->endOfMonth()->toDateString());
+        $branchId = $request->get('branch_id');
 
         $query = DB::table('spare_parts_requests')
-            ->whereBetween(DB::raw('DATE(created_at)'), [$startDate, $endDate])
-            ->whereIn('overall_status', ['approved', 'ordered', 'process', 'delivered'])
+            ->whereBetween(DB::raw('DATE(spare_parts_requests.created_at)'), [$startDate, $endDate])
+            ->whereIn('spare_parts_requests.overall_status', ['approved', 'ordered', 'process', 'delivered'])
             ->select(
-                'part_name',
-                'part_number',
+                'spare_parts_requests.part_name',
+                'spare_parts_requests.part_number',
                 DB::raw('COUNT(*) as count'),
-                DB::raw('SUM(COALESCE(quantity, 1)) as total_quantity'),
-                DB::raw('SUM(CAST(COALESCE(unit_cost, 0) AS DECIMAL(10,2)) * CAST(COALESCE(quantity, 1) AS DECIMAL(10,2))) as total_cost'),
-                DB::raw('SUM(CAST(COALESCE(selling_price, 0) AS DECIMAL(10,2)) * CAST(COALESCE(quantity, 1) AS DECIMAL(10,2))) as total_selling_price')
+                DB::raw('SUM(COALESCE(spare_parts_requests.quantity, 1)) as total_quantity'),
+                DB::raw('SUM(CAST(COALESCE(spare_parts_requests.unit_cost, 0) AS DECIMAL(10,2)) * CAST(COALESCE(spare_parts_requests.quantity, 1) AS DECIMAL(10,2))) as total_cost'),
+                DB::raw('SUM(CAST(COALESCE(spare_parts_requests.selling_price, 0) AS DECIMAL(10,2)) * CAST(COALESCE(spare_parts_requests.quantity, 1) AS DECIMAL(10,2))) as total_selling_price')
             )
-            ->groupBy('part_name', 'part_number')
-            ->orderBy('total_selling_price', 'desc')
-            ->get();
+            ->groupBy('spare_parts_requests.part_name', 'spare_parts_requests.part_number');
 
-        return response()->json($query);
+        if ($branchId) {
+            $query->join('job_cards', 'spare_parts_requests.job_card_id', '=', 'job_cards.id')
+                ->where('job_cards.branch_id', $branchId);
+        }
+
+        $result = $query->orderBy('total_selling_price', 'desc')->get();
+
+        return response()->json($result);
     }
 
     public function otherChargesReport(Request $request)
     {
         $startDate = $request->get('start_date', now()->startOfMonth()->toDateString());
         $endDate = $request->get('end_date', now()->endOfMonth()->toDateString());
+        $branchId = $request->get('branch_id');
 
         $query = DB::table('other_charges')
-            ->whereBetween(DB::raw('DATE(created_at)'), [$startDate, $endDate])
+            ->whereBetween(DB::raw('DATE(other_charges.created_at)'), [$startDate, $endDate])
             ->select(
-                'description',
+                'other_charges.description',
                 DB::raw('COUNT(*) as count'),
-                DB::raw('SUM(COALESCE(cost_price, 0)) as total_cost'),
-                DB::raw('SUM(COALESCE(amount, 0)) as total_amount')
+                DB::raw('SUM(COALESCE(other_charges.cost_price, 0)) as total_cost'),
+                DB::raw('SUM(COALESCE(other_charges.amount, 0)) as total_amount')
             )
-            ->groupBy('description')
-            ->orderBy('total_amount', 'desc')
-            ->get();
+            ->groupBy('other_charges.description');
 
-        return response()->json($query);
+        if ($branchId) {
+            $query->join('job_cards', 'other_charges.job_card_id', '=', 'job_cards.id')
+                ->where('job_cards.branch_id', $branchId);
+        }
+
+        $result = $query->orderBy('total_amount', 'desc')->get();
+
+        return response()->json($result);
     }
 }

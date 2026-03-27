@@ -22,7 +22,7 @@ function FinancialReports({ user }) {
   const [selectedTaskCategory, setSelectedTaskCategory] = useState('')
   const [taskCategories, setTaskCategories] = useState([])
   const [branches, setBranches] = useState([])
-  const [selectedBranch, setSelectedBranch] = useState(user?.branch_id || '')
+  const [selectedBranch, setSelectedBranch] = useState(user?.branch_id ? String(user.branch_id) : '')
   const [branchDropdownOpen, setBranchDropdownOpen] = useState(false)
   const branchDropdownRef = useRef(null)
 
@@ -42,7 +42,7 @@ function FinancialReports({ user }) {
   useEffect(() => {
     fetchBranches()
     fetchReports()
-  }, [startDate, endDate, selectedBranch])
+  }, [startDate, endDate, selectedBranch, periodFilter])
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -282,8 +282,8 @@ function FinancialReports({ user }) {
   return (
     <div className="space-y-5">
 
-      {/* Branch Filter */}
-      {!user?.branch_id ? (
+          {/* Branch Filter - Only for Super Admin */}
+      {user.role.name === 'super_admin' && (
         <div ref={branchDropdownRef} className="relative w-fit">
           <button
             onClick={() => setBranchDropdownOpen(!branchDropdownOpen)}
@@ -302,93 +302,71 @@ function FinancialReports({ user }) {
           </button>
 
           {branchDropdownOpen && (
-            <div className="absolute top-full mt-2 w-full bg-white border border-[#2563A8]/50 rounded-xl shadow-lg z-50 overflow-hidden">
-              <button
-                onClick={() => { setSelectedBranch(''); setBranchDropdownOpen(false) }}
-                className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-[#2563A8]/10 border-b border-[#2563A8]/30 font-medium"
-              >
-                All Branches
-              </button>
-              {branches.map(branch => (
+            <div className="absolute top-full left-0 mt-2 w-[320px] bg-white border border-[#2563A8]/50 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+              {/* Search in dropdown */}
+              <div className="p-3 border-b border-[#2563A8]/30 bg-gradient-to-r from-[#2563A8]/10 to-[#2563A8]/20">
+                <input
+                  type="text"
+                  placeholder="Search branches..."
+                  className="w-full px-3.5 py-2.5 text-sm border border-[#2563A8]/200 rounded-lg focus:border-[#2563A8]/500 focus:outline-none focus:ring-2 focus:ring-[#2563A8]/500/20 transition-all"
+                />
+              </div>
+
+              {/* Dropdown options */}
+              <div className="max-h-72 overflow-y-auto">
                 <button
-                  key={branch.id}
-                  onClick={() => { setSelectedBranch(branch.id); setBranchDropdownOpen(false) }}
-                  className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-[#2563A8]/10 flex items-center justify-between"
+                  onClick={() => {
+                    setSelectedBranch('')
+                    localStorage.setItem('selectedBranchId', '')
+                    setBranchDropdownOpen(false)
+                  }}
+                  className={`w-full text-left px-4 py-3.5 text-sm font-semibold transition-all ${
+                    selectedBranch === ''
+                      ? 'bg-gradient-to-r from-[#2563A8] to-[#2563A8]/80 text-white'
+                      : 'text-gray-700 hover:bg-[#2563A8]/10'
+                  }`}
                 >
-                  <span className="font-medium">{branch.name}</span>
-                  <span className="text-xs text-gray-400">{branch.city}</span>
+                  <div className="flex items-center gap-3">
+                    <div className={`w-2.5 h-2.5 rounded-full ${selectedBranch === '' ? 'bg-white' : 'bg-[#2563A8]/30'}`} />
+                    All Branches
+                  </div>
                 </button>
-              ))}
+
+                {branches.map(branch => (
+                  <button
+                    key={branch.id}
+                    onClick={() => {
+                      setSelectedBranch(String(branch.id))
+                      localStorage.setItem('selectedBranchId', String(branch.id))
+                      setBranchDropdownOpen(false)
+                    }}
+                    className={`w-full text-left px-4 py-3.5 text-sm font-semibold transition-all ${
+                      selectedBranch === String(branch.id)
+                        ? 'bg-gradient-to-r from-[#2563A8] to-[#2563A8]/80 text-white'
+                        : 'text-gray-700 hover:bg-[#2563A8]/10'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-2.5 h-2.5 rounded-full ${selectedBranch === String(branch.id) ? 'bg-white' : 'bg-[#2563A8]/30'}`} />
+                      {branch.name}
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </div>
-      ) : null}
+      )}
 
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-base font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2">
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-          </svg>
-          Financial Reports
-        </h2>
-        <button onClick={() => window.print()} className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg text-sm font-semibold shadow-sm transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-          </svg>
-          Print Report
-        </button>
-      </div>
+      <h2 className="text-base font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+        </svg>
+        Financial Reports
+      </h2>
 
-      {/* Period Filter */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5 mb-4">
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-          Report Period
-        </h3>
-        <div className="space-y-4">
-          <div className="flex flex-wrap gap-2 mb-4">
-            {[
-              { value: 'daily', label: 'Daily' },
-              { value: 'week', label: 'Weekly' },
-              { value: 'month', label: 'Monthly' },
-              { value: 'year', label: 'Yearly' }
-            ].map(period => (
-              <button key={period.value}
-                onClick={() => setPeriodFilter(period.value)}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-                  periodFilter === period.value
-                    ? 'bg-primary text-white shadow-md'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}>
-                {period.label}
-              </button>
-            ))}
-          </div>
-          <div className="flex gap-4">
-            <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Custom Start Date</label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => { setStartDate(e.target.value); setPeriodFilter('custom') }}
-                className="px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Custom End Date</label>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => { setEndDate(e.target.value); setPeriodFilter('custom') }}
-                className="px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
+      
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -452,6 +430,61 @@ function FinancialReports({ user }) {
             <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Outstanding Due</p>
             <p className="text-xl font-bold text-red-600 mt-0.5">{formatCurrency(outstandingDue)}</p>
           </div>
+        </div>
+      </div>
+
+
+
+      {/* Period Filter */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5 mb-4">
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          Report Period
+        </h3>
+        <div className="space-y-4">
+          <div className="flex flex-wrap gap-2 mb-4">
+            {[
+              { value: 'daily', label: 'Daily' },
+              { value: 'week', label: 'Weekly' },
+              { value: 'month', label: 'Monthly' },
+              { value: 'year', label: 'Yearly' },
+              { value: 'custom', label: 'Custom' }
+            ].map(period => (
+              <button key={period.value}
+                onClick={() => setPeriodFilter(period.value)}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                  periodFilter === period.value
+                    ? 'bg-[#2563A8] text-white shadow-md'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}>
+                {period.label}
+              </button>
+            ))}
+          </div>
+          {periodFilter === 'custom' && (
+            <div className="flex gap-4">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Custom Start Date</label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Custom End Date</label>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all"
+                />
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -602,43 +635,6 @@ function FinancialReports({ user }) {
           )}
         </div>
       </div>
-
-      {/* Bank-wise Breakdown */}
-      {bankBreakdown && bankBreakdown.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5 mb-5">
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-            </svg>
-            Bank-wise Paid Amount Breakdown
-          </h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Bank Name</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Amount</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Count</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Percentage</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {bankBreakdown.map(bank => {
-                  const percentage = totalRevenue > 0 ? (bank.total_amount / totalRevenue * 100).toFixed(1) : 0
-                  return (
-                    <tr key={bank.bank_name} className="hover:bg-gray-50/70 transition-colors">
-                      <td className="px-4 py-3 font-semibold text-gray-700">{bank.bank_name || 'Not Specified'}</td>
-                      <td className="px-4 py-3 text-right font-semibold text-blue-600">{formatCurrency(bank.total_amount)}</td>
-                      <td className="px-4 py-3 text-center text-gray-600">{bank.count}</td>
-                      <td className="px-4 py-3 text-right text-gray-600 font-medium">{percentage}%</td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
 
       {/* Detailed Transactions */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
