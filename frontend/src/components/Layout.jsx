@@ -27,7 +27,8 @@ function Layout({ user, onLogout, children }) {
     }
   }
 
-  const canViewUsers = user.permissions.includes('view_users') || ['super_admin', 'branch_admin'].includes(user.role.name)
+  const canViewUsers = ['super_admin', 'branch_admin'].includes(user.role.name) || 
+                       ['view_all_users', 'view_branch_admins', 'view_accountants', 'view_technicians', 'view_support_staff'].some(p => user.permissions.includes(p))
 
   const isActive = (path) => location.pathname === path || location.pathname.startsWith(path + '/')
 
@@ -206,11 +207,26 @@ function Layout({ user, onLogout, children }) {
 
                 {usersMenuOpen && (
                   <div className="bg-gray-700 py-1">
-                    <SubNavItem path="/users" icon={icons.allUsers} label="All Users" />
-                    <SubNavItem path="/users/branch_admin" icon={icons.branchAdmin} label="Branch Admins" />
-                    <SubNavItem path="/users/accountant" icon={icons.accountant} label="Accountants" />
-                    <SubNavItem path="/users/employee" icon={icons.technician} label="Technicians" />
-                    <SubNavItem path="/users/support_staff" icon={icons.support} label="Support Staff" />
+                    {/* All Users tab */}
+                    {user.permissions.includes('view_all_users') && (
+                      <SubNavItem path="/users" icon={icons.allUsers} label="All Users" />
+                    )}
+                    {/* Branch Admins tab */}
+                    {user.permissions.includes('view_branch_admins') && (
+                      <SubNavItem path="/users/branch_admin" icon={icons.branchAdmin} label="Branch Admins" />
+                    )}
+                    {/* Accountants tab */}
+                    {user.permissions.includes('view_accountants') && (
+                      <SubNavItem path="/users/accountant" icon={icons.accountant} label="Accountants" />
+                    )}
+                    {/* Technicians tab */}
+                    {user.permissions.includes('view_technicians') && (
+                      <SubNavItem path="/users/employee" icon={icons.technician} label="Technicians" />
+                    )}
+                    {/* Support Staff tab */}
+                    {user.permissions.includes('view_support_staff') && (
+                      <SubNavItem path="/users/support_staff" icon={icons.support} label="Support Staff" />
+                    )}
                   </div>
                 )}
               </div>

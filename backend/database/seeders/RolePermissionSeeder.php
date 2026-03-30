@@ -26,6 +26,7 @@ class RolePermissionSeeder extends Seeder
             DB::table('role_permissions')->updateOrInsert(
                 ['role_id' => $superAdmin, 'permission_id' => $permissionId],
                 [
+                    'technician_type' => null,
                     'branch_id' => null,
                     'granted' => true,
                     'updated_at' => now(),
@@ -41,6 +42,7 @@ class RolePermissionSeeder extends Seeder
             DB::table('role_permissions')->updateOrInsert(
                 ['role_id' => $branchAdmin, 'permission_id' => $permissionId],
                 [
+                    'technician_type' => null,
                     'branch_id' => null,
                     'granted' => true,
                     'updated_at' => now(),
@@ -48,14 +50,16 @@ class RolePermissionSeeder extends Seeder
             );
         }
         
-        // Accountant - Financial only
+        // Accountant - Financial only + view all users tab
         $accountantPermissions = DB::table('permissions')
             ->whereIn('module', ['dashboard', 'invoices', 'payments', 'financial_reports'])
+            ->orWhereIn('name', ['view_users', 'view_all_users'])
             ->pluck('id');
         foreach ($accountantPermissions as $permissionId) {
             DB::table('role_permissions')->updateOrInsert(
                 ['role_id' => $accountant, 'permission_id' => $permissionId],
                 [
+                    'technician_type' => null,
                     'branch_id' => null,
                     'granted' => true,
                     'updated_at' => now(),
@@ -67,10 +71,14 @@ class RolePermissionSeeder extends Seeder
         $technicianPermissions = DB::table('permissions')
             ->whereIn('name', [
                 'view_dashboard',
+                'view_dashboard_stats',
+                'view_dashboard_recent_jobs',
                 'own_tasks',
                 'update_tasks',
                 'add_spare_parts',
                 'view_spare_parts',
+                'view_users',
+                'view_all_users',
             ])
             ->pluck('id');
         foreach ($technicianPermissions as $permissionId) {
@@ -85,10 +93,13 @@ class RolePermissionSeeder extends Seeder
             );
         }
         
-        // Support Staff - Customer service
+        // Support Staff - Customer service + user management
         $supportStaffPermissions = DB::table('permissions')
             ->whereIn('name', [
                 'view_dashboard',
+                'view_dashboard_stats',
+                'view_dashboard_recent_jobs',
+                'view_dashboard_status_breakdown',
                 'view_customers',
                 'add_customers',
                 'update_customers',
@@ -97,12 +108,17 @@ class RolePermissionSeeder extends Seeder
                 'update_vehicles',
                 'view_job_cards',
                 'add_job_cards',
+                'view_users',
+                'view_all_users',
+                'view_technicians',
+                'view_support_staff',
             ])
             ->pluck('id');
         foreach ($supportStaffPermissions as $permissionId) {
             DB::table('role_permissions')->updateOrInsert(
                 ['role_id' => $supportStaff, 'permission_id' => $permissionId],
                 [
+                    'technician_type' => null,
                     'branch_id' => null,
                     'granted' => true,
                     'updated_at' => now(),
@@ -122,6 +138,7 @@ class RolePermissionSeeder extends Seeder
             DB::table('role_permissions')->updateOrInsert(
                 ['role_id' => $customer, 'permission_id' => $permissionId],
                 [
+                    'technician_type' => null,
                     'branch_id' => null,
                     'granted' => true,
                     'updated_at' => now(),

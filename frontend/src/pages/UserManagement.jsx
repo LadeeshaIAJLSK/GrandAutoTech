@@ -48,25 +48,61 @@ function UserManagement({ user, roleFilter }) {
   })
   const [showPassword, setShowPassword] = useState(false)
   const [existingProfileImage, setExistingProfileImage] = useState(null)
+  const [authUser, setAuthUser] = useState(JSON.parse(localStorage.getItem('user') || '{}'))
 
-  const canAdd = user.role.name === 'super_admin' || user.permissions.includes('add_users')
-  const canUpdate = user.role.name === 'super_admin' || user.permissions.includes('update_users')
-  const canDelete = user.role.name === 'super_admin' || user.permissions.includes('delete_users')
+  // Helper function to check if user has a specific permission
+  const hasPermission = (permissionName) => {
+    return authUser.permissions && authUser.permissions.includes(permissionName)
+  }
+
+  // Get granular permission names based on roleFilter
+  const getPermissionName = (action) => {
+    if (!roleFilter) {
+      // All Users tab
+      return `${action}_all_users`
+    }
+    // Map roleFilter name to permission name
+    const roleMap = {
+      'branch_admin': 'branch_admins',
+      'accountant': 'accountants',
+      'technician': 'technicians',
+      'support_staff': 'support_staff'
+    }
+    const permissionRole = roleMap[roleFilter.name] || roleFilter.name
+    return `${action}_${permissionRole}`
+  }
+
+  // Determine granular permissions based on current tab (roleFilter)
+  const canAdd = authUser.role?.name === 'super_admin' || hasPermission(getPermissionName('add'))
+  const canUpdate = authUser.role?.name === 'super_admin' || hasPermission(getPermissionName('edit'))
+  const canDelete = authUser.role?.name === 'super_admin' || hasPermission(getPermissionName('delete'))
+  const canView = !roleFilter || authUser.role?.name === 'super_admin' || hasPermission(getPermissionName('view'))
 
   const currentRole = roleFilter ? roles.find(r => r.name === roleFilter.name) : null
 
   useEffect(() => {
     // Load saved branch filter from localStorage (for super admin only)
     // For non-super-admins, automatically set to their own branch
-    if (user.role.name === 'super_admin') {
+    if (authUser.role?.name === 'super_admin') {
       const savedBranch = localStorage.getItem('selectedBranchId') || ''
       setFilterBranch(savedBranch)
     } else {
       // Non-super-admins always see their own branch
-      setFilterBranch(String(user.branch_id || ''))
+      setFilterBranch(String(authUser.branch_id || ''))
     }
     fetchRoles()
     fetchBranches()
+  }, [])
+
+  // Listen for permission updates from AccessRightsManagement
+  useEffect(() => {
+    const handlePermissionUpdate = () => {
+      const updatedUser = JSON.parse(localStorage.getItem('user') || '{}')
+      setAuthUser(updatedUser)
+    }
+    
+    window.addEventListener('userPermissionsUpdated', handlePermissionUpdate)
+    return () => window.removeEventListener('userPermissionsUpdated', handlePermissionUpdate)
   }, [])
 
   // Notification persists until user clicks OK - no auto-dismiss
@@ -156,9 +192,9 @@ function UserManagement({ user, roleFilter }) {
 
   const openAddModal = () => {
     setEditingUser(null)
-    const initialBranchId = user.role.name === 'super_admin' 
-      ? (filterBranch || user.branch?.id || '')
-      : (user.branch?.id || '')
+    const initialBranchId = authUser.role?.name === 'super_admin' 
+      ? (filterBranch || authUser.branch?.id || '')
+      : (authUser.branch?.id || '')
     
     const previewCode = generateEmployeeCodePreview(initialBranchId)
     
@@ -432,7 +468,7 @@ function UserManagement({ user, roleFilter }) {
     <div className="space-y-5">
 
       {/* Branch Filter - Only for Super Admin */}
-      {user.role.name === 'super_admin' && (
+      {authUser.role?.name === 'super_admin' && (
         <div ref={branchDropdownRef} className="relative w-fit">
           <button
             onClick={() => setBranchDropdownOpen(!branchDropdownOpen)}
@@ -520,10 +556,10 @@ function UserManagement({ user, roleFilter }) {
         {canAdd && (
           <button
             onClick={openAddModal}
-            disabled={!roleFilter || (roleFilter?.name === 'branch_admin' && user.role.name !== 'super_admin') || (user.role.name === 'super_admin' && !filterBranch)}
-            title={!roleFilter ? 'Select a role to create a user' : roleFilter?.name === 'branch_admin' && user.role.name !== 'super_admin' ? 'Only Super Admin can create Branch Admins' : user.role.name === 'super_admin' && !filterBranch ? 'Select a specific branch to create a user' : ''}
+            disabled={!roleFilter || (roleFilter?.name === 'branch_admin' && authUser.role?.name !== 'super_admin') || (authUser.role?.name === 'super_admin' && !filterBranch)}
+            title={!roleFilter ? 'Select a role to create a user' : roleFilter?.name === 'branch_admin' && authUser.role?.name !== 'super_admin' ? 'Only Super Admin can create Branch Admins' : authUser.role?.name === 'super_admin' && !filterBranch ? 'Select a specific branch to create a user' : ''}
             className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-md text-white ${
-              !roleFilter || (roleFilter?.name === 'branch_admin' && user.role.name !== 'super_admin') || (user.role.name === 'super_admin' && !filterBranch)
+              !roleFilter || (roleFilter?.name === 'branch_admin' && authUser.role?.name !== 'super_admin') || (authUser.role?.name === 'super_admin' && !filterBranch)
                 ? 'bg-gray-300 cursor-not-allowed opacity-60'
                 : 'bg-[#2563A8] hover:bg-[#1E4E8C] hover:shadow-lg hover:-translate-y-px active:translate-y-0'
             }`}
@@ -672,7 +708,7 @@ function UserManagement({ user, roleFilter }) {
                       </span>
                     </td>
                     <td className="px-5 py-4 text-right">
-                      {(canUpdate || (canDelete && u.id !== user.id)) && (
+                      {(canView || canUpdate || (canDelete && u.id !== user.id)) && (
                         <button
                           ref={el => buttonRefs.current[u.id] = el}
                           onClick={(e) => {
@@ -728,25 +764,27 @@ function UserManagement({ user, roleFilter }) {
               right: `${menuButtonPosition.right}px`
             }}
           >
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                const currentUser = users.find(u => u.id === openMenuId)
-                if (currentUser) {
-                  setViewingUser(currentUser)
-                  setShowViewModal(true)
-                }
-                setOpenMenuId(null)
-                setMenuButtonPosition(null)
-              }}
-              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              </svg>
-              View Details
-            </button>
+            {canView && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  const selectedUser = users.find(u => u.id === openMenuId)
+                  if (selectedUser) {
+                    setViewingUser(selectedUser)
+                    setShowViewModal(true)
+                  }
+                  setOpenMenuId(null)
+                  setMenuButtonPosition(null)
+                }}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+                View Details
+              </button>
+            )}
             {canUpdate && (
               <button
                 onClick={(e) => {
@@ -1003,7 +1041,7 @@ function UserManagement({ user, roleFilter }) {
                 )}
 
                 {/* Branch - Super Admin Only */}
-                {user.role.name === 'super_admin' && (
+                {authUser.role?.name === 'super_admin' && (
                   <div className="space-y-1.5">
                     <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Branch <span className="text-red-400">*</span></label>
                     <select

@@ -53,18 +53,23 @@ function AccessRightsManagement({ user }) {
   }
 
   const togglePermission = (permissionId) => {
+    // Calculate new permissions first
+    let newPermissions
     if (selectedPermissions.includes(permissionId)) {
-      setSelectedPermissions(selectedPermissions.filter(id => id !== permissionId))
+      newPermissions = selectedPermissions.filter(id => id !== permissionId)
     } else {
-      setSelectedPermissions([...selectedPermissions, permissionId])
+      newPermissions = [...selectedPermissions, permissionId]
     }
+    
+    // Update selectedPermissions
+    setSelectedPermissions(newPermissions)
 
     // Update employee/supervisor permissions based on current tab
     if (selectedRole.is_technician) {
       if (technicianType === 'employee') {
-        setEmployeePermissions(selectedPermissions)
+        setEmployeePermissions(newPermissions)
       } else {
-        setSupervisorPermissions(selectedPermissions)
+        setSupervisorPermissions(newPermissions)
       }
     }
   }
@@ -74,6 +79,7 @@ function AccessRightsManagement({ user }) {
     const modulePermissionIds = modulePermissions.map(p => p.id)
     const allSelected = modulePermissionIds.every(id => selectedPermissions.includes(id))
     
+    // Calculate new permissions first
     let newPermissions
     if (allSelected) {
       newPermissions = selectedPermissions.filter(id => !modulePermissionIds.includes(id))
@@ -81,6 +87,7 @@ function AccessRightsManagement({ user }) {
       newPermissions = [...new Set([...selectedPermissions, ...modulePermissionIds])]
     }
     
+    // Update selectedPermissions
     setSelectedPermissions(newPermissions)
 
     // Update employee/supervisor permissions based on current tab
@@ -122,8 +129,33 @@ function AccessRightsManagement({ user }) {
       await axiosClient.put(`/access-rights/roles/${selectedRole.id}`, payload, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      setNotification({ type: 'success', title: 'Success', message: 'Permissions updated successfully!' })
-      fetchRolesAndPermissions()
+      
+      // Refresh current user's permissions from server
+      try {
+        const meResponse = await axiosClient.get('/me', {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+        // Update localStorage with fresh permissions
+        const userData = JSON.parse(localStorage.getItem('user') || '{}')
+        userData.permissions = meResponse.data.user.permissions
+        localStorage.setItem('user', JSON.stringify(userData))
+        
+        // Dispatch storage event to trigger updates in other components
+        window.dispatchEvent(new Event('userPermissionsUpdated'))
+      } catch (e) {
+        console.warn('Could not refresh permissions from server:', e)
+      }
+      
+      setNotification({ 
+        type: 'success', 
+        title: 'Success', 
+        message: 'Permissions updated successfully! Changes visible immediately.' 
+      })
+      
+      // Refresh the data after a short delay to ensure server is updated
+      setTimeout(() => {
+        fetchRolesAndPermissions()
+      }, 500)
     } catch (error) {
       setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error saving permissions' })
     } finally {
@@ -345,7 +377,14 @@ function AccessRightsManagement({ user }) {
         <div>
           <p className="text-sm font-bold text-gray-800">Important</p>
           <p className="text-xs text-gray-600 mt-0.5">
-            Changes to permissions will affect all users with this role immediately.
+            Changes to permissions will affect all users with this role immediately in the database.
+            <br />
+            • Your own permissions (you're currently logged in) will refresh automatically after saving.
+            <br />
+            • Other users with the modified role must <strong>refresh their page or log out and log back in</strong> to see the new permissions.
+            <br />
+            • Dashboard components will automatically hide/show based on permissions after page refresh.
+            <br />
             Be careful when removing critical permissions like "view_dashboard" or "view_job_cards".
             {selectedRole?.is_technician && (
               <>

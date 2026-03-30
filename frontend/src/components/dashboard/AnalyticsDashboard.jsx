@@ -13,7 +13,24 @@ function AnalyticsDashboard({ user }) {
   const [filterBranch, setFilterBranch] = useState('')
   const [branchDropdownOpen, setBranchDropdownOpen] = useState(false)
   const [searchBranch, setSearchBranch] = useState('')
+  const [currentUser, setCurrentUser] = useState(user)
   const branchDropdownRef = useRef(null)
+
+  // Helper function to check if user has a specific permission
+  const hasPermission = (permissionName) => {
+    return currentUser?.permissions && currentUser.permissions.includes(permissionName)
+  }
+
+  // Listen for permission updates from localStorage
+  useEffect(() => {
+    const handlePermissionsUpdated = () => {
+      const updatedUser = JSON.parse(localStorage.getItem('user') || '{}')
+      setCurrentUser(updatedUser)
+    }
+    
+    window.addEventListener('userPermissionsUpdated', handlePermissionsUpdated)
+    return () => window.removeEventListener('userPermissionsUpdated', handlePermissionsUpdated)
+  }, [])
 
   useEffect(() => {
     const handleClick = (e) => {
@@ -59,15 +76,27 @@ function AnalyticsDashboard({ user }) {
       const token = localStorage.getItem('token')
       const params = filterBranch ? `?branch_id=${parseInt(filterBranch)}` : ''
       
-      const statsResponse = await axiosClient.get(`/job-cards/statistics${params}`, { headers: { Authorization: `Bearer ${token}` } })
-      setStats(statsResponse.data)
-      setEmployeeCount(5)
+      // Fetch stats only if user has permission
+      if (hasPermission('view_dashboard_stats')) {
+        const statsResponse = await axiosClient.get(`/job-cards/statistics${params}`, { headers: { Authorization: `Bearer ${token}` } })
+        setStats(statsResponse.data)
+        setEmployeeCount(5)
+      }
       
-      const jobCardsResponse = await axiosClient.get(`/job-cards${params}`, { headers: { Authorization: `Bearer ${token}` } })
-      setRecentJobCards(jobCardsResponse.data.data.slice(0, 5))
-      setCalendarJobCards(jobCardsResponse.data.data)
+      // Fetch job cards only if user has permission to view recent jobs
+      if (hasPermission('view_dashboard_recent_jobs')) {
+        const jobCardsResponse = await axiosClient.get(`/job-cards${params}`, { headers: { Authorization: `Bearer ${token}` } })
+        setRecentJobCards(jobCardsResponse.data.data.slice(0, 5))
+      }
       
-      if (['employee', 'super_admin', 'branch_admin'].includes(user.role.name)) {
+      // Fetch calendar job cards only if user has permission to view calendar
+      if (hasPermission('view_dashboard_calendar')) {
+        const jobCardsResponse = await axiosClient.get(`/job-cards${params}`, { headers: { Authorization: `Bearer ${token}` } })
+        setCalendarJobCards(jobCardsResponse.data.data)
+      }
+      
+      // Fetch pending approvals only if user has permission and is in specific roles
+      if (hasPermission('view_dashboard_approvals') && ['employee', 'super_admin', 'branch_admin'].includes(user.role.name)) {
         const approvalsResponse = await axiosClient.get(`/spare-parts/pending/approvals${params}`, { headers: { Authorization: `Bearer ${token}` } })
         setPendingApprovals(approvalsResponse.data)
       }
@@ -251,7 +280,7 @@ function AnalyticsDashboard({ user }) {
       </div>
 
       {/* Stat Cards */}
-      {stats && (
+      {stats && hasPermission('view_dashboard_stats') && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {statCards.map(s => (
             <div key={s.label} className={`bg-white rounded-xl border-l-4 ${s.accent} border-t border-r border-b border-gray-200 shadow-sm p-5 flex items-center gap-4 hover:shadow-md transition-shadow`}>
@@ -268,83 +297,89 @@ function AnalyticsDashboard({ user }) {
       )}
 
       {/* Status Breakdown */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5 mb-3">
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-          </svg>
-          Job Card Status
-        </h3>
-        <div className="space-y-2.5">
-          {[
-            { label: 'Completed',      count: stats?.completed      || 0, cls: 'bg-[#2563A8]'  },
-            { label: 'Inspected',     count: stats?.inspected      || 0, cls: 'bg-[#2563A8]' },
-          ].map(item => {
-            const pct = stats?.total > 0 ? (item.count / stats.total) * 100 : 0
-            return (
-              <div key={item.label} className="flex items-center gap-2">
-                <span className="w-24 text-xs font-semibold text-gray-600 flex-shrink-0">{item.label}</span>
-                <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                  <div
-                    className={`${item.cls} h-full rounded-full transition-all duration-700`}
-                    style={{ width: `${pct}%` }}
-                  />
+      {hasPermission('view_dashboard_status_breakdown') && (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5 mb-3">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            Job Card Status
+          </h3>
+          <div className="space-y-2.5">
+            {[
+              { label: 'Completed',      count: stats?.completed      || 0, cls: 'bg-[#2563A8]'  },
+              { label: 'Inspected',     count: stats?.inspected      || 0, cls: 'bg-[#2563A8]' },
+            ].map(item => {
+              const pct = stats?.total > 0 ? (item.count / stats.total) * 100 : 0
+              return (
+                <div key={item.label} className="flex items-center gap-2">
+                  <span className="w-24 text-xs font-semibold text-gray-600 flex-shrink-0">{item.label}</span>
+                  <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className={`${item.cls} h-full rounded-full transition-all duration-700`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <div className="flex items-center gap-1 w-14 justify-end flex-shrink-0">
+                    <span className="text-xs font-bold text-gray-700">{item.count}</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1 w-14 justify-end flex-shrink-0">
-                  <span className="text-xs font-bold text-gray-700">{item.count}</span>
-                </div>
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Mini Calendar */}
-      <div className="w-full">
-        <MiniCalendar jobCards={calendarJobCards} />
-      </div>
+      {hasPermission('view_dashboard_calendar') && (
+        <div className="w-full">
+          <MiniCalendar jobCards={calendarJobCards} />
+        </div>
+      )}
 
       {/* Recent Job Cards + Approvals / Quick Stats */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
         {/* Recent Job Cards */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5 mb-4">
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            Recent Job Cards
-          </h3>
-          {recentJobCards.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 text-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-9 h-9 text-gray-200 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+        {hasPermission('view_dashboard_recent_jobs') && (
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5 mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <p className="text-sm text-gray-400">No recent job cards</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {recentJobCards.map(jobCard => (
-                <div key={jobCard.id} className="flex items-center justify-between px-3.5 py-3 rounded-lg border border-gray-100 hover:border-primary/30 hover:bg-gray-50/60 transition-all cursor-pointer group">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${getStatusDot(jobCard.status)}`} />
-                    <div className="min-w-0">
-                      <p className="text-sm font-bold text-primary truncate">{jobCard.job_card_number}</p>
-                      <p className="text-xs text-gray-400 truncate">{jobCard.customer?.name}</p>
+              Recent Job Cards
+            </h3>
+            {recentJobCards.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-9 h-9 text-gray-200 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                <p className="text-sm text-gray-400">No recent job cards</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {recentJobCards.map(jobCard => (
+                  <div key={jobCard.id} className="flex items-center justify-between px-3.5 py-3 rounded-lg border border-gray-100 hover:border-primary/30 hover:bg-gray-50/60 transition-all cursor-pointer group">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${getStatusDot(jobCard.status)}`} />
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-primary truncate">{jobCard.job_card_number}</p>
+                        <p className="text-xs text-gray-400 truncate">{jobCard.customer?.name}</p>
+                      </div>
+                    </div>
+                    <div className="text-right flex-shrink-0 ml-3">
+                      <p className="text-xs font-semibold text-gray-500 font-mono">{jobCard.vehicle?.license_plate}</p>
+                      <p className="text-xs font-bold text-gray-800">{formatCurrency(jobCard.total_amount)}</p>
                     </div>
                   </div>
-                  <div className="text-right flex-shrink-0 ml-3">
-                    <p className="text-xs font-semibold text-gray-500 font-mono">{jobCard.vehicle?.license_plate}</p>
-                    <p className="text-xs font-bold text-gray-800">{formatCurrency(jobCard.total_amount)}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Pending Approvals */}
-        {pendingApprovals.length > 0 ? (
+        {hasPermission('view_dashboard_approvals') && pendingApprovals.length > 0 ? (
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
             <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5 mb-4">
               <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -376,7 +411,8 @@ function AnalyticsDashboard({ user }) {
           </div>
         ) : (
           /* Quick Stats fallback */
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+          hasPermission('view_dashboard_stats') && (
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
             <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5 mb-4">
               <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-primary" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
@@ -402,6 +438,7 @@ function AnalyticsDashboard({ user }) {
               ))}
             </div>
           </div>
+          )
         )}
       </div>
 
