@@ -59,9 +59,11 @@ function CustomerManagement({ user }) {
   })
 
   // Permissions - Super admin has access to all actions
+  const canViewCustomers = user.role.name === 'super_admin' || user.permissions.includes('view_customers')
   const canAddCustomers = user.role.name === 'super_admin' || user.permissions.includes('add_customers')
   const canUpdateCustomers = user.role.name === 'super_admin' || user.permissions.includes('update_customers')
   const canDeleteCustomers = user.role.name === 'super_admin' || user.permissions.includes('delete_customers')
+  const canViewVehicles = user.role.name === 'super_admin' || user.permissions.includes('view_vehicles')
   const canAddVehicles = user.role.name === 'super_admin' || user.permissions.includes('add_vehicles')
   const canUpdateVehicles = user.role.name === 'super_admin' || user.permissions.includes('update_vehicles')
   const canDeleteVehicles = user.role.name === 'super_admin' || user.permissions.includes('delete_vehicles')
@@ -489,8 +491,10 @@ function CustomerManagement({ user }) {
           onViewVehicle={openViewVehicleModal}
           onEditVehicle={openEditVehicleModal}
           onDeleteVehicle={showDeleteVehicleConfirm}
-          canUpdate={canUpdateCustomers}
-          canDelete={canDeleteCustomers}
+          canViewCustomers={canViewCustomers}
+          canUpdateCustomers={canUpdateCustomers}
+          canDeleteCustomers={canDeleteCustomers}
+          canViewVehicles={canViewVehicles}
           canAddVehicles={canAddVehicles}
           canUpdateVehicles={canUpdateVehicles}
           canDeleteVehicles={canDeleteVehicles}

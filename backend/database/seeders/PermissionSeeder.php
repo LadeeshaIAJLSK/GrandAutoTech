@@ -48,12 +48,14 @@ class PermissionSeeder extends Seeder
             ['module' => 'users', 'action' => 'edit_support_staff', 'name' => 'edit_support_staff', 'display_name' => 'Edit Support Staff'],
             ['module' => 'users', 'action' => 'delete_support_staff', 'name' => 'delete_support_staff', 'display_name' => 'Delete Support Staff'],
             
+            // Customers & Vehicles Tab
+            ['module' => 'customers_vehicles', 'action' => 'view_tab', 'name' => 'view_customers_vehicles_tab', 'display_name' => 'View Customers & Vehicles Tab'],
+            
             // Customers
             ['module' => 'customers', 'action' => 'view', 'name' => 'view_customers', 'display_name' => 'View Customers'],
             ['module' => 'customers', 'action' => 'add', 'name' => 'add_customers', 'display_name' => 'Add Customers'],
             ['module' => 'customers', 'action' => 'update', 'name' => 'update_customers', 'display_name' => 'Update Customers'],
             ['module' => 'customers', 'action' => 'delete', 'name' => 'delete_customers', 'display_name' => 'Delete Customers'],
-            ['module' => 'customers', 'action' => 'own_data', 'name' => 'own_customers', 'display_name' => 'View Own Customer Data'],
             
             // Vehicles
             ['module' => 'vehicles', 'action' => 'view', 'name' => 'view_vehicles', 'display_name' => 'View Vehicles'],

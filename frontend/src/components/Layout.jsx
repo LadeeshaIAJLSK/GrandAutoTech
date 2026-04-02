@@ -232,7 +232,7 @@ function Layout({ user, onLogout, children }) {
               </div>
             )}
 
-            {(user.role.name === 'super_admin' || user.permissions.includes('view_customers') || user.permissions.includes('view_vehicles')) && (
+            {(user.role.name === 'super_admin' || user.permissions.includes('view_customers_vehicles_tab')) && (
               <NavItem path="/customers" icon={icons.customers} label="Customers & Vehicles" />
             )}
 

@@ -11,8 +11,10 @@ function CustomerTable({
   onViewVehicle,
   onEditVehicle,
   onDeleteVehicle,
-  canUpdate,
-  canDelete,
+  canViewCustomers,
+  canUpdateCustomers,
+  canDeleteCustomers,
+  canViewVehicles,
   canAddVehicles,
   canUpdateVehicles,
   canDeleteVehicles
@@ -26,8 +28,8 @@ function CustomerTable({
   console.log('CustomerTable Debug:', {
     userRole: user.role.name,
     userBranchId: user.branch_id,
-    canUpdate,
-    canDelete,
+    canUpdateCustomers,
+    canDeleteCustomers,
     customersCount: customers.length,
     firstCustomerBranchId: customers[0]?.branch_id
   })
@@ -75,17 +77,19 @@ function CustomerTable({
         }}
         className="bg-white rounded-lg shadow-lg border border-gray-100 py-1"
       >
-        <button
-          onClick={() => { onView(customer); setOpenMenuId(null) }}
-          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-          </svg>
-          View Details
-        </button>
-        {canUpdate && (
+        {canViewCustomers && (
+          <button
+            onClick={() => { onView(customer); setOpenMenuId(null) }}
+            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+            View Details
+          </button>
+        )}
+        {canUpdateCustomers && (
           <button
             onClick={() => { onEdit(customer); setOpenMenuId(null) }}
             className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
@@ -96,7 +100,7 @@ function CustomerTable({
             Edit Customer
           </button>
         )}
-        {canDelete && (
+        {canDeleteCustomers && (
           <button
             onClick={() => { onDelete(customer.id); setOpenMenuId(null) }}
             className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
@@ -202,16 +206,18 @@ function CustomerTable({
                                 <div className="text-gray-500">{vehicle.color || '—'} • {vehicle.fuel_type || '—'}</div>
                               </div>
                               <div className="flex gap-1 flex-shrink-0">
-                                <button
-                                  onClick={() => onViewVehicle(vehicle)}
-                                  className="p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-50"
-                                  title="View"
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                  </svg>
-                                </button>
+                                {canViewVehicles && (
+                                  <button
+                                    onClick={() => onViewVehicle(vehicle)}
+                                    className="p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-50"
+                                    title="View"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                    </svg>
+                                  </button>
+                                )}
                                 {canUpdateVehicles && (
                                   <button
                                     onClick={() => onEditVehicle(vehicle)}
@@ -252,7 +258,7 @@ function CustomerTable({
                     </span>
                   </td>
                   <td className="px-5 py-4 text-right">
-                    {(canUpdate || canDelete) && (
+                    {(canUpdateCustomers || canDeleteCustomers) && (
                       <>
                         <button
                           ref={el => buttonRefs.current[customer.id] = el}

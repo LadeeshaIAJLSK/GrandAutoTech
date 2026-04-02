@@ -100,6 +100,7 @@ class RolePermissionSeeder extends Seeder
                 'view_dashboard_stats',
                 'view_dashboard_recent_jobs',
                 'view_dashboard_status_breakdown',
+                'view_customers_vehicles_tab',
                 'view_customers',
                 'add_customers',
                 'update_customers',
