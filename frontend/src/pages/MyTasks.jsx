@@ -35,15 +35,15 @@ function MyTasks({ user, selectedBranchId, onBranchChange }) {
     fetchMyTasks()
   }, [filterBranchId])
 
-  // Fetch branches for super admin
+  // Fetch branches for super admin or users with filter permission
   useEffect(() => {
-    if (user.role.name === 'super_admin') {
+    if (user.role.name === 'super_admin' || user.permissions.includes('view_all_tasks_with_filter')) {
       const token = localStorage.getItem('token')
       axiosClient.get('/branches', { headers: { Authorization: `Bearer ${token}` } })
         .then(res => setBranches(res.data.data || res.data))
         .catch(err => console.error('Error fetching branches:', err))
     }
-  }, [user.role.name])
+  }, [user.role.name, user.permissions])
 
   useEffect(() => {
     const handleClick = (e) => {
@@ -81,7 +81,15 @@ function MyTasks({ user, selectedBranchId, onBranchChange }) {
   const fetchMyTasks = async () => {
     try {
       const token = localStorage.getItem('token')
-      const endpoint = user.role.name === 'super_admin' ? '/all-tasks' : '/my-tasks'
+      
+      // Determine which endpoint to use based on permissions
+      let endpoint = '/my-tasks'
+      
+      // If super_admin or has permission to view all tasks with filter
+      if (user.role.name === 'super_admin' || user.permissions.includes('view_all_tasks_with_filter')) {
+        endpoint = '/all-tasks'
+      }
+      
       const params = {}
       if (filterBranchId) {
         params.branch_id = parseInt(filterBranchId, 10)
@@ -297,7 +305,8 @@ function MyTasks({ user, selectedBranchId, onBranchChange }) {
     )
   }
 
-  const employeeFilteredTasks = user.role.name === 'super_admin' && employeeFilter.trim()
+  const canFilterByEmployee = user.role.name === 'super_admin' || user.permissions.includes('view_all_tasks_with_filter')
+  const employeeFilteredTasks = canFilterByEmployee && employeeFilter.trim()
     ? tasks.filter(t => t.assigned_to_user?.name?.toLowerCase().includes(employeeFilter.toLowerCase()))
     : tasks
 
@@ -335,6 +344,16 @@ function MyTasks({ user, selectedBranchId, onBranchChange }) {
   }, {})
 
   const jobCardGroups = Object.values(groupedByJobCard)
+
+  // Helper function to check if a task has an active timer
+  const hasActiveTimer = (task) => {
+    return task.time_tracking && task.time_tracking.some(t => !t.end_time)
+  }
+
+  // Helper function to check if a task has paused timers (but no active)
+  const hasPausedTimer = (task) => {
+    return task.time_tracking && task.time_tracking.length > 0 && !hasActiveTimer(task)
+  }
 
   const inputCls = "w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all"
   const labelCls = "block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
@@ -403,7 +422,7 @@ function MyTasks({ user, selectedBranchId, onBranchChange }) {
   return (
     <div className="space-y-5">
 
-      {/* Branch Filter - Only for Super Admin */}
+      {/* Branch Filter - Super Admin Only */}
       {user.role.name === 'super_admin' && (
         <div ref={branchDropdownRef} className="relative w-fit">
           <button
@@ -491,10 +510,10 @@ function MyTasks({ user, selectedBranchId, onBranchChange }) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
-            {user.role.name === 'super_admin' ? 'All Tasks' : 'My Tasks'}
+            {canFilterByEmployee ? 'All Tasks' : 'My Tasks'}
           </h2>
-          <p className="text-sm text-gray-400 mt-0.5">
-            {user.role.name === 'super_admin' ? 'All employee tasks' : 'Tasks assigned to you'}
+          <p className="text-xs text-gray-400">
+            {canFilterByEmployee ? 'All employee tasks' : 'Tasks assigned to you'}
           </p>
         </div>
         <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3.5 py-2 shadow-sm">
@@ -505,7 +524,7 @@ function MyTasks({ user, selectedBranchId, onBranchChange }) {
       </div>
 
       {/* Employee Filter (Super Admin Only) */}
-      {user.role.name === 'super_admin' && (
+      {canFilterByEmployee && (
         <div className="relative">
           <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -635,15 +654,28 @@ function MyTasks({ user, selectedBranchId, onBranchChange }) {
                         )}
                         {task.status === 'in_progress' && (
                           <>
-                            <button
-                              onClick={() => handlePauseTask(task.id)}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-yellow-50 hover:bg-yellow-100 text-yellow-700 border border-yellow-200 rounded-lg text-xs font-semibold transition-colors"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
-                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                              </svg>
-                              <span className="hidden sm:inline">Pause</span>
-                            </button>
+                            {hasActiveTimer(task) && (
+                              <button
+                                onClick={() => handlePauseTask(task.id)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-yellow-50 hover:bg-yellow-100 text-yellow-700 border border-yellow-200 rounded-lg text-xs font-semibold transition-colors"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                                </svg>
+                                <span className="hidden sm:inline">Pause</span>
+                              </button>
+                            )}
+                            {hasPausedTimer(task) && (
+                              <button
+                                onClick={() => handleResumeTask(task.id)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 rounded-lg text-xs font-semibold transition-colors"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                                </svg>
+                                <span className="hidden sm:inline">Resume</span>
+                              </button>
+                            )}
                             {(() => {
                               const parts = taskParts[task.id] || []
                               const hasUndeliveredParts = parts.length > 0 && parts.some(p => p.overall_status !== 'delivered')

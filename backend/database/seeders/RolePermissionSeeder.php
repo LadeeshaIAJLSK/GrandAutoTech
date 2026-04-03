@@ -67,14 +67,15 @@ class RolePermissionSeeder extends Seeder
             );
         }
         
-        // Technician - Task specific (both employee and supervisor)
+        // Technician - My Tasks
         $technicianPermissions = DB::table('permissions')
             ->whereIn('name', [
                 'view_dashboard',
                 'view_dashboard_stats',
                 'view_dashboard_recent_jobs',
-                'own_tasks',
-                'update_tasks',
+                'view_my_tasks_tab',
+                'view_own_tasks',
+                'view_all_tasks_with_filter',
                 'add_spare_parts',
                 'view_spare_parts',
                 'view_users',
@@ -107,8 +108,31 @@ class RolePermissionSeeder extends Seeder
                 'view_vehicles',
                 'add_vehicles',
                 'update_vehicles',
+                'view_job_cards_tab',
                 'view_job_cards',
-                'add_job_cards',
+                'create_job_cards',
+                'edit_job_cards',
+                'delete_job_cards',
+                'view_job_card_overview',
+                'view_job_card_tasks',
+                'add_job_card_task',
+                'assign_job_card_task',
+                'edit_job_card_task',
+                'delete_job_card_task',
+                'view_job_card_spare_parts',
+                'add_job_card_spare_part',
+                'approve_job_card_spare_part',
+                'reject_job_card_spare_part',
+                'view_job_card_advance_payments',
+                'view_job_card_services_pricing',
+                'edit_job_card_services_pricing',
+                'view_job_card_spare_parts_pricing',
+                'edit_job_card_spare_parts_pricing',
+                'view_job_card_additional_charges',
+                'add_job_card_additional_charge',
+                'view_job_card_cost_analysis',
+                'view_job_card_payment_summary',
+                'view_job_card_history',
                 'view_users',
                 'view_all_users',
                 'view_technicians',
@@ -130,7 +154,6 @@ class RolePermissionSeeder extends Seeder
         // Customer - View own data only
         $customerPermissions = DB::table('permissions')
             ->whereIn('name', [
-                'own_job_cards',
                 'own_invoices',
                 'approve_spare_parts',
             ])

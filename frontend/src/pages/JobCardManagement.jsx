@@ -27,9 +27,24 @@ function JobCardManagement({ user, selectedBranchId }) {
   const buttonRefs = useRef({})
   const branchDropdownRef = useRef(null)
 
-  const canAdd = user.role.name === 'super_admin' || user.permissions.includes('add_job_cards')
-  const canUpdate = user.role.name === 'super_admin' || user.permissions.includes('update_job_cards')
+  const canCreate = user.role.name === 'super_admin' || user.permissions.includes('create_job_cards')
+  const canEdit = user.role.name === 'super_admin' || user.permissions.includes('edit_job_cards')
   const canDelete = user.role.name === 'super_admin' || user.permissions.includes('delete_job_cards')
+  const canView = user.role.name === 'super_admin' || user.permissions.includes('view_job_cards')
+  
+  // Check if user has at least one job card detail section permission
+  const hasDetailPermission = user.role.name === 'super_admin' || [
+    'view_job_card_overview',
+    'view_job_card_tasks',
+    'view_job_card_spare_parts',
+    'view_job_card_advance_payments',
+    'view_job_card_services_pricing',
+    'view_job_card_spare_parts_pricing',
+    'view_job_card_additional_charges',
+    'view_job_card_cost_analysis',
+    'view_job_card_payment_summary',
+    'view_job_card_history'
+  ].some(perm => user.permissions.includes(perm))
 
   useEffect(() => {
     // Load saved branch filter from localStorage (for super admin only)
@@ -283,8 +298,19 @@ function JobCardManagement({ user, selectedBranchId }) {
         onClick={(e) => e.stopPropagation()}
       >
         <button
-          onClick={() => { navigate(`/job-cards/${jobCard.id}`); setOpenMenuId(null) }}
-          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 transition-colors text-left"
+          onClick={() => { 
+            if (hasDetailPermission) {
+              navigate(`/job-cards/${jobCard.id}`)
+              setOpenMenuId(null)
+            }
+          }}
+          disabled={!hasDetailPermission}
+          title={!hasDetailPermission ? 'Enable at least one detail section to view' : 'View job card'}
+          className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors text-left ${
+            hasDetailPermission 
+              ? 'text-gray-700 hover:bg-blue-50 cursor-pointer' 
+              : 'text-gray-400 cursor-not-allowed opacity-60'
+          }`}
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-blue-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -292,7 +318,7 @@ function JobCardManagement({ user, selectedBranchId }) {
           </svg>
           <span className="font-medium">View</span>
         </button>
-        {canUpdate && (
+        {canEdit && (
           <button
             className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 transition-colors text-left"
             onClick={() => { handleEditJobCard(jobCard) }}
@@ -449,7 +475,7 @@ function JobCardManagement({ user, selectedBranchId }) {
           <h2 className="text-xl font-bold text-gray-900 tracking-tight">Job Cards</h2>
           <p className="text-sm text-gray-400 mt-0.5">Manage and track all service jobs</p>
         </div>
-        {canAdd && (
+        {canCreate && (
           <button
             onClick={() => {
               const initialBranchId = user.role.name === 'super_admin' 
@@ -528,7 +554,7 @@ function JobCardManagement({ user, selectedBranchId }) {
                       </svg>
                       <p className="text-gray-400 font-medium">No job cards found</p>
                       <p className="text-gray-300 text-xs">
-                        {canAdd ? 'Create your first job card to get started' : 'No job cards available'}
+                        {canCreate ? 'Create your first job card to get started' : 'No job cards available'}
                       </p>
                     </div>
                   </td>
@@ -576,7 +602,7 @@ function JobCardManagement({ user, selectedBranchId }) {
                       </div>
                     </td>
                     <td className="px-5 py-4">
-                      {canUpdate && jobCard.status !== 'cancelled' ? (
+                      {canEdit && jobCard.status !== 'cancelled' ? (
                         <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${getStatusStyle(jobCard.status)}`}>
                           {jobCard.status}
                         </span>

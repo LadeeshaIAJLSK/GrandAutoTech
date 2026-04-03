@@ -311,8 +311,8 @@ function TaskApproval({ user }) {
   return (
     <div className="space-y-6">
 
-      {/* Branch Filter */}
-      {(user?.role?.name === 'super_admin' || !user?.branch_id) ? (
+      {/* Branch Filter - Super Admin Only */}
+      {user?.role?.name === 'super_admin' ? (
         <div ref={branchDropdownRef} className="relative w-fit">
           <button
             onClick={() => setBranchDropdownOpen(!branchDropdownOpen)}
@@ -474,8 +474,9 @@ function TaskApproval({ user }) {
                       {isJobCardSelected && jobCardTasks.length > 1 && (
                         <button
                           onClick={() => setConfirmAction({ type: 'approve_all', jobCardId: jobCardGroup.jobCard.id })}
-                          className="inline-flex items-center gap-1 bg-[#1a3a6b] hover:bg-[#0f2444] text-white px-3 py-1.5 rounded text-xs font-bold transition-all whitespace-nowrap"
-                          title="Approve all tasks in this job card"
+                          disabled={!user.permissions.includes('approve_tasks')}
+                          className="inline-flex items-center gap-1 bg-[#1a3a6b] hover:bg-[#0f2444] disabled:bg-gray-400 text-white px-3 py-1.5 rounded text-xs font-bold transition-all whitespace-nowrap disabled:cursor-not-allowed"
+                          title={user.permissions.includes('approve_tasks') ? 'Approve all tasks in this job card' : 'No permission to approve tasks'}
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -534,8 +535,9 @@ function TaskApproval({ user }) {
                               <div className="flex gap-2">
                                 <button
                                   onClick={() => handleApproveTask(task.id)}
-                                  className="inline-flex items-center gap-1 bg-[#2563A8] hover:bg-[#2563A8]/90 text-white px-2 py-1 rounded text-xs font-bold transition-all"
-                                  title="Approve task"
+                                  disabled={!user.permissions.includes('approve_tasks')}
+                                  className="inline-flex items-center gap-1 bg-[#2563A8] hover:bg-[#2563A8]/90 disabled:bg-gray-400 text-white px-2 py-1 rounded text-xs font-bold transition-all disabled:cursor-not-allowed"
+                                  title={user.permissions.includes('approve_tasks') ? "Approve task" : "No permission to approve tasks"}
                                 >
                                   <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
                                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -544,8 +546,9 @@ function TaskApproval({ user }) {
                                 </button>
                                 <button
                                   onClick={() => handleRejectTask(task.id)}
-                                  className="inline-flex items-center gap-1 bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs font-bold transition-all"
-                                  title="Reject task"
+                                  disabled={!user.permissions.includes('reject_tasks')}
+                                  className="inline-flex items-center gap-1 bg-red-500 hover:bg-red-600 disabled:bg-gray-400 text-white px-2 py-1 rounded text-xs font-bold transition-all disabled:cursor-not-allowed"
+                                  title={user.permissions.includes('reject_tasks') ? "Reject task" : "No permission to reject tasks"}
                                 >
                                   <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
                                     <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
@@ -639,9 +642,10 @@ function TaskApproval({ user }) {
                   
                   <button
                     onClick={() => handleMarkInspectionCompleted(jobCard.id)}
-                    disabled={inspectionLoading[jobCard.id]}
+                    disabled={inspectionLoading[jobCard.id] || !user.permissions.includes('mark_task_inspected')}
                     className="w-full inline-flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 disabled:bg-gray-400 text-white py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm hover:shadow-md disabled:cursor-not-allowed"
                     style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
+                    title={user.permissions.includes('mark_task_inspected') ? "Mark as inspected" : "No permission to mark tasks as inspected"}
                   >
                     {inspectionLoading[jobCard.id] ? (
                       <>

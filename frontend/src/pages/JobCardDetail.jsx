@@ -34,6 +34,37 @@ function JobCardDetail({ jobCardId, onClose, user } = {}) {
   const historyRef = useRef(null)
   const printRef = useRef()
 
+  // Permission checks for job card detail sections
+  const canViewOverview = user?.role?.name === 'super_admin' || user?.permissions?.includes('view_job_card_overview')
+  const canViewTasks = user?.role?.name === 'super_admin' || user?.permissions?.includes('view_job_card_tasks')
+  const canAddTask = user?.role?.name === 'super_admin' || user?.permissions?.includes('add_job_card_task')
+  const canAssignTask = user?.role?.name === 'super_admin' || user?.permissions?.includes('assign_job_card_task')
+  const canEditTask = user?.role?.name === 'super_admin' || user?.permissions?.includes('edit_job_card_task')
+  const canDeleteTask = user?.role?.name === 'super_admin' || user?.permissions?.includes('delete_job_card_task')
+  
+  const canViewSpareParts = user?.role?.name === 'super_admin' || user?.permissions?.includes('view_job_card_spare_parts')
+  const canAddSparePart = user?.role?.name === 'super_admin' || user?.permissions?.includes('add_job_card_spare_part')
+  const canApproveSparePart = user?.role?.name === 'super_admin' || user?.permissions?.includes('approve_job_card_spare_part')
+  const canRejectSparePart = user?.role?.name === 'super_admin' || user?.permissions?.includes('reject_job_card_spare_part')
+  
+  const canViewAdvancePayments = user?.role?.name === 'super_admin' || user?.permissions?.includes('view_job_card_advance_payments')
+  
+  const canViewServicesPricing = user?.role?.name === 'super_admin' || user?.permissions?.includes('view_job_card_services_pricing')
+  const canEditServicesPricing = user?.role?.name === 'super_admin' || user?.permissions?.includes('edit_job_card_services_pricing')
+  
+  const canViewSparePartsPricing = user?.role?.name === 'super_admin' || user?.permissions?.includes('view_job_card_spare_parts_pricing')
+  const canEditSparePartsPricing = user?.role?.name === 'super_admin' || user?.permissions?.includes('edit_job_card_spare_parts_pricing')
+  
+  const canViewAdditionalCharges = user?.role?.name === 'super_admin' || user?.permissions?.includes('view_job_card_additional_charges')
+  const canAddAdditionalCharge = user?.role?.name === 'super_admin' || user?.permissions?.includes('add_job_card_additional_charge')
+  
+  const canViewCostAnalysis = user?.role?.name === 'super_admin' || user?.permissions?.includes('view_job_card_cost_analysis')
+  const canViewPaymentSummary = user?.role?.name === 'super_admin' || user?.permissions?.includes('view_job_card_payment_summary')
+  const canViewHistory = user?.role?.name === 'super_admin' || user?.permissions?.includes('view_job_card_history')
+  
+  // Check if user can view any pricing section
+  const canViewAnyPricingSection = canViewServicesPricing || canViewSparePartsPricing || canViewAdditionalCharges || canViewCostAnalysis || canViewPaymentSummary
+
   useEffect(() => {
     fetchJobCard()
   }, [actualJobCardId])
@@ -228,17 +259,17 @@ function JobCardDetail({ jobCardId, onClose, user } = {}) {
 
   const navItems = [
     { key: 'overview',        ref: overviewRef,        label: 'Overview',
-      icon: <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg> },
+      icon: <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>, show: true },
     { key: 'tasks',           ref: tasksRef,           label: `Tasks (${jobCard.tasks?.length || 0})`,
-      icon: <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg> },
+      icon: <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>, show: canViewTasks },
     { key: 'parts',           ref: partsRef,           label: `Spare Parts (${jobCard.spare_parts_requests?.length || 0})`,
-      icon: <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" /></svg> },
+      icon: <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" /></svg>, show: canViewSpareParts },
     { key: 'advancePayments', ref: advancePaymentsRef, label: 'Advance Payments',
-      icon: <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg> },
+      icon: <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>, show: canViewAdvancePayments },
     { key: 'pricing',         ref: pricingRef,         label: 'Pricing & Payments',
-      icon: <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
+      icon: <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>, show: canViewAnyPricingSection },
     { key: 'history',         ref: historyRef,         label: 'History',
-      icon: <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
+      icon: <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>, show: canViewHistory },
   ]
 
   return (
@@ -287,7 +318,7 @@ function JobCardDetail({ jobCardId, onClose, user } = {}) {
 
         {/* Right Side Navigation */}
         <div className="fixed right-6 top-32 flex flex-col gap-2 z-40">
-          {navItems.map(item => (
+          {navItems.filter(item => item.show).map(item => (
             <button
               key={item.key}
               onClick={() => scrollToSection(item.ref, item.key)}
@@ -415,25 +446,31 @@ function JobCardDetail({ jobCardId, onClose, user } = {}) {
         </section>
 
         {/* Tasks Section */}
-        <section ref={tasksRef} className="scroll-mt-40">
-          <TaskManagement jobCard={jobCard} onUpdate={fetchJobCard} user={user} />
-        </section>
+        {canViewTasks && (
+          <section ref={tasksRef} className="scroll-mt-40">
+            <TaskManagement jobCard={jobCard} onUpdate={fetchJobCard} user={user} />
+          </section>
+        )}
 
         {/* Spare Parts Section */}
-        <section ref={partsRef} className="scroll-mt-40">
-          {['super_admin', 'branch_admin'].includes(user?.role?.name) && (
-            <PartsApprovalPanel jobCard={jobCard} user={user} onUpdate={fetchJobCard} />
-          )}
-          <SparePartsManagement jobCard={jobCard} onUpdate={fetchJobCard} user={user} />
-        </section>
+        {canViewSpareParts && (
+          <section ref={partsRef} className="scroll-mt-40">
+            <SparePartsManagement jobCard={jobCard} onUpdate={fetchJobCard} user={user} />
+            {['super_admin', 'branch_admin'].includes(user?.role?.name) && (
+              <PartsApprovalPanel jobCard={jobCard} user={user} onUpdate={fetchJobCard} />
+            )}
+          </section>
+        )}
 
         {/* Pricing & Payments Section */}
-        <section ref={pricingRef} className="scroll-mt-40">
-          <PaymentManagement jobCard={jobCard} onUpdate={fetchJobCard} user={user} advancePaymentsRef={advancePaymentsRef} onPricingStatusChange={setPricingStatus} />
-        </section>
+        {canViewAnyPricingSection && (
+          <section ref={pricingRef} className="scroll-mt-40">
+            <PaymentManagement jobCard={jobCard} onUpdate={fetchJobCard} user={user} advancePaymentsRef={advancePaymentsRef} onPricingStatusChange={setPricingStatus} />
+          </section>
+        )}
 
-        {/* Save Prices Section - Only show when job card is completed */}
-        {jobCard.status === 'completed' && (
+        {/* Save Prices Section - Only show when job card is completed and user can see pricing */}
+        {canViewAnyPricingSection && jobCard.status === 'completed' && (
           <section className="scroll-mt-40">
             <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border-2 border-green-200 shadow-sm p-6">
               <div className="flex items-center gap-3 mb-5">
@@ -513,38 +550,40 @@ function JobCardDetail({ jobCardId, onClose, user } = {}) {
         )}
 
         {/* History Section */}
-        <section ref={historyRef} className="scroll-mt-40">
-          <h2 className="text-base font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2 mb-4">
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            Job Card History
-          </h2>
+        {canViewHistory && (
+          <section ref={historyRef} className="scroll-mt-40">
+            <h2 className="text-base font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2 mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Job Card History
+            </h2>
 
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-            <div className="space-y-0">
-              {[
-                { dot: 'bg-green-500', title: 'Job Card Created', date: jobCard.created_at, by: jobCard.creator?.name, show: true },
-                { dot: 'bg-blue-500', title: 'Work Completed', date: jobCard.actual_completion_date, show: !!jobCard.actual_completion_date },
-                { dot: 'bg-purple-500', title: 'Vehicle Delivered', date: jobCard.delivered_date, show: !!jobCard.delivered_date },
-              ].filter(e => e.show).map((event, i, arr) => (
-                <div key={event.title} className="flex gap-4">
-                  <div className="flex flex-col items-center">
-                    <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 mt-1 ${event.dot}`} />
-                    {i < arr.length - 1 && <div className="w-px flex-1 bg-gray-200 my-1" />}
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+              <div className="space-y-0">
+                {[
+                  { dot: 'bg-green-500', title: 'Job Card Created', date: jobCard.created_at, by: jobCard.creator?.name, show: true },
+                  { dot: 'bg-blue-500', title: 'Work Completed', date: jobCard.actual_completion_date, show: !!jobCard.actual_completion_date },
+                  { dot: 'bg-purple-500', title: 'Vehicle Delivered', date: jobCard.delivered_date, show: !!jobCard.delivered_date },
+                ].filter(e => e.show).map((event, i, arr) => (
+                  <div key={event.title} className="flex gap-4">
+                    <div className="flex flex-col items-center">
+                      <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 mt-1 ${event.dot}`} />
+                      {i < arr.length - 1 && <div className="w-px flex-1 bg-gray-200 my-1" />}
+                    </div>
+                    <div className={`${i < arr.length - 1 ? 'pb-5' : ''}`}>
+                      <p className="font-semibold text-gray-900 text-sm">{event.title}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {new Date(event.date).toLocaleString()}
+                        {event.by && ` · ${event.by}`}
+                      </p>
+                    </div>
                   </div>
-                  <div className={`${i < arr.length - 1 ? 'pb-5' : ''}`}>
-                    <p className="font-semibold text-gray-900 text-sm">{event.title}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      {new Date(event.date).toLocaleString()}
-                      {event.by && ` · ${event.by}`}
-                    </p>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
       </div>
 

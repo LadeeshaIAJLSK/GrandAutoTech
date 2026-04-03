@@ -236,15 +236,15 @@ function Layout({ user, onLogout, children }) {
               <NavItem path="/customers" icon={icons.customers} label="Customers & Vehicles" />
             )}
 
-            {(user.role.name === 'super_admin' || user.permissions.includes('own_tasks')) && (
+            {(user.role.name === 'super_admin' || user.permissions.includes('view_my_tasks_tab')) && (
               <NavItem path="/my-tasks" icon={icons.tasks} label="My Tasks" />
             )}
 
-            {(user.role.name === 'super_admin' || user.permissions.includes('view_job_cards')) && (
+            {(user.role.name === 'super_admin' || user.permissions.includes('view_job_cards_tab')) && (
               <NavItem path="/job-cards" icon={icons.jobCards} label="Job Cards" />
             )}
 
-            {['super_admin', 'branch_admin'].includes(user.role.name) && (
+            {(user.role.name === 'super_admin' || user.permissions.includes('view_task_approval_tab')) && (
               <NavItem path="/task-approval" icon={icons.approval} label="Task Approval" />
             )}
 

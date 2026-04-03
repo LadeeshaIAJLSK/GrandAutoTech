@@ -85,12 +85,12 @@ function App() {
         
         <Route 
           path="/job-cards" 
-          element={user ? <Layout user={user} onLogout={handleLogout}><JobCardManagement user={user} /></Layout> : <Navigate to="/login" />} 
+          element={user && (user.role.name === 'super_admin' || user.permissions.includes('view_job_cards_tab')) ? <Layout user={user} onLogout={handleLogout}><JobCardManagement user={user} /></Layout> : <Navigate to="/dashboard" />} 
         />
         
         <Route 
           path="/job-cards/:id" 
-          element={user ? <Layout user={user} onLogout={handleLogout}><JobCardDetail user={user} /></Layout> : <Navigate to="/login" />} 
+          element={user && (user.role.name === 'super_admin' || user.permissions.includes('view_job_cards_tab')) ? <Layout user={user} onLogout={handleLogout}><JobCardDetail user={user} /></Layout> : <Navigate to="/dashboard" />} 
         />
         
         <Route 
@@ -123,20 +123,20 @@ function App() {
           element={user ? <Layout user={user} onLogout={handleLogout}><PettyCashManagement user={user} /></Layout> : <Navigate to="/login" />} 
         />
 
-        {/* My Tasks (Super Admin & Technicians with own_tasks permission) */}
+        {/* My Tasks (Super Admin & Technicians with view_my_tasks_tab permission) */}
         <Route
           path="/my-tasks"
-          element={user && (user.role.name === 'super_admin' || user.permissions.includes('own_tasks')) ? (
+          element={user && (user.role.name === 'super_admin' || user.permissions.includes('view_my_tasks_tab')) ? (
             <Layout user={user} onLogout={handleLogout}>
               <MyTasks user={user} />
             </Layout>
           ) : <Navigate to="/dashboard" />}
         />
 
-        {/* Task Approval (Super Admin, Branch Admin & users with approve_tasks permission) */}
+        {/* Task Approval (Super Admin & users with view_task_approval_tab permission) */}
         <Route
           path="/task-approval"
-          element={user && (user.role.name === 'super_admin' || user.role.name === 'branch_admin' || user.permissions.includes('approve_tasks')) ? (
+          element={user && (user.role.name === 'super_admin' || user.permissions.includes('view_task_approval_tab')) ? (
             <Layout user={user} onLogout={handleLogout}>
               <TaskApproval user={user} />
             </Layout>

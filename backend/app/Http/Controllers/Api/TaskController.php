@@ -22,6 +22,11 @@ class TaskController extends Controller
     {
         $user = $request->user();
         
+        // Check permission to view own tasks
+        if (!$user->hasPermission('view_own_tasks')) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        
         // Get tasks where user is assigned
         $tasks = Task::whereHas('assignments', function($query) use ($user) {
             $query->where('user_id', $user->id);
@@ -48,15 +53,15 @@ class TaskController extends Controller
     }
 
     /**
-     * Get all tasks (for super admin to see all employee tasks)
+     * Get all tasks (for super admin or users with view_all_tasks_with_filter permission)
      */
     //used
     public function getAllTasks(Request $request)
     {
         $user = $request->user();
         
-        // Only super admin can view all tasks
-        if ($user->role->name !== 'super_admin') {
+        // Only super admin or users with view_all_tasks_with_filter permission can view all tasks
+        if ($user->role->name !== 'super_admin' && !$user->hasPermission('view_all_tasks_with_filter')) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
         
@@ -69,7 +74,7 @@ class TaskController extends Controller
         ])
         ->join('job_cards', 'tasks.job_card_id', '=', 'job_cards.id');
 
-        // Super admin: can view all branches, or filter by specific branch if provided
+        // Super admin or users with filter permission: can view all branches, or filter by specific branch if provided
         if ($request->has('branch_id') && $request->branch_id) {
             $query->where('job_cards.branch_id', $request->branch_id);
         }
@@ -295,8 +300,8 @@ class TaskController extends Controller
     {
         $user = $request->user();
         
-        // Allow: super_admin, branch_admin, users with approve_tasks permission, or supervisor technicians
-        if (!$user->hasPermission('approve_tasks') && 
+        // Allow: super_admin, branch_admin, users with reject_tasks permission, or supervisor technicians
+        if (!$user->hasPermission('reject_tasks') && 
             !in_array($user->role->name, ['super_admin', 'branch_admin']) &&
             !($user->role->name === 'technician' && $user->technician_type?->value === 'supervisor')) {
             return response()->json(['message' => 'Unauthorized'], 403);
@@ -371,7 +376,7 @@ class TaskController extends Controller
     {
         $user = $request->user();
         
-        if (!$user->hasPermission('approve_tasks') && !in_array($user->role->name, ['super_admin', 'branch_admin'])) {
+        if (!$user->hasPermission('mark_task_inspected') && !in_array($user->role->name, ['super_admin', 'branch_admin'])) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -463,7 +468,8 @@ class TaskController extends Controller
     {
         $user = $request->user();
         
-        if (!$user->hasPermission('update_tasks')) {
+        // Allow: super_admin, branch_admin, or users with edit_job_card_task permission
+        if (!in_array($user->role->name, ['super_admin', 'branch_admin']) && !$user->hasPermission('edit_job_card_task')) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -505,7 +511,8 @@ class TaskController extends Controller
     {
         $user = $request->user();
         
-        if (!$user->hasPermission('delete_tasks')) {
+        // Allow: super_admin, branch_admin, or users with delete_job_card_task permission
+        if (!in_array($user->role->name, ['super_admin', 'branch_admin']) && !$user->hasPermission('delete_job_card_task')) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -531,7 +538,8 @@ class TaskController extends Controller
     {
         $user = $request->user();
         
-        if (!$user->hasPermission('update_tasks')) {
+        // Allow: super_admin, branch_admin, or users with assign_job_card_task permission
+        if (!in_array($user->role->name, ['super_admin', 'branch_admin']) && !$user->hasPermission('assign_job_card_task')) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -697,6 +705,15 @@ class TaskController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
+        // Check if there's already an active timer for this task (by any user)
+        $existingTimer = TaskTimeTracking::where('task_id', $task->id)
+            ->whereNull('end_time')
+            ->first();
+
+        if ($existingTimer) {
+            return response()->json(['message' => 'A timer is already running for this task'], 400);
+        }
+
         // Create a new timer entry
         $timer = TaskTimeTracking::create([
             'task_id' => $task->id,
@@ -728,8 +745,15 @@ class TaskController extends Controller
             ->whereNull('end_time')
             ->first();
 
+        // If no timer found for current user, try to find any active timer for this task
         if (!$timer) {
-            return response()->json(['message' => 'No active timer found'], 400);
+            $timer = TaskTimeTracking::where('task_id', $task->id)
+                ->whereNull('end_time')
+                ->first();
+        }
+
+        if (!$timer) {
+            return response()->json(['message' => 'No active timer found. Please start the timer first.'], 400);
         }
 
         // Pause the timer
@@ -756,6 +780,15 @@ class TaskController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
+        // Check if there's an active timer already running for any user
+        $existingActiveTimer = TaskTimeTracking::where('task_id', $task->id)
+            ->whereNull('end_time')
+            ->first();
+
+        if ($existingActiveTimer) {
+            return response()->json(['message' => 'A timer is already running for this task'], 400);
+        }
+
         // Create a new timer entry
         $timer = TaskTimeTracking::create([
             'task_id' => $task->id,
@@ -774,11 +807,18 @@ class TaskController extends Controller
         $user = $request->user();
         $task = Task::findOrFail($id);
 
-        // Find the active timer
+        // Find any active timer for this task by the current user
         $timer = TaskTimeTracking::where('task_id', $task->id)
             ->where('user_id', $user->id)
             ->whereNull('end_time')
             ->first();
+
+        // If not found for current user, try to find any active timer
+        if (!$timer) {
+            $timer = TaskTimeTracking::where('task_id', $task->id)
+                ->whereNull('end_time')
+                ->first();
+        }
 
         if ($timer) {
             $timer->update(['end_time' => now()]);

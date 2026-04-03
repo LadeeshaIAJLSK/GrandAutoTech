@@ -15,7 +15,7 @@ function PartsApprovalPanel({ jobCard, user, onUpdate }) {
   const [customerSelectAll, setCustomerSelectAll] = useState(false)
 
   useEffect(() => {
-    if (user.role.name === 'super_admin' || user.permissions.includes('approve_spare_parts')) {
+    if (user.role.name === 'super_admin' || user.permissions.includes('approve_job_card_spare_part')) {
       fetchPendingParts()
     }
   }, [jobCard.id])

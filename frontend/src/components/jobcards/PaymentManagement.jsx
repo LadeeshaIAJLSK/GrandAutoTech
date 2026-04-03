@@ -76,11 +76,11 @@ function PaymentManagement({ jobCard, onUpdate, user, advancePaymentsRef, onPric
 
   const [notification, setNotification] = useState(null)
 
-  const canAddPayments = user?.role?.name === 'super_admin' || user?.permissions?.includes('add_payments')
-  const canDeletePayments = user?.role?.name === 'super_admin' || user?.permissions?.includes('delete_payments')
-  const canViewInvoices = user?.role?.name === 'super_admin' || user?.permissions?.includes('view_invoices')
-  const canEditLaborCost = user?.role?.name === 'super_admin' || user?.permissions?.includes('edit_labor_cost') || user?.permissions?.includes('edit_pricing')
-  const canEditApprovedParts = user?.role?.name === 'super_admin' || user?.permissions?.includes('edit_approved_parts') || user?.permissions?.includes('edit_spare_parts')
+  const canAddPayments = user?.role?.name === 'super_admin' || user?.permissions?.includes('add_job_card_advance_payments')
+  const canDeletePayments = user?.role?.name === 'super_admin' || user?.permissions?.includes('delete_job_card_advance_payments')
+  const canViewInvoices = user?.role?.name === 'super_admin' || user?.permissions?.includes('view_job_card_payment_summary')
+  const canEditLaborCost = user?.role?.name === 'super_admin' || user?.permissions?.includes('edit_job_card_services_pricing')
+  const canEditApprovedParts = user?.role?.name === 'super_admin' || user?.permissions?.includes('edit_job_card_spare_parts_pricing')
 
   // Validate pricing for invoice generation
   const validateInvoicePricing = () => {

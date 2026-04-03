@@ -81,14 +81,18 @@ class JobCardController extends Controller
     {
         $user = $request->user();
         
-        $permissions = DB::table('permissions')
-            ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
-            ->where('role_permissions.role_id', $user->role_id)
-            ->pluck('permissions.name')
-            ->toArray();
+        $role = DB::table('roles')->where('id', $user->role_id)->first();
         
-        if (!in_array('view_job_cards', $permissions)) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        if ($role->name !== 'super_admin') {
+            $permissions = DB::table('permissions')
+                ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
+                ->where('role_permissions.role_id', $user->role_id)
+                ->pluck('permissions.name')
+                ->toArray();
+            
+            if (!in_array('view_job_cards', $permissions)) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
         }
 
         $jobCard = JobCard::with([
@@ -169,14 +173,18 @@ class JobCardController extends Controller
     {
         $user = $request->user();
         
-        $permissions = DB::table('permissions')
-            ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
-            ->where('role_permissions.role_id', $user->role_id)
-            ->pluck('permissions.name')
-            ->toArray();
+        $role = DB::table('roles')->where('id', $user->role_id)->first();
         
-        if (!in_array('add_job_cards', $permissions)) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        if ($role->name !== 'super_admin') {
+            $permissions = DB::table('permissions')
+                ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
+                ->where('role_permissions.role_id', $user->role_id)
+                ->pluck('permissions.name')
+                ->toArray();
+            
+            if (!in_array('add_job_cards', $permissions)) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
         }
 
         $validated = $request->validate([
@@ -249,14 +257,18 @@ class JobCardController extends Controller
     {
         $user = $request->user();
         
-        $permissions = DB::table('permissions')
-            ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
-            ->where('role_permissions.role_id', $user->role_id)
-            ->pluck('permissions.name')
-            ->toArray();
+        $role = DB::table('roles')->where('id', $user->role_id)->first();
         
-        if (!in_array('update_job_cards', $permissions)) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        if ($role->name !== 'super_admin') {
+            $permissions = DB::table('permissions')
+                ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
+                ->where('role_permissions.role_id', $user->role_id)
+                ->pluck('permissions.name')
+                ->toArray();
+            
+            if (!in_array('update_job_cards', $permissions)) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
         }
 
         $jobCard = JobCard::findOrFail($id);
@@ -321,14 +333,18 @@ class JobCardController extends Controller
     {
         $user = $request->user();
         
-        $permissions = DB::table('permissions')
-            ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
-            ->where('role_permissions.role_id', $user->role_id)
-            ->pluck('permissions.name')
-            ->toArray();
+        $role = DB::table('roles')->where('id', $user->role_id)->first();
         
-        if (!in_array('add_job_cards', $permissions)) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        if ($role->name !== 'super_admin') {
+            $permissions = DB::table('permissions')
+                ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
+                ->where('role_permissions.role_id', $user->role_id)
+                ->pluck('permissions.name')
+                ->toArray();
+            
+            if (!in_array('add_job_cards', $permissions)) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
         }
 
         $request->validate([
@@ -375,14 +391,18 @@ class JobCardController extends Controller
     {
         $user = $request->user();
         
-        $permissions = DB::table('permissions')
-            ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
-            ->where('role_permissions.role_id', $user->role_id)
-            ->pluck('permissions.name')
-            ->toArray();
+        $role = DB::table('roles')->where('id', $user->role_id)->first();
         
-        if (!in_array('delete_job_cards', $permissions)) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        if ($role->name !== 'super_admin') {
+            $permissions = DB::table('permissions')
+                ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
+                ->where('role_permissions.role_id', $user->role_id)
+                ->pluck('permissions.name')
+                ->toArray();
+            
+            if (!in_array('delete_job_cards', $permissions)) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
         }
 
         $image = JobCardImage::where('job_card_id', $jobCardId)
@@ -407,14 +427,18 @@ class JobCardController extends Controller
     {
         $user = $request->user();
         
-        $permissions = DB::table('permissions')
-            ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
-            ->where('role_permissions.role_id', $user->role_id)
-            ->pluck('permissions.name')
-            ->toArray();
+        $role = DB::table('roles')->where('id', $user->role_id)->first();
         
-        if (!in_array('add_tasks', $permissions)) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        if ($role->name !== 'super_admin') {
+            $permissions = DB::table('permissions')
+                ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
+                ->where('role_permissions.role_id', $user->role_id)
+                ->pluck('permissions.name')
+                ->toArray();
+            
+            if (!in_array('add_job_card_task', $permissions)) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
         }
 
         $jobCard = JobCard::findOrFail($id);
@@ -450,14 +474,18 @@ class JobCardController extends Controller
     {
         $user = $request->user();
         
-        $permissions = DB::table('permissions')
-            ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
-            ->where('role_permissions.role_id', $user->role_id)
-            ->pluck('permissions.name')
-            ->toArray();
+        $role = DB::table('roles')->where('id', $user->role_id)->first();
         
-        if (!in_array('add_job_cards', $permissions)) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        if ($role->name !== 'super_admin') {
+            $permissions = DB::table('permissions')
+                ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
+                ->where('role_permissions.role_id', $user->role_id)
+                ->pluck('permissions.name')
+                ->toArray();
+            
+            if (!in_array('add_job_card_additional_charge', $permissions)) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
         }
 
         $validated = $request->validate([
@@ -558,14 +586,18 @@ class JobCardController extends Controller
     {
         $user = $request->user();
         
-        $permissions = DB::table('permissions')
-            ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
-            ->where('role_permissions.role_id', $user->role_id)
-            ->pluck('permissions.name')
-            ->toArray();
+        $role = DB::table('roles')->where('id', $user->role_id)->first();
         
-        if (!in_array('delete_job_cards', $permissions)) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        if ($role->name !== 'super_admin') {
+            $permissions = DB::table('permissions')
+                ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
+                ->where('role_permissions.role_id', $user->role_id)
+                ->pluck('permissions.name')
+                ->toArray();
+            
+            if (!in_array('delete_job_cards', $permissions)) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
         }
 
         $jobCard = JobCard::findOrFail($id);
@@ -645,14 +677,18 @@ class JobCardController extends Controller
     {
         $user = $request->user();
         
-        $permissions = DB::table('permissions')
-            ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
-            ->where('role_permissions.role_id', $user->role_id)
-            ->pluck('permissions.name')
-            ->toArray();
+        $role = DB::table('roles')->where('id', $user->role_id)->first();
         
-        if (!in_array('add_job_cards', $permissions)) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        if ($role->name !== 'super_admin') {
+            $permissions = DB::table('permissions')
+                ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
+                ->where('role_permissions.role_id', $user->role_id)
+                ->pluck('permissions.name')
+                ->toArray();
+            
+            if (!in_array('add_job_card_additional_charge', $permissions)) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
         }
 
         $charge = OtherCharge::findOrFail($id);
@@ -689,14 +725,18 @@ class JobCardController extends Controller
     {
         $user = $request->user();
         
-        $permissions = DB::table('permissions')
-            ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
-            ->where('role_permissions.role_id', $user->role_id)
-            ->pluck('permissions.name')
-            ->toArray();
+        $role = DB::table('roles')->where('id', $user->role_id)->first();
         
-        if (!in_array('add_job_cards', $permissions)) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        if ($role->name !== 'super_admin') {
+            $permissions = DB::table('permissions')
+                ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
+                ->where('role_permissions.role_id', $user->role_id)
+                ->pluck('permissions.name')
+                ->toArray();
+            
+            if (!in_array('add_job_card_additional_charge', $permissions)) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
         }
 
         $charge = OtherCharge::findOrFail($id);

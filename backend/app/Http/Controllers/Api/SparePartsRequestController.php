@@ -30,7 +30,7 @@ class SparePartsRequestController extends Controller
     {
         $user = $request->user();
         
-        if (!$user->hasPermission('add_spare_parts')) {
+        if (!$user->hasPermission('add_job_card_spare_part')) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -39,7 +39,7 @@ class SparePartsRequestController extends Controller
             'part_name' => 'required|string|max:255',
             'part_number' => 'nullable|string|max:100',
             'description' => 'nullable|string',
-            'quantity' => 'nullable|integer|min:1',
+            'quantity' => 'nullable|integer|min:0',
         ]);
 
         $jobCard = JobCard::findOrFail($jobCardId);
@@ -85,8 +85,8 @@ class SparePartsRequestController extends Controller
         // Check if user is super admin
         $isSuperAdmin = $user->role && ($user->role->name === 'super_admin');
         
-        // Check authorization: super admin OR has update_spare_parts permission
-        if (!$isSuperAdmin && !$user->hasPermission('update_spare_parts')) {
+        // Check authorization: super admin OR has edit_job_card_spare_part permission
+        if (!$isSuperAdmin && !$user->hasPermission('edit_job_card_spare_part')) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -100,10 +100,11 @@ class SparePartsRequestController extends Controller
         }
 
         $validated = $request->validate([
+            'task_id' => 'nullable|exists:tasks,id',
             'part_name' => 'sometimes|string|max:255',
             'part_number' => 'nullable|string|max:100',
             'description' => 'nullable|string',
-            'quantity' => 'sometimes|integer|min:1',
+            'quantity' => 'nullable|integer|min:0',
             'unit_cost' => 'sometimes|numeric|min:0',
             'cost_price' => 'sometimes|numeric|min:0',
             'selling_price' => 'sometimes|numeric|min:0',
@@ -131,7 +132,7 @@ class SparePartsRequestController extends Controller
     {
         $user = $request->user();
         
-        if (!$user->hasPermission('delete_spare_parts')) {
+        if (!$user->hasPermission('delete_job_card_spare_part')) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -158,7 +159,7 @@ class SparePartsRequestController extends Controller
     {
         $user = $request->user();
         
-        if (!$user->hasPermission('approve_spare_parts')) {
+        if (!$user->hasPermission('approve_job_card_spare_part')) {
             return response()->json(['message' => 'You do not have permission to approve spare parts'], 403);
         }
 
@@ -192,14 +193,18 @@ class SparePartsRequestController extends Controller
     }
 
     /**
-     * Admin approval (Level 1)
+     * Admin approval (Level 1 - Supervisor)
      */
     public function adminApprove(Request $request, $id)
     {
         $user = $request->user();
         
-        if (!$user->hasPermission('approve_spare_parts') && $user->role->name !== 'super_admin') {
-            return response()->json(['message' => 'You do not have permission to approve spare parts'], 403);
+        // Check if user is super admin
+        $isSuperAdmin = $user->role && ($user->role->name === 'super_admin');
+        
+        // Check authorization: super admin OR has approve_job_card_spare_part_supervisor permission
+        if (!$isSuperAdmin && !$user->hasPermission('approve_job_card_spare_part_supervisor')) {
+            return response()->json(['message' => 'You do not have permission to approve spare parts (Supervisor Level)'], 403);
         }
 
         $validated = $request->validate([
@@ -232,10 +237,20 @@ class SparePartsRequestController extends Controller
     }
 
     /**
-     * Customer approval (Level 3)
+     * Customer approval (Level 2)
      */
     public function customerApprove(Request $request, $id)
     {
+        $user = $request->user();
+        
+        // Check if user is super admin
+        $isSuperAdmin = $user->role && ($user->role->name === 'super_admin');
+        
+        // Check authorization: super admin OR has approve_job_card_spare_part_customer permission
+        if (!$isSuperAdmin && !$user->hasPermission('approve_job_card_spare_part_customer')) {
+            return response()->json(['message' => 'You do not have permission to approve spare parts (Customer Level)'], 403);
+        }
+        
         $validated = $request->validate([
             'status' => 'required|in:approved,rejected',
             'notes' => 'nullable|string',
@@ -301,6 +316,12 @@ class SparePartsRequestController extends Controller
     {
         $user = $request->user();
         
+        // Check authorization: must have confirm_job_card_spare_part_delivery permission OR be super admin
+        $isSuperAdmin = $user->role && ($user->role->name === 'super_admin');
+        if (!$isSuperAdmin && !$user->hasPermission('confirm_job_card_spare_part_delivery')) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        
         $part = SparePartsRequest::findOrFail($id);
 
         // Must be in 'process' status (either from stock or received from supplier)
@@ -308,25 +329,6 @@ class SparePartsRequestController extends Controller
             return response()->json([
                 'message' => 'Parts must be in process status (available)'
             ], 400);
-        }
-
-        // Check authorization: must be the requesting employee OR authorized staff OR assigned to task
-        $isAuthorizedStaff = in_array($user->role->name ?? '', ['super_admin', 'branch_admin']);
-        $isRequestingEmployee = $part->requested_by === $user->id;
-        
-        // Check if user is assigned to the task
-        $isAssignedToTask = false;
-        if ($part->task_id) {
-            $isAssignedToTask = DB::table('task_assignments')
-                ->where('task_id', $part->task_id)
-                ->where('user_id', $user->id)
-                ->exists();
-        }
-        
-        if (!$isAuthorizedStaff && !$isRequestingEmployee && !$isAssignedToTask) {
-            return response()->json([
-                'message' => 'Only the requesting employee, task-assigned employee, or authorized staff can confirm delivery'
-            ], 403);
         }
 
         // Update status to delivered
@@ -346,26 +348,14 @@ class SparePartsRequestController extends Controller
     public function updateStatus(Request $request, $id)
     {
         $user = $request->user();
-        $part = SparePartsRequest::findOrFail($id);
         
-        $permissions = DB::table('permissions')
-            ->join('role_permissions', 'permissions.id', '=', 'role_permissions.permission_id')
-            ->where('role_permissions.role_id', $user->role_id)
-            ->pluck('permissions.name')
-            ->toArray();
-        
-        // Check if user has permission or is assigned to the task
-        $isAssignedToTask = false;
-        if ($part->task_id) {
-            $isAssignedToTask = DB::table('task_assignments')
-                ->where('task_id', $part->task_id)
-                ->where('user_id', $user->id)
-                ->exists();
-        }
-        
-        if (!in_array('update_spare_parts', $permissions) && !$isAssignedToTask) {
+        // Check authorization: must have update_job_card_spare_part_status permission OR be super admin
+        $isSuperAdmin = $user->role && ($user->role->name === 'super_admin');
+        if (!$isSuperAdmin && !$user->hasPermission('update_job_card_spare_part_status')) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
+        
+        $part = SparePartsRequest::findOrFail($id);
 
         $validated = $request->validate([
             'overall_status' => 'required|in:ordered,process,delivered',

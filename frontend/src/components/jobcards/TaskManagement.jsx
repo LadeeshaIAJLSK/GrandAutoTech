@@ -14,6 +14,8 @@ function TaskManagement({ jobCard, onUpdate, user }) {
   const [notification, setNotification] = useState(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleteTaskId, setDeleteTaskId] = useState(null)
+  const [showEditTaskModal, setShowEditTaskModal] = useState(false)
+  const [editingTask, setEditingTask] = useState(null)
 
   const [taskForm, setTaskForm] = useState({
     task_name: '',
@@ -22,10 +24,10 @@ function TaskManagement({ jobCard, onUpdate, user }) {
     priority: 0,
   })
 
-  const canAdd = user.role.name === 'super_admin' || user.permissions.includes('add_tasks')
-  const canUpdate = user.role.name === 'super_admin' || user.permissions.includes('update_tasks')
-  const canDelete = user.role.name === 'super_admin' || user.permissions.includes('delete_tasks')
-  const canAssign = user.permissions.includes('assign_tasks') || ['super_admin', 'branch_admin'].includes(user.role.name)
+  const canAdd = user.role.name === 'super_admin' || user.permissions.includes('add_job_card_task')
+  const canUpdate = user.role.name === 'super_admin' || user.permissions.includes('edit_job_card_task')
+  const canDelete = user.role.name === 'super_admin' || user.permissions.includes('delete_job_card_task')
+  const canAssign = user.permissions.includes('assign_job_card_task') || ['super_admin', 'branch_admin'].includes(user.role.name)
 
   // Live timer update every second
   useEffect(() => {
@@ -168,6 +170,32 @@ function TaskManagement({ jobCard, onUpdate, user }) {
       setTimeout(() => onUpdate(), 2000)
     } catch (error) {
       setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error completing task' })
+    }
+  }
+
+  const handleOpenEditModal = (task) => {
+    setEditingTask(task)
+    setTaskForm({
+      task_name: task.task_name || '',
+      description: task.description || '',
+      category: task.category || 'mechanical',
+      priority: task.priority || 0,
+    })
+    setShowEditTaskModal(true)
+  }
+
+  const handleUpdateTask = async (e) => {
+    e.preventDefault()
+    try {
+      const token = localStorage.getItem('token')
+      await axiosClient.put(`/tasks/${editingTask.id}`, taskForm, { headers: { Authorization: `Bearer ${token}` } })
+      setNotification({ type: 'success', title: 'Success', message: 'Task updated successfully!' })
+      setShowEditTaskModal(false)
+      setEditingTask(null)
+      setTaskForm({ task_name: '', description: '', category: 'mechanical', priority: 0 })
+      setTimeout(() => onUpdate(), 1000)
+    } catch (error) {
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error updating task' })
     }
   }
 
@@ -396,46 +424,19 @@ function TaskManagement({ jobCard, onUpdate, user }) {
                     </button>
                   )}
 
-                  {myAssignment && task.status !== 'completed' && (
-                    <>
-                      {task.status === 'assigned' && (
-                        <button
-                          onClick={() => handleStartTask(task.id)}
-                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 rounded-lg text-xs font-semibold transition-colors"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                          </svg>
-                          Start
-                        </button>
-                      )}
-
-                      {task.status === 'in_progress' && (
-                        <>
-                          <button
-                            onClick={() => handlePauseTask(task.id)}
-                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 rounded-lg text-xs font-semibold transition-colors"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 01-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                            </svg>
-                            Pause
-                          </button>
-
-                          <button
-                            onClick={() => handleCompleteTask(task.id)}
-                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-primary hover:bg-primary-dark text-white rounded-lg text-xs font-semibold transition-all shadow-sm hover:shadow"
-                            style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
-                            Complete
-                          </button>
-                        </>
-                      )}
-                    </>
+                  {canUpdate && task.status !== 'completed' && (
+                    <button
+                      onClick={() => handleOpenEditModal(task)}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg text-xs font-semibold transition-colors"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      Edit
+                    </button>
                   )}
+
+                  {/* Task action buttons removed - manage via My Tasks tab */}
 
                   {canDelete && task.status !== 'completed' && (
                     <button
@@ -635,6 +636,99 @@ function TaskManagement({ jobCard, onUpdate, user }) {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Task Modal */}
+      {showEditTaskModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center px-7 py-5 border-b border-gray-100">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Edit Task</h3>
+                <p className="text-sm text-gray-400 mt-0.5">Update task details</p>
+              </div>
+              <button onClick={() => { setShowEditTaskModal(false); setEditingTask(null) }} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateTask} className="px-7 py-6 space-y-5">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Task Name <span className="text-red-400">*</span></label>
+                <input
+                  type="text"
+                  value={taskForm.task_name}
+                  onChange={(e) => setTaskForm({...taskForm, task_name: e.target.value})}
+                  required
+                  placeholder="e.g., Replace Brake Pads"
+                  className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Description</label>
+                <textarea
+                  value={taskForm.description}
+                  onChange={(e) => setTaskForm({...taskForm, description: e.target.value})}
+                  placeholder="Additional details about the task..."
+                  rows="3"
+                  className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all resize-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-5">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Category <span className="text-red-400">*</span></label>
+                  <select
+                    value={taskForm.category}
+                    onChange={(e) => setTaskForm({...taskForm, category: e.target.value})}
+                    className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all"
+                  >
+                    <option value="mechanical">Mechanical</option>
+                    <option value="electrical">Electrical</option>
+                    <option value="bodywork">Bodywork</option>
+                    <option value="painting">Painting</option>
+                    <option value="diagnostic">Diagnostic</option>
+                    <option value="maintenance">Maintenance</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Priority <span className="text-red-400">*</span></label>
+                  <select
+                    value={taskForm.priority}
+                    onChange={(e) => setTaskForm({...taskForm, priority: parseInt(e.target.value)})}
+                    className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all"
+                  >
+                    <option value={0}>Normal</option>
+                    <option value={1}>High</option>
+                    <option value={2}>Urgent</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-5 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => { setShowEditTaskModal(false); setEditingTask(null) }}
+                  className="px-5 py-2.5 text-sm bg-white hover:bg-gray-50 text-gray-700 rounded-lg font-semibold border border-gray-300 shadow-sm transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 text-sm bg-[#2563A8] hover:bg-blue-700 text-white rounded-lg font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-px"
+                  style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
+                >
+                  Update Task
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
