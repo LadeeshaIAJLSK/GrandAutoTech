@@ -49,14 +49,14 @@ return new class extends Migration
     {
         Schema::table('quotation_items', function (Blueprint $table) {
             if (Schema::hasColumn('quotation_items', 'quotation_id')) {
-                $table->dropForeignKeyIfExists(['quotation_id']);
+                $table->dropForeign(['quotation_id']);
                 $table->dropColumn('quotation_id');
             }
             if (Schema::hasColumn('quotation_items', 'item_type')) {
                 $table->dropColumn('item_type');
             }
             if (Schema::hasColumn('quotation_items', 'task_id')) {
-                $table->dropForeignKeyIfExists(['task_id']);
+                $table->dropForeign(['task_id']);
                 $table->dropColumn('task_id');
             }
             if (Schema::hasColumn('quotation_items', 'description')) {

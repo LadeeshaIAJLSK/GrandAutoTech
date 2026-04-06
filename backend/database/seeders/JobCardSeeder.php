@@ -86,11 +86,8 @@ class JobCardSeeder extends Seeder
                         'vehicle_id' => $vehicle->id,
                         'branch_id' => $branch->id,
                         'created_by' => $creator->id,
-                        'current_mileage' => rand(40000, 150000),
                         'status' => 'pending',
                         'customer_complaint' => $complaints[array_rand($complaints)],
-                        'initial_inspection_notes' => $inspectionNotes[array_rand($inspectionNotes)],
-                        'recommendations' => $recommendations[array_rand($recommendations)],
                     ]);
                 }
             }

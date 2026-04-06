@@ -61,9 +61,11 @@ class PettyCashController extends Controller
     public function createFund(Request $request)
     {
         $user = $request->user();
+        $userRole = DB::table('roles')->where('id', $user->role_id)->first();
         
-        // Check permission
-        if (!$user->hasPermission('create_petty_cash_fund')) {
+        // Check permission (super_admin can do anything, others need explicit permission)
+        $isSuperAdmin = $userRole && ($userRole->name === 'super_admin');
+        if (!$isSuperAdmin && !$user->hasPermission('create_petty_cash_fund')) {
             return response()->json(['message' => 'Unauthorized: You do not have permission to create funds'], 403);
         }
 
@@ -73,8 +75,6 @@ class PettyCashController extends Controller
             'replenishment_threshold' => 'nullable|numeric|min:0',
             'branch_id' => 'required|exists:branches,id',
         ]);
-
-        $userRole = DB::table('roles')->where('id', $user->role_id)->first();
         
         // Check authorization: super_admin can access all branches, branch_admin only their own
         if ($userRole->name === 'branch_admin' && $user->branch_id !== $validated['branch_id']) {
@@ -143,9 +143,11 @@ class PettyCashController extends Controller
     public function recordExpense(Request $request)
     {
         $user = $request->user();
+        $userRole = DB::table('roles')->where('id', $user->role_id)->first();
 
-        // Check permission
-        if (!$user->hasPermission('record_petty_cash_expense')) {
+        // Check permission (super_admin can do anything, others need explicit permission)
+        $isSuperAdmin = $userRole && ($userRole->name === 'super_admin');
+        if (!$isSuperAdmin && !$user->hasPermission('record_petty_cash_expense')) {
             return response()->json(['message' => 'Unauthorized: You do not have permission to record expenses'], 403);
         }
 
@@ -160,7 +162,6 @@ class PettyCashController extends Controller
         ]);
 
         $fund = PettyCashFund::findOrFail($validated['fund_id']);
-        $userRole = DB::table('roles')->where('id', $user->role_id)->first();
 
         // Check branch authorization: branch_admin can only record expenses for their branch
         if ($userRole->name === 'branch_admin' && $user->branch_id !== $fund->branch_id) {
@@ -280,14 +281,21 @@ class PettyCashController extends Controller
     // Record replenishment
     public function recordReplenishment(Request $request)
     {
+        $user = $request->user();
+        $userRole = DB::table('roles')->where('id', $user->role_id)->first();
+
+        // Check permission (super_admin can do anything, others need explicit permission)
+        $isSuperAdmin = $userRole && ($userRole->name === 'super_admin');
+        if (!$isSuperAdmin && !$user->hasPermission('record_petty_cash_replenishment')) {
+            return response()->json(['message' => 'Unauthorized: You do not have permission to record replenishments'], 403);
+        }
+
         $validated = $request->validate([
             'fund_id' => 'required|exists:petty_cash_funds,id',
             'amount' => 'required|numeric|min:0.01',
             'description' => 'required|string',
             'transaction_date' => 'required|date',
         ]);
-
-        $user = $request->user();
         $fund = PettyCashFund::find($validated['fund_id']);
 
         // Check if replenishment would exceed the fixed amount
@@ -427,6 +435,49 @@ class PettyCashController extends Controller
             'total_replenishments' => $totalReplenishments,
             'net_cash_flow' => $totalReplenishments - $totalExpenses,
             'expenses_by_category' => $expensesByCategory,
+        ]);
+    }
+
+    // Delete fund
+    public function deleteFund(Request $request, $id)
+    {
+        $user = $request->user();
+        $userRole = DB::table('roles')->where('id', $user->role_id)->first();
+        
+        // Check permission (super_admin can do anything, others need explicit permission)
+        $isSuperAdmin = $userRole && ($userRole->name === 'super_admin');
+        if (!$isSuperAdmin && !$user->hasPermission('delete_petty_cash_fund')) {
+            return response()->json(['message' => 'Unauthorized: You do not have permission to delete funds'], 403);
+        }
+
+        $fund = PettyCashFund::find($id);
+
+        if (!$fund) {
+            return response()->json(['message' => 'Fund not found'], 404);
+        }
+        
+        // Check authorization: super_admin can delete any fund, branch_admin only their own
+        if ($userRole->name === 'branch_admin' && $user->branch_id !== $fund->branch_id) {
+            return response()->json(['message' => 'Unauthorized: Branch admin can only delete funds from their own branch'], 403);
+        }
+
+        // Check if fund has any active transactions
+        $activeTransactions = PettyCashTransaction::where('fund_id', $id)
+            ->where('status', 'pending')
+            ->count();
+
+        if ($activeTransactions > 0) {
+            return response()->json(['message' => 'Cannot delete fund with pending transactions'], 400);
+        }
+
+        // Delete all transactions associated with this fund (including approved ones)
+        PettyCashTransaction::where('fund_id', $id)->delete();
+
+        // Delete the fund
+        $fund->delete();
+
+        return response()->json([
+            'message' => 'Petty cash fund deleted successfully'
         ]);
     }
 

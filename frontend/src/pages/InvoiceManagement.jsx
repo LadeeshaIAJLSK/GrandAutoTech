@@ -218,6 +218,15 @@ function InvoiceManagement({ user, selectedBranchId }) {
   console.log('RENDER - jobCards length:', jobCards.length, 'paginatedData length:', paginatedData.length, 'loading:', loading)
 
   const inputCls = "w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all"
+
+  // Permission checks for invoice management (Granular Access Rights)
+  const isSuperAdmin = user.role.name === 'super_admin'
+  const canViewInvoicesTab = isSuperAdmin || user.permissions.includes('view_invoices_tab')
+  const canViewInvoiceDetails = isSuperAdmin || user.permissions.includes('view_invoice_details')
+  const canGenerateInvoices = isSuperAdmin || user.permissions.includes('generate_invoices')
+  const canRecordInvoicePayment = isSuperAdmin || user.permissions.includes('record_invoice_payment')
+  const canPrintInvoices = isSuperAdmin || user.permissions.includes('print_invoices')
+  const canDownloadInvoiceReport = isSuperAdmin || user.permissions.includes('download_invoice_report')
   const labelCls = "block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
 
   if (loading) {
@@ -445,13 +454,15 @@ function InvoiceManagement({ user, selectedBranchId }) {
             Showing <span className="font-semibold text-gray-600">{paginatedData.length > 0 ? startIndex + 1 : 0}–{Math.min(startIndex + resultsPerPage, jobCards.length)}</span> of <span className="font-semibold text-gray-600">{jobCards.length}</span> results
           </p>
           <div className="flex gap-2">
-            <button onClick={downloadReport}
-              className="px-3.5 py-1.5 bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 rounded-lg text-xs font-semibold transition-colors flex items-center gap-2">
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2m0 0v-8m0 8H3m6-15h6" />
+            {canDownloadInvoiceReport && (
+              <button onClick={downloadReport}
+                className="px-3.5 py-1.5 bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 rounded-lg text-xs font-semibold transition-colors flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2m0 0v-8m0 8H3m6-15h6" />
               </svg>
               Download Report
             </button>
+            )}
             <button onClick={() => { setSearch(''); setCustomerFilter(''); setStatusFilter(''); setPaymentStatusFilter(''); setDateRangeFilter('all'); setCurrentPage(1) }}
               className="px-3.5 py-1.5 bg-white hover:bg-gray-100 text-gray-600 border border-gray-200 rounded-lg text-xs font-semibold transition-colors">
               Clear All
@@ -569,16 +580,18 @@ function InvoiceManagement({ user, selectedBranchId }) {
                     <td className="px-5 py-4">
                       <div className="flex flex-col gap-1.5 items-end">
                         <div className="flex gap-1.5">
-                          <button onClick={() => navigate(`/invoice/${jobCard.id}`)}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg text-xs font-semibold transition-colors">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                            View
-                          </button>
+                          {canViewInvoiceDetails && (
+                            <button onClick={() => navigate(`/invoice/${jobCard.id}`)}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg text-xs font-semibold transition-colors">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                              </svg>
+                              View
+                            </button>
+                          )}
 
-                          {!invoice ? (
+                          {!invoice && canGenerateInvoices && (
                             <button onClick={() => navigate(`/invoice/${jobCard.id}`)}
                               className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-xs font-semibold transition-colors">
                               <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -586,7 +599,9 @@ function InvoiceManagement({ user, selectedBranchId }) {
                               </svg>
                               Generate
                             </button>
-                          ) : invoice.balance_due > 0 && (
+                          )}
+
+                          {invoice && invoice.balance_due > 0 && canRecordInvoicePayment && (
                             <button onClick={() => navigate(`/invoice/${jobCard.id}`)}
                               className="inline-flex items-center gap-1 px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 rounded-lg text-xs font-semibold transition-colors">
                               <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -597,13 +612,15 @@ function InvoiceManagement({ user, selectedBranchId }) {
                           )}
                         </div>
 
-                        <button onClick={() => navigate(`/invoice-print/${jobCard.id}`)}
-                          className="w-full inline-flex items-center justify-center gap-1 px-3 py-1.5 bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 rounded-lg text-xs font-semibold transition-colors">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                          </svg>
-                          Print
-                        </button>
+                        {canPrintInvoices && (
+                          <button onClick={() => navigate(`/invoice-print/${jobCard.id}`)}
+                            className="w-full inline-flex items-center justify-center gap-1 px-3 py-1.5 bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 rounded-lg text-xs font-semibold transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                            </svg>
+                            Print
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

@@ -316,6 +316,23 @@ function QuotationManagement({ user }) {
   const inputCls = "w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all"
   const labelCls = "block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
 
+  // Permission checks for quotations
+  const canViewQuotationsTab = user.role.name === 'super_admin' || user.permissions.includes('view_quotations_tab')
+  const canCreateQuotations = user.role.name === 'super_admin' || user.permissions.includes('create_quotations')
+  const canViewQuotationDetails = user.role.name === 'super_admin' || user.permissions.includes('view_quotations_details')
+  const canEditQuotations = user.role.name === 'super_admin' || user.permissions.includes('edit_quotations')
+  const canDeleteQuotations = user.role.name === 'super_admin' || user.permissions.includes('delete_quotations')
+  const canApproveQuotations = user.role.name === 'super_admin' || user.permissions.includes('approve_quotations')
+  const canAddQuotationItems = user.role.name === 'super_admin' || user.permissions.includes('add_quotation_items')
+  const canEditQuotationItems = user.role.name === 'super_admin' || user.permissions.includes('edit_quotation_items')
+  const canDeleteQuotationItems = user.role.name === 'super_admin' || user.permissions.includes('delete_quotation_items')
+  const canPrintQuotations = user.role.name === 'super_admin' || user.permissions.includes('print_quotations')
+
+  // Block access if user doesn't have view_quotations_tab permission
+  if (!canViewQuotationsTab) {
+    return null
+  }
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-3">
@@ -393,28 +410,30 @@ function QuotationManagement({ user }) {
           </svg>
           Quotations
         </h2>
-        <button
-          onClick={() => {
-            setFormData({
-              customer_id: '',
-              vehicle_id: '',
-              insurance_company: '',
-              branch_id: '',
-              valid_until: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
-              notes: '',
-            })
-            setShowCreateModal(true)
-          }}
-          className="inline-flex items-center gap-2 bg-[#2563A8] hover:bg-[#2563A8] text-white px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm hover:shadow-md hover:-translate-y-px"
-          style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
-        >
-          <span className="flex items-center justify-center w-4 h-4 bg-[#2563A8] rounded">
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-            </svg>
-          </span>
-          Create Quotation
-        </button>
+        {canCreateQuotations && (
+          <button
+            onClick={() => {
+              setFormData({
+                customer_id: '',
+                vehicle_id: '',
+                insurance_company: '',
+                branch_id: '',
+                valid_until: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+                notes: '',
+              })
+              setShowCreateModal(true)
+            }}
+            className="inline-flex items-center gap-2 bg-[#2563A8] hover:bg-[#2563A8] text-white px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm hover:shadow-md hover:-translate-y-px"
+            style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
+          >
+            <span className="flex items-center justify-center w-4 h-4 bg-[#2563A8] rounded">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+              </svg>
+            </span>
+            Create Quotation
+          </button>
+        )}
       </div>
 
       {/* Filters */}
@@ -496,49 +515,53 @@ function QuotationManagement({ user }) {
                       </td>
                       <td className="px-5 py-4">
                         <div className="flex gap-2">
-                          <button
-                            onClick={() => fetchQuotationDetail(quot.id, false)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 rounded-lg text-xs font-semibold transition-colors"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                            View
-                          </button>
-                          {(quot.status === 'draft' || quot.status === 'approved') && (
+                          {canViewQuotationDetails && (
                             <button
-                              onClick={() => fetchQuotationDetail(quot.id, true)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-xs font-semibold transition-colors"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                            {quot.status === 'draft' ? 'Edit' : 'Edit Details'}
+                              onClick={() => fetchQuotationDetail(quot.id, false)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 rounded-lg text-xs font-semibold transition-colors"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                              </svg>
+                              View
                             </button>
                           )}
-                          <button
-                            onClick={async () => {
-                              const token = localStorage.getItem('token')
-                              try {
-                                const response = await axiosClient.get(`/quotations/${quot.id}`, { headers: { Authorization: `Bearer ${token}` } })
-                                setCurrentQuotation(response.data)
-                                setQuotationItems(response.data.items || [])
-                                setShowPrintPreview(true)
-                                
-                              } catch (error) {
-                                setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error fetching quotation' })
-                              }
-                            }}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg text-xs font-semibold transition-colors"
-                            title="Print Quotation"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2-4H9m6 0h.01M9 11h.01M15 11h.01M9 15h.01M15 15h.01" />
-                            </svg>
-                            Print
-                          </button>
-                          {quot.status === 'draft' && (
+                          {canEditQuotations && (quot.status === 'draft' || quot.status === 'approved') && (
+                            <button
+                              onClick={() => fetchQuotationDetail(quot.id, true)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-xs font-semibold transition-colors"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                              {quot.status === 'draft' ? 'Edit' : 'Edit Details'}
+                            </button>
+                          )}
+                          {canPrintQuotations && (
+                            <button
+                              onClick={async () => {
+                                const token = localStorage.getItem('token')
+                                try {
+                                  const response = await axiosClient.get(`/quotations/${quot.id}`, { headers: { Authorization: `Bearer ${token}` } })
+                                  setCurrentQuotation(response.data)
+                                  setQuotationItems(response.data.items || [])
+                                  setShowPrintPreview(true)
+                                  
+                                } catch (error) {
+                                  setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error fetching quotation' })
+                                }
+                              }}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg text-xs font-semibold transition-colors"
+                              title="Print Quotation"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2-4H9m6 0h.01M9 11h.01M15 11h.01M9 15h.01M15 15h.01" />
+                              </svg>
+                              Print
+                            </button>
+                          )}
+                          {canApproveQuotations && quot.status === 'draft' && (
                             <button
                               onClick={() => handleApprove(quot.id)}
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 rounded-lg text-xs font-semibold transition-colors"
@@ -560,7 +583,7 @@ function QuotationManagement({ user }) {
                               Convert to Job Card
                             </button>
                           )}
-                          {quot.status === 'draft' && (
+                          {canDeleteQuotations && quot.status === 'draft' && (
                             <button
                               onClick={() => handleDeleteQuotation(quot.id)}
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg text-xs font-semibold transition-colors"
@@ -745,7 +768,7 @@ function QuotationManagement({ user }) {
                               <td className="px-4 py-3 text-right text-gray-900 font-medium">{formatCurrency(item.unit_price)}</td>
                               <td className="px-4 py-3 text-right text-gray-900 font-bold">{formatCurrency(amount)}</td>
                               <td className="px-4 py-3 text-center">
-                                {isDetailModalEditMode && (
+                                {isDetailModalEditMode && canDeleteQuotationItems && (
                                   <button
                                     onClick={() => handleDeleteItem(item.id)}
                                     className="inline-flex items-center px-2 py-1 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
@@ -769,7 +792,7 @@ function QuotationManagement({ user }) {
                 )}
 
                 {/* Add Item Form */}
-                {isDetailModalEditMode && currentQuotation.status !== 'converted' && (
+                {isDetailModalEditMode && canAddQuotationItems && currentQuotation.status !== 'converted' && (
                   <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-4">
                     <h5 className="text-sm font-bold text-gray-700">Add Item</h5>
                     <div className="grid grid-cols-2 gap-3">
@@ -880,7 +903,7 @@ function QuotationManagement({ user }) {
 
               {/* Action Buttons */}
               <div className="flex gap-3 pt-5 border-t border-gray-100">
-                {isDetailModalEditMode && currentQuotation.status === 'draft' && (
+                {isDetailModalEditMode && canEditQuotations && currentQuotation.status === 'draft' && (
                   <button
                     onClick={() => handleSave()}
                     className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-sm font-bold transition-colors"

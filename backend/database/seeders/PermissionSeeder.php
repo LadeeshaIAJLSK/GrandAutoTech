@@ -130,31 +130,64 @@ class PermissionSeeder extends Seeder
             ['module' => 'spare_parts', 'action' => 'delete', 'name' => 'delete_spare_parts', 'display_name' => 'Delete Spare Parts'],
             ['module' => 'spare_parts', 'action' => 'approve', 'name' => 'approve_spare_parts', 'display_name' => 'Approve Spare Parts Requests'],
             
-            // Invoices
-            ['module' => 'invoices', 'action' => 'view', 'name' => 'view_invoices', 'display_name' => 'View Invoices'],
-            ['module' => 'invoices', 'action' => 'add', 'name' => 'add_invoices', 'display_name' => 'Create Invoices'],
-            ['module' => 'invoices', 'action' => 'update', 'name' => 'update_invoices', 'display_name' => 'Update Invoices'],
-            ['module' => 'invoices', 'action' => 'delete', 'name' => 'delete_invoices', 'display_name' => 'Delete Invoices'],
-            ['module' => 'invoices', 'action' => 'own_data', 'name' => 'own_invoices', 'display_name' => 'View Own Invoices'],
-            
             // Payments
             ['module' => 'payments', 'action' => 'view', 'name' => 'view_payments', 'display_name' => 'View Payments'],
             ['module' => 'payments', 'action' => 'add', 'name' => 'add_payments', 'display_name' => 'Record Payments'],
             ['module' => 'payments', 'action' => 'update', 'name' => 'update_payments', 'display_name' => 'Update Payments'],
             
-            // Financial Reports
+            // Financial Reports Tab
+            ['module' => 'financial_reports', 'action' => 'view_tab', 'name' => 'view_financial_reports_tab', 'display_name' => 'View Financial Reports Tab'],
+            
+            // Financial Reports Actions (requires view_financial_reports_tab)
             ['module' => 'financial_reports', 'action' => 'view', 'name' => 'view_financial_reports', 'display_name' => 'View Financial Reports'],
             
             // Settings
             ['module' => 'settings', 'action' => 'view', 'name' => 'view_settings', 'display_name' => 'View Settings'],
             ['module' => 'settings', 'action' => 'update', 'name' => 'update_settings', 'display_name' => 'Update Settings'],
             
-            // Petty Cash
-            ['module' => 'petty_cash', 'action' => 'view', 'name' => 'view_petty_cash_funds', 'display_name' => 'View Petty Cash Funds'],
+            // Petty Cash Tab
+            ['module' => 'petty_cash', 'action' => 'view_tab', 'name' => 'view_petty_cash_tab', 'display_name' => 'View Petty Cash Tab'],
+            
+            // Petty Cash Sub-Tabs (requires view_petty_cash_tab)
+            ['module' => 'petty_cash', 'action' => 'view_overview', 'name' => 'view_petty_cash_overview', 'display_name' => 'View Petty Cash Overview'],
+            ['module' => 'petty_cash', 'action' => 'view_expenses', 'name' => 'view_petty_cash_expenses', 'display_name' => 'View Petty Cash Expenses'],
+            ['module' => 'petty_cash', 'action' => 'view_summary', 'name' => 'view_petty_cash_summary', 'display_name' => 'View Petty Cash Summary'],
+            
+            // Petty Cash Actions
             ['module' => 'petty_cash', 'action' => 'create', 'name' => 'create_petty_cash_fund', 'display_name' => 'Create Petty Cash Fund'],
             ['module' => 'petty_cash', 'action' => 'record_expense', 'name' => 'record_petty_cash_expense', 'display_name' => 'Record Petty Cash Expense'],
-            ['module' => 'petty_cash', 'action' => 'approve', 'name' => 'approve_petty_cash_expense', 'display_name' => 'Approve/Reject Petty Cash Expenses'],
             ['module' => 'petty_cash', 'action' => 'replenish', 'name' => 'record_petty_cash_replenishment', 'display_name' => 'Record Petty Cash Replenishment'],
+            ['module' => 'petty_cash', 'action' => 'delete', 'name' => 'delete_petty_cash_fund', 'display_name' => 'Delete Petty Cash Fund'],
+            
+            // Quotations Tab
+            ['module' => 'quotations', 'action' => 'view_tab', 'name' => 'view_quotations_tab', 'display_name' => 'View Quotations Tab'],
+            
+            // Quotations Actions (requires view_quotations_tab)
+            ['module' => 'quotations', 'action' => 'create', 'name' => 'create_quotations', 'display_name' => 'Create Quotations'],
+            ['module' => 'quotations', 'action' => 'view_details', 'name' => 'view_quotations_details', 'display_name' => 'View Quotation Details'],
+            ['module' => 'quotations', 'action' => 'edit', 'name' => 'edit_quotations', 'display_name' => 'Edit Quotations'],
+            ['module' => 'quotations', 'action' => 'delete', 'name' => 'delete_quotations', 'display_name' => 'Delete Quotations'],
+            ['module' => 'quotations', 'action' => 'approve', 'name' => 'approve_quotations', 'display_name' => 'Approve Quotations'],
+            ['module' => 'quotations', 'action' => 'add_item', 'name' => 'add_quotation_items', 'display_name' => 'Add Items to Quotation'],
+            ['module' => 'quotations', 'action' => 'edit_item', 'name' => 'edit_quotation_items', 'display_name' => 'Edit Quotation Items'],
+            ['module' => 'quotations', 'action' => 'delete_item', 'name' => 'delete_quotation_items', 'display_name' => 'Delete Quotation Items'],
+            ['module' => 'quotations', 'action' => 'print', 'name' => 'print_quotations', 'display_name' => 'Print Quotations'],
+            
+            // Invoice Management Tab
+            ['module' => 'invoices', 'action' => 'view_tab', 'name' => 'view_invoices_tab', 'display_name' => 'View Invoice Management Tab'],
+            
+            // Invoice Management Actions (requires view_invoices_tab)
+            ['module' => 'invoices', 'action' => 'view_details', 'name' => 'view_invoice_details', 'display_name' => 'View Invoice Details'],
+            ['module' => 'invoices', 'action' => 'generate', 'name' => 'generate_invoices', 'display_name' => 'Generate Invoices'],
+            ['module' => 'invoices', 'action' => 'record_payment', 'name' => 'record_invoice_payment', 'display_name' => 'Record Invoice Payment'],
+            ['module' => 'invoices', 'action' => 'print', 'name' => 'print_invoices', 'display_name' => 'Print Invoices'],
+            ['module' => 'invoices', 'action' => 'download_report', 'name' => 'download_invoice_report', 'display_name' => 'Download Invoice Report'],
+            
+            // Third Party Services Tab
+            ['module' => 'third_party_services', 'action' => 'view_tab', 'name' => 'view_third_party_services_tab', 'display_name' => 'View Third Party Services Tab'],
+            
+            // Third Party Services Actions (requires view_third_party_services_tab)
+            ['module' => 'third_party_services', 'action' => 'add_provider', 'name' => 'add_third_party_provider', 'display_name' => 'Add New Third Party Provider'],
         ];
 
         foreach ($permissions as $permission) {

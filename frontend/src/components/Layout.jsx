@@ -5,6 +5,7 @@ import AccessRightsManagement from '../pages/AccessRightsManagement'
 import BranchManagement from '../pages/BranchManagement'
 import BranchOverview from '../pages/BranchOverview'
 import TaskApproval from '../pages/TaskApproval'
+import Settings from '../pages/Settings'
 
 function Layout({ user, onLogout, children }) {
   const navigate = useNavigate()
@@ -13,6 +14,9 @@ function Layout({ user, onLogout, children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0)
   const [selectedBranchId, setSelectedBranchId] = useState('all')
+  const [logoUrl, setLogoUrl] = useState(() => 
+    localStorage.getItem('appLogo') || 'https://placehold.co/240x64/1f2937/ffffff?text=LOGO'
+  )
 
   const handleLogout = async () => {
     try {
@@ -25,6 +29,10 @@ function Layout({ user, onLogout, children }) {
     } finally {
       onLogout()
     }
+  }
+
+  const handleLogoChange = (newLogoUrl) => {
+    setLogoUrl(newLogoUrl)
   }
 
   const canViewUsers = ['super_admin', 'branch_admin'].includes(user.role.name) || 
@@ -123,6 +131,7 @@ function Layout({ user, onLogout, children }) {
     logout: <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>,
     user: <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>,
     thirdPartyServices: <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>,
+    settings: <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>,
   }
 
   return (
@@ -130,27 +139,36 @@ function Layout({ user, onLogout, children }) {
 
       {/* Top Header */}
       <header className="bg-white border-b border-gray-200 shadow-sm z-20 sticky top-0">
-        <div className="px-4 sm:px-6 h-16 flex justify-between items-center">
-          <div className="flex items-center gap-3">
+        <div className="h-16 flex">
+          {/* Logo Area - Full Sidebar Width (240px) */}
+          <div className="hidden md:flex md:w-60 md:items-center md:justify-center md:border-r md:border-gray-200 flex-shrink-0 overflow-hidden px-0">
+            <img
+              src={logoUrl}
+              alt="Company Logo"
+              className="h-12 w-full object-cover"
+            />
+          </div>
+
+          {/* Mobile Menu Button & Logo */}
+          <div className="md:hidden flex items-center gap-3 px-4 flex-1">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="md:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               aria-label="Toggle menu"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
-            <div className="flex items-center">
-              <img
-                src="https://placehold.co/240x64/1f2937/ffffff?text=LOGO"
-                alt="Company Logo"
-                className="h-10 w-auto object-contain"
-              />
-            </div>
+            <img
+              src={logoUrl}
+              alt="Company Logo"
+              className="h-10 w-auto object-contain"
+            />
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-4">
+          {/* Right Section */}
+          <div className="flex-1 flex items-center justify-end px-4 sm:px-6">
             <div className="flex items-center gap-2.5 pl-2 sm:pl-4 border-l border-gray-200">
               <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -248,7 +266,7 @@ function Layout({ user, onLogout, children }) {
               <NavItem path="/task-approval" icon={icons.approval} label="Task Approval" />
             )}
 
-            {['super_admin', 'branch_admin', 'accountant'].includes(user.role.name) && (
+            {(user.role.name === 'super_admin' || user.permissions.includes('view_quotations_tab')) && (
               <NavItem path="/quotations" icon={icons.quotations} label="Quotations" />
             )}
 
@@ -258,19 +276,19 @@ function Layout({ user, onLogout, children }) {
               </div>
             )}
 
-            {['super_admin', 'branch_admin', 'accountant'].includes(user.role.name) && (
+            {(user.role.name === 'super_admin' || user.permissions.includes('view_invoices_tab')) && (
               <NavItem path="/invoices" icon={icons.invoices} label="Invoice Management" />
             )}
 
-            {['super_admin', 'branch_admin', 'accountant'].includes(user.role.name) && (
+            {(user.role.name === 'super_admin' || user.permissions.includes('view_financial_reports_tab')) && (
               <NavItem path="/reports" icon={icons.reports} label="Financial Reports" />
             )}
 
-            {['super_admin', 'branch_admin', 'accountant'].includes(user.role.name) && (
+            {(user.role.name === 'super_admin' || user.permissions.includes('view_petty_cash_tab')) && (
               <NavItem path="/petty-cash" icon={icons.cash} label="Petty Cash" />
             )}
 
-            {['super_admin', 'branch_admin'].includes(user.role.name) && (
+            {(user.role.name === 'super_admin' || user.permissions.includes('view_third_party_services_tab')) && (
               <NavItem path="/third-party-services" icon={icons.thirdPartyServices} label="3rd Party Services" />
             )}
 
@@ -290,6 +308,10 @@ function Layout({ user, onLogout, children }) {
 
             {user.role.name === 'super_admin' && (
               <NavItem path="/branch-overview" icon={icons.branchOverview} label="Branch Overview" />
+            )}
+
+            {user.role.name === 'super_admin' && (
+              <NavItem path="/settings" icon={icons.settings} label="Settings" />
             )}
 
            
@@ -313,7 +335,7 @@ function Layout({ user, onLogout, children }) {
 
         {/* Main Content */}
         <main className="w-full md:ml-60 flex-1 p-4 sm:p-6 lg:p-7 overflow-y-auto bg-gray-50">
-          {React.cloneElement(children, { selectedBranchId })}
+          {React.cloneElement(children, { selectedBranchId, onLogoChange: handleLogoChange })}
         </main>
       </div>
     </div>

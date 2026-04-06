@@ -19,8 +19,6 @@ class JobCard extends Model
         'status',
         'payment_status',
         'customer_complaint',
-        'initial_inspection_notes',
-        'recommendations',
         'labor_cost',
         'parts_cost',
         'other_charges',

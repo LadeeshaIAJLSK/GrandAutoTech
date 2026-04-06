@@ -285,10 +285,7 @@ class JobCardController extends Controller
         }
 
         $validated = $request->validate([
-            'odometer_reading' => 'nullable|integer|min:0',
             'customer_complaint' => 'sometimes|string',
-            'initial_inspection_notes' => 'nullable|string',
-            'recommendations' => 'nullable|string',
             'estimated_completion_date' => 'nullable|date',
             'parts_cost' => 'nullable|numeric|min:0',
             'other_charges' => 'nullable|numeric|min:0',

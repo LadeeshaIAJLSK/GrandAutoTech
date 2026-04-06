@@ -46,6 +46,7 @@ function PettyCashManagement({ user }) {
   const [summary, setSummary] = useState(null)
   const [pendingCount, setPendingCount] = useState(0)
   const [notification, setNotification] = useState(null)
+  const [deleteConfirm, setDeleteConfirm] = useState(null)
   const [jobCardSearch, setJobCardSearch] = useState('')
   const [jobCardResults, setJobCardResults] = useState([])
   const [selectedJobCard, setSelectedJobCard] = useState(null)
@@ -329,6 +330,23 @@ function PettyCashManagement({ user }) {
     }
   }
 
+  const handleDeleteFund = async (fundId) => {
+    try {
+      const token = localStorage.getItem('token')
+      await axiosClient.delete(`/petty-cash/funds/${fundId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      setNotification({ type: 'success', title: 'Success', message: 'Fund deleted successfully!' })
+      setSelectedFund(null)
+      setDeleteConfirm(null)
+      setActiveTab('overview')
+      fetchFunds()
+      fetchSummary()
+    } catch (error) {
+      setNotification({ type: 'error', title: 'Error', message: error.response?.data?.message || 'Error deleting fund' })
+    }
+  }
+
   const getCurrentFund = () => funds.find(f => f.id === selectedFund)
   const formatCurrency = (amount) => new Intl.NumberFormat('en-LK', { style: 'currency', currency: 'LKR' }).format(amount)
   const fund = getCurrentFund()
@@ -336,15 +354,35 @@ function PettyCashManagement({ user }) {
   const inputCls = "w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all"
   const labelCls = "block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
 
+  // Permission checks for petty cash (Granular Access Rights)
+  const isSuperAdmin = user.role.name === 'super_admin'
+  const canViewPettyCashTab = isSuperAdmin || user.permissions.includes('view_petty_cash_tab')
+  const canViewOverviewTab = isSuperAdmin || user.permissions.includes('view_petty_cash_overview')
+  const canViewExpensesTab = isSuperAdmin || user.permissions.includes('view_petty_cash_expenses')
+  const canViewSummaryTab = isSuperAdmin || user.permissions.includes('view_petty_cash_summary')
+  const canCreateFund = isSuperAdmin || user.permissions.includes('create_petty_cash_fund')
+  const canRecordExpense = isSuperAdmin || user.permissions.includes('record_petty_cash_expense')
+  const canReplenishFund = isSuperAdmin || user.permissions.includes('record_petty_cash_replenishment')
+  const canDeleteFund = isSuperAdmin || user.permissions.includes('delete_petty_cash_fund')
+
   const tabs = [
-    { key: 'overview', label: 'Overview', icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /> },
-    { key: 'expenses', label: 'Expenses', icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />, badge: pendingCount },
-    { key: 'summary', label: 'Summary', icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /> },
-  ]
+    canViewOverviewTab && { key: 'overview', label: 'Overview', icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /> },
+    canViewExpensesTab && { key: 'expenses', label: 'Expenses', icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />, badge: pendingCount },
+    canViewSummaryTab && { key: 'summary', label: 'Summary', icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /> },
+  ].filter(Boolean)
 
   return (
     <>
-      <div className="space-y-5">
+      {!canViewPettyCashTab ? (
+        <div className="flex flex-col items-center justify-center py-16 gap-3">
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+          <p className="text-gray-400 text-sm font-semibold">Unauthorized Access</p>
+          <p className="text-gray-300 text-xs">You don't have permission to access Petty Cash Management</p>
+        </div>
+      ) : (
+        <div className="space-y-5">
 
       {/* Branch Filter - Only for Super Admin */}
       {user.role.name === 'super_admin' && (
@@ -414,17 +452,19 @@ function PettyCashManagement({ user }) {
 
         {(filterBranch && filterBranch !== '') && (
           <div className="flex gap-2">
-            <button onClick={() => setShowFundModal(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold transition-all shadow-sm hover:shadow-md hover:-translate-y-px"
-              style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>
-              <span className="flex items-center justify-center w-4 h-4 bg-white/25 rounded">
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                </svg>
-              </span>
-              Create Fund
-            </button>
-            {selectedFund && (
+            {canCreateFund && (
+              <button onClick={() => setShowFundModal(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold transition-all shadow-sm hover:shadow-md hover:-translate-y-px"
+                style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>
+                <span className="flex items-center justify-center w-4 h-4 bg-white/25 rounded">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                  </svg>
+                </span>
+                Create Fund
+              </button>
+            )}
+            {selectedFund && canRecordExpense && (
               <button onClick={() => setShowExpenseModal(true)}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-bold transition-all shadow-sm hover:shadow-md hover:-translate-y-px"
                 style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>
@@ -436,7 +476,7 @@ function PettyCashManagement({ user }) {
                 Record Expense
               </button>
             )}
-            {selectedFund && (
+            {selectedFund && canReplenishFund && (
               <button onClick={() => setShowReplenishModal(true)}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-sm font-bold transition-all shadow-sm hover:shadow-md hover:-translate-y-px"
                 style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>
@@ -446,6 +486,18 @@ function PettyCashManagement({ user }) {
                   </svg>
                 </span>
                 Replenish Fund
+              </button>
+            )}
+            {selectedFund && canDeleteFund && (
+              <button onClick={() => setDeleteConfirm(selectedFund)}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-bold transition-all shadow-sm hover:shadow-md hover:-translate-y-px"
+                style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>
+                <span className="flex items-center justify-center w-4 h-4 bg-white/25 rounded">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                </span>
+                Delete Fund
               </button>
             )}
           </div>
@@ -1099,7 +1151,41 @@ function PettyCashManagement({ user }) {
           </div>
         </div>
       )}
+
+      {/* Delete Fund Confirmation Modal */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setDeleteConfirm(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-center w-12 h-12 mx-auto mt-5 rounded-full bg-red-50">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="px-7 py-5 text-center">
+              <h3 className="text-lg font-bold text-gray-900 mt-4">Delete Fund?</h3>
+              {funds.find(f => f.id === deleteConfirm) && (
+                <div className="mt-4 space-y-2 bg-gray-50 rounded-lg px-4 py-3">
+                  <p className="text-sm text-gray-600">
+                    <span className="text-xs font-semibold text-gray-500 uppercase">Fund Name</span><br />
+                    <span className="font-bold text-gray-900">{funds.find(f => f.id === deleteConfirm)?.fund_name}</span>
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    <span className="text-xs font-semibold text-gray-500 uppercase">Current Balance</span><br />
+                    <span className="font-bold text-gray-900">{formatCurrency(funds.find(f => f.id === deleteConfirm)?.current_balance)}</span>
+                  </p>
+                </div>
+              )}
+              <p className="text-sm text-gray-600 mt-4">This action cannot be undone. All associated transactions will be deleted.</p>
+            </div>
+            <div className="flex gap-3 px-7 py-4 bg-gray-50 border-t border-gray-100">
+              <button onClick={() => setDeleteConfirm(null)} className="flex-1 px-4 py-2.5 text-sm bg-white hover:bg-gray-100 text-gray-700 rounded-lg font-semibold border border-gray-300 transition-colors">Cancel</button>
+              <button onClick={() => handleDeleteFund(deleteConfirm)} className="flex-1 px-4 py-2.5 text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold transition-all">Delete Fund</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+      )}
 
     <Notification notification={notification} onClose={() => setNotification(null)} />
     </>

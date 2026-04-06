@@ -16,6 +16,7 @@ import AccessRightsManagement from './pages/AccessRightsManagement'
 import BranchManagement from './pages/BranchManagement'
 import BranchOverview from './pages/BranchOverview'
 import ThirdPartyServiceManagement from './pages/ThirdPartyServiceManagement'
+import Settings from './pages/Settings'
 import Layout from './components/Layout'
 import MyTasks from './pages/MyTasks'
 import TaskApproval from './pages/TaskApproval'
@@ -95,12 +96,16 @@ function App() {
         
         <Route 
           path="/quotations" 
-          element={user ? <Layout user={user} onLogout={handleLogout}><QuotationManagement user={user} /></Layout> : <Navigate to="/login" />} 
+          element={user && (user.role.name === 'super_admin' || user.permissions.includes('view_quotations_tab')) ? <Layout user={user} onLogout={handleLogout}><QuotationManagement user={user} /></Layout> : <Navigate to="/dashboard" />} 
         />
         
         <Route 
           path="/invoices" 
-          element={user ? <Layout user={user} onLogout={handleLogout}><InvoiceManagement user={user} /></Layout> : <Navigate to="/login" />} 
+          element={user && (user.role.name === 'super_admin' || user.permissions.includes('view_invoices_tab')) ? (
+            <Layout user={user} onLogout={handleLogout}><InvoiceManagement user={user} /></Layout>
+          ) : (
+            user ? <Navigate to="/" /> : <Navigate to="/login" />
+          )} 
         />
 
         <Route 
@@ -120,7 +125,11 @@ function App() {
         
         <Route 
           path="/petty-cash" 
-          element={user ? <Layout user={user} onLogout={handleLogout}><PettyCashManagement user={user} /></Layout> : <Navigate to="/login" />} 
+          element={user && (user.role.name === 'super_admin' || user.permissions.includes('view_petty_cash_tab')) ? (
+            <Layout user={user} onLogout={handleLogout}><PettyCashManagement user={user} /></Layout>
+          ) : (
+            user ? <Navigate to="/" /> : <Navigate to="/login" />
+          )} 
         />
 
         {/* My Tasks (Super Admin & Technicians with view_my_tasks_tab permission) */}
@@ -156,6 +165,11 @@ function App() {
         <Route 
           path="/branch-overview" 
           element={user ? <Layout user={user} onLogout={handleLogout}><BranchOverview user={user} /></Layout> : <Navigate to="/login" />} 
+        />
+
+        <Route 
+          path="/settings" 
+          element={user && user.role.name === 'super_admin' ? <Layout user={user} onLogout={handleLogout}><Settings /></Layout> : <Navigate to="/dashboard" />} 
         />
 
         <Route 

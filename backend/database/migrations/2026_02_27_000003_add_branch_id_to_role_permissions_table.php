@@ -17,7 +17,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('role_permissions', function (Blueprint $table) {
-            $table->dropForeignKeyIfExists(['branch_id']);
+            $table->dropForeign(['branch_id']);
             $table->dropColumn('branch_id');
         });
     }

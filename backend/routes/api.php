@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\PettyCashController;
 use App\Http\Controllers\Api\AccessRightsController;
 use App\Http\Controllers\Api\BranchController;
 use App\Http\Controllers\Api\ThirdPartyServiceController;
+use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\ActivityController;
 
 
@@ -180,6 +181,7 @@ Route::post('/petty-cash/transactions/{id}/approve', [PettyCashController::class
 Route::post('/petty-cash/transactions/{id}/reject', [PettyCashController::class, 'rejectTransaction']);
 Route::get('/petty-cash/categories', [PettyCashController::class, 'getCategories']);
 Route::get('/petty-cash/summary', [PettyCashController::class, 'getSummary']);
+Route::delete('/petty-cash/funds/{id}', [PettyCashController::class, 'deleteFund']);
 
 // Access Rights Management (Super Admin Only)
 Route::get('/access-rights/roles', [AccessRightsController::class, 'getAllRolesWithPermissions']);
@@ -223,4 +225,8 @@ Route::post('/third-party-services', [ThirdPartyServiceController::class, 'store
 Route::get('/third-party-services/{id}', [ThirdPartyServiceController::class, 'show']);
 Route::put('/third-party-services/{id}', [ThirdPartyServiceController::class, 'update']);
 Route::delete('/third-party-services/{id}', [ThirdPartyServiceController::class, 'destroy']);
+
+// Settings Management (Super Admin Only)
+Route::post('/settings/upload-logo', [SettingsController::class, 'uploadLogo']);
+Route::get('/settings/logo', [SettingsController::class, 'getLogo']);
 });

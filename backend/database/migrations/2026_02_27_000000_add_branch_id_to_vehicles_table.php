@@ -20,7 +20,7 @@ return new class extends Migration
     {
         Schema::table('vehicles', function (Blueprint $table) {
             if (Schema::hasColumn('vehicles', 'branch_id')) {
-                $table->dropForeignKeyIfExists(['branch_id']);
+                $table->dropForeign(['branch_id']);
                 $table->dropColumn('branch_id');
             }
         });

@@ -67,6 +67,12 @@ class QuotationController extends Controller
     public function store(Request $request)
     {
         $user = $request->user();
+        
+        // Check authorization: super admin OR has create_quotations permission
+        $isSuperAdmin = $user->role && ($user->role->name === 'super_admin');
+        if (!$isSuperAdmin && !$user->hasPermission('create_quotations')) {
+            return response()->json(['message' => 'Unauthorized: You do not have permission to create quotations'], 403);
+        }
 
         $validated = $request->validate([
             'customer_id' => 'required|exists:customers,id',
@@ -94,6 +100,19 @@ class QuotationController extends Controller
 
     public function show($id)
     {
+        $user = null;
+        if (request()->user()) {
+            $user = request()->user();
+        }
+        
+        // Check authorization: super admin OR has view_quotations_details permission
+        if ($user) {
+            $isSuperAdmin = $user->role && ($user->role->name === 'super_admin');
+            if (!$isSuperAdmin && !$user->hasPermission('view_quotations_details')) {
+                return response()->json(['message' => 'Unauthorized: You do not have permission to view quotation details'], 403);
+            }
+        }
+        
         $quotation = Quotation::with(['customer', 'vehicle', 'creator', 'branch', 'jobCard', 'items.task'])
             ->findOrFail($id);
 
@@ -102,6 +121,14 @@ class QuotationController extends Controller
 
     public function update(Request $request, $id)
     {
+        $user = $request->user();
+        
+        // Check authorization: super admin OR has edit_quotations permission
+        $isSuperAdmin = $user->role && ($user->role->name === 'super_admin');
+        if (!$isSuperAdmin && !$user->hasPermission('edit_quotations')) {
+            return response()->json(['message' => 'Unauthorized: You do not have permission to edit quotations'], 403);
+        }
+        
         $quotation = Quotation::findOrFail($id);
 
         if ($quotation->status === 'converted') {
@@ -145,8 +172,16 @@ class QuotationController extends Controller
         ]);
     }
 
-    public function approve($id)
+    public function approve(Request $request, $id)
     {
+        $user = $request->user();
+        
+        // Check authorization: super admin OR has approve_quotations permission
+        $isSuperAdmin = $user->role && ($user->role->name === 'super_admin');
+        if (!$isSuperAdmin && !$user->hasPermission('approve_quotations')) {
+            return response()->json(['message' => 'Unauthorized: You do not have permission to approve quotations'], 403);
+        }
+        
         $quotation = Quotation::findOrFail($id);
 
         $quotation->update([
@@ -224,6 +259,14 @@ class QuotationController extends Controller
     // Quotation Items Management
     public function addItem(Request $request, $quotationId)
     {
+        $user = $request->user();
+        
+        // Check authorization: super admin OR has add_quotation_items permission
+        $isSuperAdmin = $user->role && ($user->role->name === 'super_admin');
+        if (!$isSuperAdmin && !$user->hasPermission('add_quotation_items')) {
+            return response()->json(['message' => 'Unauthorized: You do not have permission to add quotation items'], 403);
+        }
+        
         $quotation = Quotation::findOrFail($quotationId);
 
         if ($quotation->status === 'converted') {
@@ -287,8 +330,16 @@ class QuotationController extends Controller
         ]);
     }
 
-    public function deleteItem($quotationId, $itemId)
+    public function deleteItem(Request $request, $quotationId, $itemId)
     {
+        $user = $request->user();
+        
+        // Check authorization: super admin OR has delete_quotation_items permission
+        $isSuperAdmin = $user->role && ($user->role->name === 'super_admin');
+        if (!$isSuperAdmin && !$user->hasPermission('delete_quotation_items')) {
+            return response()->json(['message' => 'Unauthorized: You do not have permission to delete quotation items'], 403);
+        }
+        
         $quotation = Quotation::findOrFail($quotationId);
         $item = QuotationItem::where('id', $itemId)
             ->where('quotation_id', $quotationId)
