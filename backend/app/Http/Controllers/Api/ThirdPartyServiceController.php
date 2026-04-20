@@ -2,11 +2,10 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
 use App\Models\ThirdPartyService;
 use Illuminate\Http\Request;
 
-class ThirdPartyServiceController extends Controller
+class ThirdPartyServiceController extends ApiController
 {
     /**
      * Get all third party services
@@ -14,12 +13,23 @@ class ThirdPartyServiceController extends Controller
     public function index(Request $request)
     {
         try {
+            // Check permission - can read service listings
+            $check = $this->checkReadPermission($request, 'view_third_party_services_tab');
+            if (!$check['allowed']) {
+                return $this->unauthorized($check['message']);
+            }
+
             $query = ThirdPartyService::query();
             $user = $request->user();
 
-            // For branch_admin, only show their own branch's services
-            if ($user->role->name === 'branch_admin') {
+            // For non-super-admins, only show their own branch's services
+            if ($user->role->name !== 'super_admin') {
                 $query->where('branch_id', $user->branch_id);
+            }
+
+            // Super admin can filter by specific branch
+            if ($user->role->name === 'super_admin' && $request->has('branch_id')) {
+                $query->where('branch_id', $request->input('branch_id'));
             }
 
             // Search
@@ -81,6 +91,12 @@ class ThirdPartyServiceController extends Controller
     public function store(Request $request)
     {
         try {
+            // Check permission to add provider
+            $check = $this->checkReadPermission($request, 'add_third_party_provider');
+            if (!$check['allowed']) {
+                return response()->json(['success' => false, 'message' => $check['message']], 403);
+            }
+
             $validated = $request->validate([
                 'company_name' => 'required|string|max:255',
                 'telephone_number' => 'required|string|max:20',
@@ -92,8 +108,8 @@ class ThirdPartyServiceController extends Controller
 
             $user = $request->user();
 
-            // For branch_admin, force their own branch
-            if ($user->role->name === 'branch_admin') {
+            // For non-super-admins, force their own branch
+            if ($user->role->name !== 'super_admin') {
                 $validated['branch_id'] = $user->branch_id;
             }
 
@@ -128,11 +144,17 @@ class ThirdPartyServiceController extends Controller
     public function update(Request $request, $id)
     {
         try {
+            // Check permission
+            $check = $this->checkReadPermission($request, 'add_third_party_provider');
+            if (!$check['allowed']) {
+                return response()->json(['success' => false, 'message' => $check['message']], 403);
+            }
+
             $service = ThirdPartyService::findOrFail($id);
             $user = $request->user();
 
-            // For branch_admin, only allow editing their own branch's services
-            if ($user->role->name === 'branch_admin' && $user->branch_id != $service->branch_id) {
+            // For non-super-admins, only allow editing their own branch's services
+            if ($user->role->name !== 'super_admin' && $user->branch_id != $service->branch_id) {
                 return response()->json([
                     'success' => false,
                     'message' => 'You can only edit services for your own branch'

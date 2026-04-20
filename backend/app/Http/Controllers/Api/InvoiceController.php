@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
 use App\Models\Invoice;
 use App\Models\JobCard;
 use App\Models\OtherCharge;
@@ -10,21 +9,27 @@ use App\Models\Payment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
-class InvoiceController extends Controller
+class InvoiceController extends ApiController
 {
     /**
      * List all invoices (for invoice management table)
      */
     public function index(Request $request)
     {
-        $user = $request->user();
-        $query = Invoice::with(['jobCard.customer', 'jobCard.vehicle', 'jobCard.branch']);
-
-        if ($user->role->name !== 'super_admin') {
-            $query->whereHas('jobCard', fn($q) => $q->where('branch_id', $user->branch_id));
+        // Check permission
+        $check = $this->checkReadPermission($request, 'view_invoice_details');
+        if (!$check['allowed']) {
+            return $this->unauthorized($check['message']);
         }
 
-        if ($request->branch_id && $user->role->name === 'super_admin') {
+        $query = Invoice::with(['jobCard.customer', 'jobCard.vehicle', 'jobCard.branch']);
+
+        // Apply branch filter
+        if ($request->user()->role->name !== 'super_admin') {
+            $query->whereHas('jobCard', fn($q) => $q->where('branch_id', $request->user()->branch_id));
+        }
+
+        if ($request->has('branch_id') && $request->has('branch_id') && $request->user()->role->name === 'super_admin') {
             $query->whereHas('jobCard', fn($q) => $q->where('branch_id', $request->branch_id));
         }
 
@@ -37,6 +42,12 @@ class InvoiceController extends Controller
      */
     public function generateFromJobCard(Request $request, $jobCardId)
     {
+        // Check permission
+        $check = $this->checkReadPermission($request, 'generate_invoices');
+        if (!$check['allowed']) {
+            return $this->unauthorized($check['message']);
+        }
+
         $request->validate([
             'discount_amount' => 'nullable|numeric|min:0',
         ]);
@@ -46,6 +57,11 @@ class InvoiceController extends Controller
             'tasks',
             'sparePartsRequests',
         ])->findOrFail($jobCardId);
+
+        // Verify user has access to this job card's branch
+        if ($request->user()->role->name !== 'super_admin' && $jobCard->branch_id !== $request->user()->branch_id) {
+            return $this->unauthorized('You can only generate invoices for job cards in your branch');
+        }
 
         // Check if job card is finalized
         if ($jobCard->status !== 'finalized') {

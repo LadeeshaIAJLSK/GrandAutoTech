@@ -17,6 +17,27 @@ function Layout({ user, onLogout, children }) {
   const [logoUrl, setLogoUrl] = useState(() => 
     localStorage.getItem('appLogo') || 'https://placehold.co/240x64/1f2937/ffffff?text=LOGO'
   )
+  const [showUserModal, setShowUserModal] = useState(false)
+  const [viewingUserData, setViewingUserData] = useState(null)
+  const [currentUser, setCurrentUser] = useState(user)
+
+  // Fetch complete user data on component mount
+  useEffect(() => {
+    const fetchCurrentUserData = async () => {
+      try {
+        const token = localStorage.getItem('token')
+        const response = await axiosClient.get('/me', {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+        const completeUser = response.data.user
+        setCurrentUser(completeUser)
+      } catch (error) {
+        console.error('Error fetching current user:', error)
+        setCurrentUser(user)
+      }
+    }
+    fetchCurrentUserData()
+  }, [])
 
   const handleLogout = async () => {
     try {
@@ -33,6 +54,39 @@ function Layout({ user, onLogout, children }) {
 
   const handleLogoChange = (newLogoUrl) => {
     setLogoUrl(newLogoUrl)
+  }
+
+  const handleViewUserProfile = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      // Use /me endpoint to get current user's complete profile with all fields
+      const response = await axiosClient.get('/me', {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      
+      // Extract user data - /me returns { user: {...} }
+      const completeUserData = response.data.user || response.data.data || response.data
+      console.log('Complete user data from /me:', completeUserData)
+      setViewingUserData(completeUserData)
+      setShowUserModal(true)
+    } catch (error) {
+      console.error('Error fetching user profile:', error)
+      // Fallback to user object if API fails
+      setViewingUserData(user)
+      setShowUserModal(true)
+    }
+  }
+
+  const getRoleBadgeStyle = (roleName) => {
+    const styles = {
+      'super_admin': 'bg-purple-100 text-purple-800 border border-purple-300',
+      'branch_admin': 'bg-blue-100 text-blue-800 border border-blue-300',
+      'accountant': 'bg-orange-100 text-orange-800 border border-orange-300',
+      'employee': 'bg-green-100 text-green-800 border border-green-300',
+      'technician': 'bg-green-100 text-green-800 border border-green-300',
+      'support_staff': 'bg-indigo-100 text-indigo-800 border border-indigo-300'
+    }
+    return styles[roleName] || 'bg-gray-100 text-gray-800 border border-gray-300'
   }
 
   const canViewUsers = ['super_admin', 'branch_admin'].includes(user.role.name) || 
@@ -63,7 +117,14 @@ function Layout({ user, onLogout, children }) {
     const active = isActive(path)
     return (
       <button
-        onClick={onClick || (() => navigate(path))}
+        onClick={() => {
+          if (onClick) {
+            onClick()
+          } else {
+            navigate(path)
+            setSidebarOpen(false)
+          }
+        }}
         className={`w-full text-left px-5 py-3 flex items-center justify-between gap-3 transition-all group border-l-[3px] ${
           active
             ? 'bg-white text-gray-900 border-primary'
@@ -96,7 +157,10 @@ function Layout({ user, onLogout, children }) {
     const active = location.pathname === path
     return (
       <button
-        onClick={() => navigate(path)}
+        onClick={() => {
+          navigate(path)
+          setSidebarOpen(false)
+        }}
         className={`w-full text-left pl-12 pr-5 py-2.5 flex items-center gap-3 text-sm transition-all group border-l-[3px] ${
           active
             ? 'bg-white text-gray-900 font-semibold border-primary'
@@ -168,18 +232,27 @@ function Layout({ user, onLogout, children }) {
           </div>
 
           {/* Right Section */}
-          <div className="flex-1 flex items-center justify-end px-4 sm:px-6">
-            <div className="flex items-center gap-2.5 pl-2 sm:pl-4 border-l border-gray-200">
-              <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-              </div>
+          <div className="flex-1 flex items-center justify-end px-4 sm:px-6 gap-4">
+            <button
+              onClick={handleViewUserProfile}
+              className="flex items-center gap-3 px-3 py-2 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+              title="View profile"
+            >
+              {currentUser?.profile_image ? (
+                <img
+                  src={`http://localhost:8000/storage/${currentUser.profile_image}`}
+                  alt={currentUser.name}
+                  className="w-8 h-8 rounded-full object-cover border border-primary/20"
+                />
+              ) : (
+                <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0 font-semibold text-sm text-primary">
+                  {currentUser?.name?.substring(0, 2).toUpperCase()}
+                </div>
+              )}
               <div className="hidden sm:block min-w-0">
-                <p className="text-sm font-semibold text-gray-800 leading-tight truncate">{user.name}</p>
-               
+                <p className="text-sm font-semibold text-gray-800 leading-tight truncate">{currentUser?.name}</p>
               </div>
-            </div>
+            </button>
             <button
               onClick={handleLogout}
               className="flex items-center gap-2 px-3 sm:px-3.5 py-2 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors border border-gray-200 hover:border-red-200"
@@ -193,10 +266,56 @@ function Layout({ user, onLogout, children }) {
 
       <div className="flex flex-1">
 
-        {/* Sidebar — bg-gray-600 (dark grey), white text, white+black on hover/active */}
-        <aside className="hidden md:flex md:fixed md:left-0 md:top-16 md:w-60 md:h-[calc(100vh-64px)] bg-gray-600 flex-col z-40 border-r border-gray-500">
+        {/* Mobile Sidebar Overlay */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black/40 md:hidden z-30 top-16"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
 
-          <nav className="flex-1 py-4 space-y-0.5 overflow-y-auto sidebar-scroll">
+        {/* Sidebar — bg-gray-600 (dark grey), white text, white+black on hover/active */}
+        <aside className={`${sidebarOpen ? 'fixed' : 'hidden'} md:flex md:fixed md:left-0 md:top-16 md:w-60 md:h-[calc(100vh-64px)] bg-gray-600 flex-col z-40 border-r border-gray-500 left-0 top-16 w-60`}
+          style={{
+            height: 'calc(100vh - 64px)'
+          }}>
+
+          {/* Mobile Close Button */}
+          <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-gray-500 flex-shrink-0">
+            <h3 className="text-white font-semibold text-sm">Menu</h3>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="p-1.5 hover:bg-gray-500 rounded-lg transition-colors text-gray-300 hover:text-white"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <nav className="flex-1 min-h-0 py-4 space-y-0.5 overflow-y-auto sidebar-scroll pr-3">
+            <style>{`
+              .sidebar-scroll {
+                scrollbar-width: auto;
+                scrollbar-color: #6B7280 #374151;
+              }
+              .sidebar-scroll::-webkit-scrollbar {
+                width: 12px;
+              }
+              .sidebar-scroll::-webkit-scrollbar-track {
+                background: #374151;
+              }
+              .sidebar-scroll::-webkit-scrollbar-thumb {
+                background: #6B7280;
+                border-radius: 6px;
+              }
+              .sidebar-scroll::-webkit-scrollbar-thumb:hover {
+                background: #9CA3AF;
+              }
+              .sidebar-scroll::-webkit-scrollbar-thumb:active {
+                background: #D1D5DB;
+              }
+            `}</style>
 
             <NavItem path="/dashboard" icon={icons.dashboard} label="Dashboard" badge={pendingApprovalsCount} />
 
@@ -319,17 +438,27 @@ function Layout({ user, onLogout, children }) {
 
           {/* Sidebar footer */}
           <div className="p-4 border-t border-gray-500">
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 bg-gray-500 rounded-full flex items-center justify-center flex-shrink-0">
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-              </div>
+            <button
+              onClick={handleViewUserProfile}
+              className="w-full flex items-center gap-2.5 hover:opacity-80 transition-opacity cursor-pointer"
+              title="View profile"
+            >
+              {currentUser?.profile_image ? (
+                <img
+                  src={`http://localhost:8000/storage/${currentUser.profile_image}`}
+                  alt={currentUser.name}
+                  className="w-7 h-7 rounded-full object-cover border border-gray-400"
+                />
+              ) : (
+                <div className="w-7 h-7 bg-gray-500 rounded-full flex items-center justify-center flex-shrink-0 font-semibold text-xs text-white">
+                  {currentUser?.name?.substring(0, 2).toUpperCase()}
+                </div>
+              )}
               <div className="min-w-0">
-                <p className="text-xs font-semibold text-gray-200 truncate">{user.name}</p>
-                <p className="text-xs text-gray-400 truncate">{user.role.display_name}</p>
+                <p className="text-xs font-semibold text-gray-200 truncate">{currentUser?.name}</p>
+                <p className="text-xs text-gray-400 truncate">{currentUser?.role?.display_name}</p>
               </div>
-            </div>
+            </button>
           </div>
         </aside>
 
@@ -338,6 +467,167 @@ function Layout({ user, onLogout, children }) {
           {React.cloneElement(children, { selectedBranchId, onLogoChange: handleLogoChange })}
         </main>
       </div>
+
+      {/* View User Modal */}
+      {showUserModal && viewingUserData && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowUserModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            {/* Modal Header */}
+            <div className="flex justify-between items-center px-7 py-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100/50">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">User Details</h3>
+                <p className="text-sm text-gray-500 mt-0.5">{viewingUserData.name}</p>
+              </div>
+              <button onClick={() => setShowUserModal(false)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-200 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="px-7 py-6 space-y-6 max-h-[70vh] overflow-y-auto">
+              {/* Profile Photo Section */}
+              {viewingUserData?.profile_image && (
+                <div className="flex justify-center mb-4">
+                  {console.log('Modal - Rendering profile image:', viewingUserData.profile_image, 'URL:', `/storage/${viewingUserData.profile_image}`)}
+                  <div className="relative">
+                    <img 
+                      src={`http://localhost:8000/storage/${viewingUserData.profile_image}`}
+                      alt={viewingUserData?.name}
+                      className="w-32 h-32 rounded-full object-cover border-4 border-gray-200 shadow-md"
+                    />
+                  </div>
+                </div>
+              )}
+              
+              <div className="grid grid-cols-2 gap-6">
+                {/* Name */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Name</p>
+                  <p className="text-sm font-medium text-gray-900">{viewingUserData.name}</p>
+                </div>
+
+                {/* First Name */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">First Name</p>
+                  <p className="text-sm font-medium text-gray-900">{viewingUserData.first_name || 'Not provided'}</p>
+                </div>
+
+                {/* Email */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Email</p>
+                  <p className="text-sm font-medium text-gray-900">{viewingUserData.email}</p>
+                </div>
+
+                {/* Phone */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Phone</p>
+                  <p className="text-sm font-medium text-gray-900">{viewingUserData.phone || 'Not provided'}</p>
+                </div>
+
+                {/* Employee Code */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Employee Code</p>
+                  <p className="font-mono text-sm font-medium text-gray-900">{viewingUserData.employee_code || 'Not assigned'}</p>
+                </div>
+
+                {/* Gender */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Gender</p>
+                  <p className="text-sm font-medium text-gray-900 capitalize">{viewingUserData.gender || 'Not provided'}</p>
+                </div>
+
+                {/* Date of Birth */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Date of Birth</p>
+                  <p className="text-sm font-medium text-gray-900">{viewingUserData.date_of_birth ? new Date(viewingUserData.date_of_birth).toLocaleDateString() : 'Not provided'}</p>
+                </div>
+
+                {/* Join Date */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Join Date</p>
+                  <p className="text-sm font-medium text-gray-900">{viewingUserData.join_date ? new Date(viewingUserData.join_date).toLocaleDateString() : 'Not provided'}</p>
+                </div>
+
+                {/* Left Date */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Left Date</p>
+                  <p className="text-sm font-medium text-gray-900">{viewingUserData.left_date ? new Date(viewingUserData.left_date).toLocaleDateString() : 'Still employed'}</p>
+                </div>
+
+                {/* Role */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Role</p>
+                  <div>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${getRoleBadgeStyle(viewingUserData.role?.name)}`}>
+                      {viewingUserData.role?.display_name}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Technician Type */}
+                {viewingUserData.technician_type && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Technician Type</p>
+                    <p className="text-sm font-medium text-gray-900 capitalize">
+                      {viewingUserData.technician_type === 'employee' ? 'Employee' : viewingUserData.technician_type === 'supervisor' ? 'Supervisor' : viewingUserData.technician_type}
+                    </p>
+                  </div>
+                )}
+
+                {/* Branch */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Branch</p>
+                  <p className="text-sm font-medium text-gray-900">{viewingUserData.branch?.name || 'No branch assigned'}</p>
+                </div>
+
+                {/* Status */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Status</p>
+                  <div>
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+                      viewingUserData.is_active
+                        ? 'bg-green-50 text-green-700 border-green-100'
+                        : 'bg-red-50 text-red-600 border-red-100'
+                    }`}>
+                      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${viewingUserData.is_active ? 'bg-green-500' : 'bg-red-400'}`} />
+                      {viewingUserData.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Emergency Contact Name */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Emergency Contact Name</p>
+                  <p className="text-sm font-medium text-gray-900">{viewingUserData.emergency_contact_name || 'Not provided'}</p>
+                </div>
+
+                {/* Emergency Contact Number */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Emergency Contact Number</p>
+                  <p className="text-sm font-medium text-gray-900">{viewingUserData.emergency_contact_no || 'Not provided'}</p>
+                </div>
+
+                {/* Special Notes */}
+                {viewingUserData.special_notes && (
+                  <div className="col-span-2">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Special Notes</p>
+                    <p className="text-sm font-medium text-gray-900 whitespace-pre-wrap">{viewingUserData.special_notes}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                <button onClick={() => setShowUserModal(false)} className="px-5 py-2.5 text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold border border-red-700 transition-colors">
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

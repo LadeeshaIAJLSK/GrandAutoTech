@@ -34,8 +34,12 @@ axiosClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('token')
-      window.location.href = '/login'
+      // Don't redirect if this is a login request (let the component handle the error)
+      const isLoginRequest = error.config?.url?.includes('/login')
+      if (!isLoginRequest) {
+        localStorage.removeItem('token')
+        window.location.href = '/login'
+      }
     }
     return Promise.reject(error)
   }

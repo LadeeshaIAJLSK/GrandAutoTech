@@ -2,24 +2,34 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
 use App\Models\Payment;
 use App\Models\JobCard;
 use App\Models\Invoice;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
-class ReportController extends Controller
+class ReportController extends ApiController
 {
     public function financialSummary(Request $request)
     {
         try {
+            // Check permission
+            $check = $this->checkReadPermission($request, 'view_financial_reports');
+            if (!$check['allowed']) {
+                return $this->unauthorized($check['message']);
+            }
+
             $user = $request->user();
             
             // Date filters - handle both string and date formats
             $startDate = $request->get('start_date', now()->startOfMonth()->toDateString());
             $endDate = $request->get('end_date', now()->endOfMonth()->toDateString());
             $branchId = $request->get('branch_id');
+
+            // Super admin can filter by any branch, others only see their branch
+            if ($user->role->name !== 'super_admin') {
+                $branchId = $user->branch_id;
+            }
 
             // Ensure dates are properly formatted
             $startDate = date('Y-m-d', strtotime($startDate));

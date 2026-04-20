@@ -3,10 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use Illuminate\Http\Request;
-use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Storage;
 
-class SettingsController extends Controller
+class SettingsController extends ApiController
 {
     /**
      * Upload application logo
@@ -14,11 +13,6 @@ class SettingsController extends Controller
     public function uploadLogo(Request $request)
     {
         try {
-            // Validate the uploaded file
-            $request->validate([
-                'logo' => 'required|image|mimes:jpeg,png,jpg,gif|max:5120', // 5MB max
-            ]);
-
             // Check if user is super admin
             if ($request->user()->role->name !== 'super_admin') {
                 return response()->json([
@@ -26,6 +20,11 @@ class SettingsController extends Controller
                     'message' => 'Unauthorized: Only super admins can change settings'
                 ], 403);
             }
+
+            // Validate the uploaded file
+            $request->validate([
+                'logo' => 'required|image|mimes:jpeg,png,jpg,gif|max:5120', // 5MB max
+            ]);
 
             // Delete old logo if it exists
             if (Storage::disk('public')->exists('logo.png')) {

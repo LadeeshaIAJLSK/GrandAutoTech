@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import axiosClient from '../api/axios'
 
 const CarLogo = () => (
@@ -19,9 +19,18 @@ function Login({ onLoginSuccess }) {
   const [error, setError]           = useState('')
   const [rememberMe, setRememberMe] = useState(false)
 
+  // Auto-clear error message after 10 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        setError('')
+      }, 5000) // 10 seconds
+      return () => clearTimeout(timer)
+    }
+  }, [error])
+
   const handleSubmit = async (e) => {
     e.preventDefault()
-    setError('')
     setLoading(true)
     try {
       const response = await axiosClient.post('/login', { 
@@ -543,7 +552,18 @@ function Login({ onLoginSuccess }) {
             <p className="lp-form-sub">Sign in to continue to your dashboard</p>
             <div className="lp-rule" />
 
-            {error && <div className="lp-error">{error}</div>}
+            {error && (
+              <div className="lp-error" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>{error}</span>
+                <button
+                  type="button"
+                  onClick={() => setError('')}
+                  style={{ background: 'none', border: 'none', color: '#B91C1C', cursor: 'pointer', fontSize: '18px', padding: '0 4px' }}
+                >
+                  ✕
+                </button>
+              </div>
+            )}
 
             <form onSubmit={handleSubmit}>
               <div className="lp-field">

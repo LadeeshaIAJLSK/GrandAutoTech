@@ -2,20 +2,24 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
 use App\Models\Role;
 use App\Models\Permission;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
-class AccessRightsController extends Controller
+class AccessRightsController extends ApiController
 {
     /**
      * Get all roles with their permissions
      * For technician role, returns separate permission sets for employee and supervisor
      */
-    public function getAllRolesWithPermissions()
+    public function getAllRolesWithPermissions(Request $request)
     {
+        // Only super admin can access access rights management
+        if ($request->user()->role->name !== 'super_admin') {
+            return response()->json(['message' => 'Unauthorized: Only super admins can manage access rights'], 403);
+        }
+
         $roles = Role::with(['permissions'])->get();
         $allPermissions = Permission::orderBy('module')->orderBy('name')->get();
 

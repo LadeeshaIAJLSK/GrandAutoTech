@@ -121,7 +121,7 @@ function BranchManagement({ user }) {
         </h2>
         <button
           onClick={openCreateModal}
-          className="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm hover:shadow-md hover:-translate-y-px border-2 border-orange-600"
+          className="inline-flex items-center gap-2 bg-[#2563A8] hover:bg-[#1E4E8C] text-white px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm hover:shadow-md hover:-translate-y-px border-2 border-[#2563A8]"
           style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
         >
           <span className="flex items-center justify-center w-4 h-4 bg-white/25 rounded">
@@ -332,7 +332,7 @@ function BranchManagement({ user }) {
 
               <div className="flex justify-end gap-3 pt-5 border-t border-gray-100">
                 <button type="button" onClick={() => setShowModal(false)} className="px-5 py-2.5 text-sm bg-white hover:bg-gray-50 text-gray-700 rounded-lg font-semibold border border-gray-300 shadow-sm transition-colors">Cancel</button>
-                <button type="submit" className="px-5 py-2.5 text-sm bg-primary hover:bg-primary-dark text-white rounded-lg font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-px" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>
+                <button type="submit" className="px-5 py-2.5 text-sm bg-[#2563A8] hover:bg-[#1E4E8C] text-white rounded-lg font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-px" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>
                   {editingBranch ? 'Update Branch' : 'Create Branch'}
                 </button>
               </div>
