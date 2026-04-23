@@ -23,23 +23,6 @@ import MyTasks from './pages/MyTasks'
 import TaskApproval from './pages/TaskApproval'
 
 
-// Helper function to check if user has required permissions
-const checkPermission = (user, permission) => {
-  if (!user || !user.role || !user.permissions) return false
-  return user.role.name === 'super_admin' || user.permissions.includes(permission)
-}
-
-// Helper function to check if user is super admin
-const isSuperAdmin = (user) => {
-  return user && user.role && user.role.name === 'super_admin'
-}
-
-// Helper function to check if user has any of multiple permissions
-const hasAnyPermission = (user, permissions) => {
-  if (!user || !user.role || !user.permissions) return false
-  return user.role.name === 'super_admin' || permissions.some(p => user.permissions.includes(p))
-}
-
 function App() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -49,21 +32,7 @@ function App() {
     const savedUser = localStorage.getItem('user')
     
     if (token && savedUser) {
-      try {
-        const parsedUser = JSON.parse(savedUser)
-        // Validate user object has required structure
-        if (parsedUser && parsedUser.role && parsedUser.role.name && Array.isArray(parsedUser.permissions)) {
-          setUser(parsedUser)
-        } else {
-          // Clear invalid user data
-          localStorage.removeItem('token')
-          localStorage.removeItem('user')
-        }
-      } catch (error) {
-        // Clear invalid user data on parse error
-        localStorage.removeItem('token')
-        localStorage.removeItem('user')
-      }
+      setUser(JSON.parse(savedUser))
     }
     
     setLoading(false)
@@ -108,37 +77,37 @@ function App() {
         
         <Route 
           path="/users" 
-          element={hasAnyPermission(user, ['view_all_users', 'view_branch_admins', 'view_accountants', 'view_technicians', 'view_support_staff']) ? <Layout user={user} onLogout={handleLogout}><UserManagement user={user} roleFilter={null} /></Layout> : <Navigate to="/not-authorized" />} 
+          element={user && (user.role.name === 'super_admin' || ['view_all_users', 'view_branch_admins', 'view_accountants', 'view_technicians', 'view_support_staff'].some(p => user.permissions.includes(p))) ? <Layout user={user} onLogout={handleLogout}><UserManagement user={user} roleFilter={null} /></Layout> : <Navigate to="/not-authorized" />} 
         />
         
         <Route 
           path="/users/:role" 
-          element={hasAnyPermission(user, ['view_all_users', 'view_branch_admins', 'view_accountants', 'view_technicians', 'view_support_staff']) ? <Layout user={user} onLogout={handleLogout}><UserManagementRoute user={user} /></Layout> : <Navigate to="/not-authorized" />} 
+          element={user && (user.role.name === 'super_admin' || ['view_all_users', 'view_branch_admins', 'view_accountants', 'view_technicians', 'view_support_staff'].some(p => user.permissions.includes(p))) ? <Layout user={user} onLogout={handleLogout}><UserManagementRoute user={user} /></Layout> : <Navigate to="/not-authorized" />} 
         />
         
         <Route 
           path="/customers" 
-          element={checkPermission(user, 'view_customers_vehicles_tab') ? <Layout user={user} onLogout={handleLogout}><CustomerManagement user={user} /></Layout> : <Navigate to="/not-authorized" />} 
+          element={user && (user.role.name === 'super_admin' || user.permissions.includes('view_customers_vehicles_tab')) ? <Layout user={user} onLogout={handleLogout}><CustomerManagement user={user} /></Layout> : <Navigate to="/not-authorized" />} 
         />
         
         <Route 
           path="/job-cards" 
-          element={checkPermission(user, 'view_job_cards_tab') ? <Layout user={user} onLogout={handleLogout}><JobCardManagement user={user} /></Layout> : <Navigate to="/not-authorized" />} 
+          element={user && (user.role.name === 'super_admin' || user.permissions.includes('view_job_cards_tab')) ? <Layout user={user} onLogout={handleLogout}><JobCardManagement user={user} /></Layout> : <Navigate to="/not-authorized" />} 
         />
         
         <Route 
           path="/job-cards/:id" 
-          element={checkPermission(user, 'view_job_cards_tab') ? <Layout user={user} onLogout={handleLogout}><JobCardDetail user={user} /></Layout> : <Navigate to="/not-authorized" />} 
+          element={user && (user.role.name === 'super_admin' || user.permissions.includes('view_job_cards_tab')) ? <Layout user={user} onLogout={handleLogout}><JobCardDetail user={user} /></Layout> : <Navigate to="/not-authorized" />} 
         />
         
         <Route 
           path="/quotations" 
-          element={checkPermission(user, 'view_quotations_tab') ? <Layout user={user} onLogout={handleLogout}><QuotationManagement user={user} /></Layout> : <Navigate to="/not-authorized" />} 
+          element={user && (user.role.name === 'super_admin' || user.permissions.includes('view_quotations_tab')) ? <Layout user={user} onLogout={handleLogout}><QuotationManagement user={user} /></Layout> : <Navigate to="/not-authorized" />} 
         />
         
         <Route 
           path="/invoices" 
-          element={checkPermission(user, 'view_invoices_tab') ? (
+          element={user && (user.role.name === 'super_admin' || user.permissions.includes('view_invoices_tab')) ? (
             <Layout user={user} onLogout={handleLogout}><InvoiceManagement user={user} /></Layout>
           ) : <Navigate to="/not-authorized" />
           } 
@@ -146,22 +115,22 @@ function App() {
 
         <Route 
           path="/invoice/:jobCardId" 
-          element={checkPermission(user, 'view_invoices_tab') ? <Layout user={user} onLogout={handleLogout}><InvoiceDetail user={user} /></Layout> : <Navigate to="/not-authorized" />} 
+          element={user && (user.role.name === 'super_admin' || user.permissions.includes('view_invoices_tab')) ? <Layout user={user} onLogout={handleLogout}><InvoiceDetail user={user} /></Layout> : <Navigate to="/not-authorized" />} 
         />
 
         <Route 
           path="/invoice-print/:jobCardId" 
-          element={checkPermission(user, 'view_invoices_tab') ? <Layout user={user} onLogout={handleLogout}><InvoicePrint user={user} /></Layout> : <Navigate to="/not-authorized" />} 
+          element={user && (user.role.name === 'super_admin' || user.permissions.includes('view_invoices_tab')) ? <Layout user={user} onLogout={handleLogout}><InvoicePrint user={user} /></Layout> : <Navigate to="/not-authorized" />} 
         />
         
         <Route 
           path="/reports" 
-          element={checkPermission(user, 'view_financial_reports_tab') ? <Layout user={user} onLogout={handleLogout}><FinancialReports user={user} /></Layout> : <Navigate to="/not-authorized" />} 
+          element={user && (user.role.name === 'super_admin' || user.permissions.includes('view_financial_reports_tab')) ? <Layout user={user} onLogout={handleLogout}><FinancialReports user={user} /></Layout> : <Navigate to="/not-authorized" />} 
         />
         
         <Route 
           path="/petty-cash" 
-          element={checkPermission(user, 'view_petty_cash_tab') ? (
+          element={user && (user.role.name === 'super_admin' || user.permissions.includes('view_petty_cash_tab')) ? (
             <Layout user={user} onLogout={handleLogout}><PettyCashManagement user={user} /></Layout>
           ) : <Navigate to="/not-authorized" />
           } 
@@ -170,7 +139,7 @@ function App() {
         {/* My Tasks (Super Admin & Technicians with view_my_tasks_tab permission) */}
         <Route
           path="/my-tasks"
-          element={checkPermission(user, 'view_my_tasks_tab') ? (
+          element={user && (user.role.name === 'super_admin' || user.permissions.includes('view_my_tasks_tab')) ? (
             <Layout user={user} onLogout={handleLogout}>
               <MyTasks user={user} />
             </Layout>
@@ -180,7 +149,7 @@ function App() {
         {/* Task Approval (Super Admin & users with view_task_approval_tab permission) */}
         <Route
           path="/task-approval"
-          element={checkPermission(user, 'view_task_approval_tab') ? (
+          element={user && (user.role.name === 'super_admin' || user.permissions.includes('view_task_approval_tab')) ? (
             <Layout user={user} onLogout={handleLogout}>
               <TaskApproval user={user} />
             </Layout>
@@ -189,27 +158,27 @@ function App() {
 
         <Route 
           path="/access-rights" 
-          element={isSuperAdmin(user) ? <Layout user={user} onLogout={handleLogout}><AccessRightsManagement user={user} /></Layout> : <Navigate to="/not-authorized" />} 
+          element={user && user.role.name === 'super_admin' ? <Layout user={user} onLogout={handleLogout}><AccessRightsManagement user={user} /></Layout> : <Navigate to="/not-authorized" />} 
         />
         
         <Route 
           path="/branch-management" 
-          element={isSuperAdmin(user) ? <Layout user={user} onLogout={handleLogout}><BranchManagement user={user} /></Layout> : <Navigate to="/not-authorized" />} 
+          element={user && user.role.name === 'super_admin' ? <Layout user={user} onLogout={handleLogout}><BranchManagement user={user} /></Layout> : <Navigate to="/not-authorized" />} 
         />
         
         <Route 
           path="/branch-overview" 
-          element={isSuperAdmin(user) ? <Layout user={user} onLogout={handleLogout}><BranchOverview user={user} /></Layout> : <Navigate to="/not-authorized" />} 
+          element={user && user.role.name === 'super_admin' ? <Layout user={user} onLogout={handleLogout}><BranchOverview user={user} /></Layout> : <Navigate to="/not-authorized" />} 
         />
 
         <Route 
           path="/settings" 
-          element={isSuperAdmin(user) ? <Layout user={user} onLogout={handleLogout}><Settings /></Layout> : <Navigate to="/not-authorized" />} 
+          element={user && user.role.name === 'super_admin' ? <Layout user={user} onLogout={handleLogout}><Settings /></Layout> : <Navigate to="/not-authorized" />} 
         />
 
         <Route 
           path="/third-party-services" 
-          element={checkPermission(user, 'view_third_party_services_tab') ? <Layout user={user} onLogout={handleLogout}><ThirdPartyServiceManagement user={user} /></Layout> : <Navigate to="/not-authorized" />} 
+          element={user && (user.role.name === 'super_admin' || user.permissions.includes('view_third_party_services_tab')) ? <Layout user={user} onLogout={handleLogout}><ThirdPartyServiceManagement user={user} /></Layout> : <Navigate to="/not-authorized" />} 
         />
         
         <Route 
