@@ -344,7 +344,7 @@ function InvoiceManagement({ user, selectedBranchId }) {
             onClick={() => { setDateRangeFilter(range.value); setCurrentPage(1) }}
             className={`px-4 py-2 rounded-full text-sm font-semibold transition-all ${
               dateRangeFilter === range.value
-                ? 'bg-primary text-white shadow-md'
+                ? 'bg-[#2563A8] text-white shadow-md'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
@@ -456,7 +456,7 @@ function InvoiceManagement({ user, selectedBranchId }) {
           <div className="flex gap-2">
             {canDownloadInvoiceReport && (
               <button onClick={downloadReport}
-                className="px-3.5 py-1.5 bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 rounded-lg text-xs font-semibold transition-colors flex items-center gap-2">
+                className="px-3.5 py-1.5 bg-green-50 hover:bg-green-100 text-[#2563A8] border border-green-200 rounded-lg text-xs font-semibold transition-colors flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2m0 0v-8m0 8H3m6-15h6" />
               </svg>
@@ -476,7 +476,7 @@ function InvoiceManagement({ user, selectedBranchId }) {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-gradient-to-r from-gray-800 to-gray-700 text-white">
+              <tr className="bg-[#2563A8] text-white">
                 {['Job Card', 'Customer', 'Vehicle', 'Service Dates', 'Payment', 'Actions'].map((h, i) => (
                   <th key={h} className={`px-5 py-3.5 text-xs font-semibold uppercase tracking-wider ${i === 5 ? 'text-right' : 'text-left'}`}>{h}</th>
                 ))}

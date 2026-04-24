@@ -371,6 +371,15 @@ function PettyCashManagement({ user }) {
     canViewSummaryTab && { key: 'summary', label: 'Summary', icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /> },
   ].filter(Boolean)
 
+  const paymentMethodOptions = [
+    { value: 'cash', label: 'Cash' },
+    { value: 'card', label: 'Card' },
+    { value: 'bank_transfer', label: 'Bank Transfer' },
+    { value: 'cheque', label: 'Cheque' },
+    { value: 'mobile_payment', label: 'Mobile Payment' },
+    { value: 'other', label: 'Other' },
+  ]
+
   return (
     <>
       {!canViewPettyCashTab ? (
@@ -450,12 +459,14 @@ function PettyCashManagement({ user }) {
           Petty Cash Management
         </h1>
 
-        {(filterBranch && filterBranch !== '') && (
+        {(isSuperAdmin || (filterBranch && filterBranch !== '')) && (
           <div className="flex gap-2">
             {canCreateFund && (
               <button onClick={() => setShowFundModal(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold transition-all shadow-sm hover:shadow-md hover:-translate-y-px"
-                style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>
+                className="inline-flex items-center gap-2 px-4 py-2 text-white rounded-lg text-sm font-bold transition-all shadow-sm hover:shadow-md hover:-translate-y-px"
+                style={{ backgroundColor: '#2563A8', textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#1e4a8c'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = '#2563A8'}>
                 <span className="flex items-center justify-center w-4 h-4 bg-white/25 rounded">
                   <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
@@ -510,7 +521,7 @@ function PettyCashManagement({ user }) {
           <button key={tab.key} onClick={() => setActiveTab(tab.key)}
             className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
               activeTab === tab.key
-                ? 'bg-primary text-white shadow-sm'
+                ? 'bg-[#2563A8] text-white shadow-sm'
                 : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
             }`}>
             <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">{tab.icon}</svg>
@@ -547,7 +558,7 @@ function PettyCashManagement({ user }) {
                 const needsReplenishment = parseFloat(f.current_balance) < parseFloat(f.replenishment_threshold)
                 const isSelected = selectedFund === f.id
                 return (
-                  <div key={f.id} onClick={() => { setSelectedFund(f.id); setActiveTab('expenses') }}
+                  <div key={f.id} onClick={() => { setSelectedFund(f.id) }}
                     className={`bg-white rounded-xl border shadow-sm cursor-pointer transition-all hover:shadow-md ${
                       isSelected ? 'border-primary ring-2 ring-primary/20' : 'border-gray-200 hover:border-gray-300'
                     }`}>
@@ -902,7 +913,12 @@ function PettyCashManagement({ user }) {
               </div>
               <div>
                 <label className={labelCls}>How (Method) <span className="text-red-400">*</span></label>
-                <input type="text" placeholder="e.g., Purchased from supplier, Paid bill..." value={expenseForm.how} onChange={e => setExpenseForm({...expenseForm, how: e.target.value})} className={inputCls} required />
+                <select value={expenseForm.how} onChange={e => setExpenseForm({...expenseForm, how: e.target.value})} className={inputCls} required>
+                  <option value="">Select payment method</option>
+                  {paymentMethodOptions.map(option => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className={labelCls}>Why (Reason) <span className="text-red-400">*</span></label>
@@ -924,7 +940,7 @@ function PettyCashManagement({ user }) {
               </div>
               <div>
                 <label className={labelCls}>Upload Receipt</label>
-                <input type="file" accept="image/*" onChange={e => setExpenseForm({...expenseForm, receipt_image: e.target.files?.[0] || null})} className={inputCls} />
+                <input type="file" accept="image/*" onChange={e => setExpenseForm({...expenseForm, receipt_image: e.target.files?.[0] || null})} className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all file:mr-2 file:py-1 file:px-3 file:rounded file:border file:border-gray-400 file:text-xs file:font-semibold file:bg-primary file:text-black" />
                 {expenseForm.receipt_image && (
                   <p className="text-xs text-green-600 font-semibold mt-1 flex items-center gap-1">
                     <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
