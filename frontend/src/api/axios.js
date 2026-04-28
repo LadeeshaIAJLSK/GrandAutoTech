@@ -7,23 +7,13 @@ const axiosClient = axios.create({
   },
 })
 
-// Add token and branch filtering to requests
+// Add token to requests
 axiosClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
-
-    // Automatically add branch_id to GET requests if a branch is selected
-    const selectedBranchId = localStorage.getItem('selectedBranchId')
-    if (config.method === 'get' && selectedBranchId && selectedBranchId !== 'all') {
-      if (!config.params) {
-        config.params = {}
-      }
-      config.params.branch_id = selectedBranchId
-    }
-
     return config
   },
   (error) => Promise.reject(error)

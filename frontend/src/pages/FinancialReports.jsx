@@ -179,12 +179,16 @@ function FinancialReports({ user }) {
       return
     }
 
-    const headers = ['Category', 'Cost (LKR)', 'Amount (LKR)', 'Profit (LKR)']
+    const headers = ['Date', 'Job Card No', 'Task Name', 'Category', 'Status', 'Cost (LKR)', 'Amount (LKR)', 'Assigned Employee']
     const rows = tasksReport.map(t => [
+      t.date,
+      t.jobcard_no,
+      t.task_name,
       t.category,
-      t.total_cost,
-      t.total_amount,
-      t.total_amount - t.total_cost
+      t.status,
+      t.cost,
+      t.amount,
+      t.assigned_employees
     ])
 
     const csvContent = [
@@ -205,12 +209,17 @@ function FinancialReports({ user }) {
       return
     }
 
-    const headers = ['Part Name', 'Part Number', 'Quantity', 'Cost (LKR)', 'Selling Price (LKR)', 'Profit (LKR)']
+    const headers = ['Date', 'Job Card No', 'Job Card Status', 'Part Name', 'Part Number', 'Quantity', 'Unit Cost (LKR)', 'Total Cost (LKR)', 'Selling Price (LKR)', 'Total Selling Price (LKR)', 'Profit (LKR)']
     const rows = sparePartsReport.map(p => [
+      p.date,
+      p.jobcard_no,
+      p.jobcard_status,
       p.part_name,
       p.part_number || 'N/A',
-      p.total_quantity,
+      p.quantity,
+      p.unit_cost,
       p.total_cost,
+      p.selling_price,
       p.total_selling_price,
       p.total_selling_price - p.total_cost
     ])
@@ -233,12 +242,15 @@ function FinancialReports({ user }) {
       return
     }
 
-    const headers = ['Description', 'Cost (LKR)', 'Amount (LKR)', 'Profit (LKR)']
+    const headers = ['Date', 'Job Card No', 'Job Card Status', 'Description', 'Cost (LKR)', 'Amount (LKR)', 'Profit (LKR)']
     const rows = otherChargesReport.map(c => [
+      c.date,
+      c.jobcard_no,
+      c.jobcard_status,
       c.description,
-      c.total_cost,
-      c.total_amount,
-      c.total_amount - c.total_cost
+      c.cost_price,
+      c.amount,
+      c.profit
     ])
 
     const csvContent = [
@@ -523,17 +535,36 @@ function FinancialReports({ user }) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-200 bg-gray-50">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Job Card No</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Task Name</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Category</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
                 <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Cost</th>
                 <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Amount</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Assigned Employee</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {tasksReport.map((task, idx) => (
                 <tr key={idx} className="hover:bg-gray-50/70 transition-colors">
-                  <td className="px-4 py-3 font-semibold text-gray-700">{task.category}</td>
-                  <td className="px-4 py-3 text-right font-semibold text-orange-600">{formatCurrency(task.total_cost)}</td>
-                  <td className="px-4 py-3 text-right font-bold text-gray-900">{formatCurrency(task.total_amount)}</td>
+                  <td className="px-4 py-3 text-gray-700">{task.date}</td>
+                  <td className="px-4 py-3 font-semibold text-gray-700">{task.jobcard_no}</td>
+                  <td className="px-4 py-3 text-gray-700">{task.task_name}</td>
+                  <td className="px-4 py-3 text-gray-700">{task.category}</td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                      task.status === 'completed' ? 'bg-green-100 text-green-800' :
+                      task.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                      task.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {task.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right font-semibold text-orange-600">{formatCurrency(task.cost)}</td>
+                  <td className="px-4 py-3 text-right font-bold text-gray-900">{formatCurrency(task.amount)}</td>
+                  <td className="px-4 py-3 text-gray-700">{task.assigned_employees}</td>
                 </tr>
               ))}
             </tbody>
@@ -567,19 +598,37 @@ function FinancialReports({ user }) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-200 bg-gray-50">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Job Card No</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Job Card Status</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Part Name</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Part Number</th>
                 <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Qty</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Cost</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Unit Cost</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Total Cost</th>
                 <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Selling Price</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {sparePartsReport.map((part, idx) => (
                 <tr key={idx} className="hover:bg-gray-50/70 transition-colors">
+                  <td className="px-4 py-3 text-gray-700">{part.date}</td>
+                  <td className="px-4 py-3 font-semibold text-gray-700">{part.jobcard_no}</td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                      part.jobcard_status === 'completed' ? 'bg-green-100 text-green-800' :
+                      part.jobcard_status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                      part.jobcard_status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                      part.jobcard_status === 'finalized' ? 'bg-purple-100 text-purple-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {part.jobcard_status}
+                    </span>
+                  </td>
                   <td className="px-4 py-3 font-semibold text-gray-700">{part.part_name}</td>
                   <td className="px-4 py-3 text-xs text-gray-600">{part.part_number || '—'}</td>
-                  <td className="px-4 py-3 text-center text-gray-600">{part.total_quantity}</td>
+                  <td className="px-4 py-3 text-center text-gray-600">{part.quantity}</td>
+                  <td className="px-4 py-3 text-right text-orange-600">{formatCurrency(part.unit_cost)}</td>
                   <td className="px-4 py-3 text-right font-semibold text-orange-600">{formatCurrency(part.total_cost)}</td>
                   <td className="px-4 py-3 text-right font-bold text-gray-900">{formatCurrency(part.total_selling_price)}</td>
                 </tr>
@@ -615,17 +664,35 @@ function FinancialReports({ user }) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-200 bg-gray-50">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Job Card No</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Job Card Status</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Description</th>
                 <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Cost</th>
                 <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Amount</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Profit</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {otherChargesReport.map((charge, idx) => (
                 <tr key={idx} className="hover:bg-gray-50/70 transition-colors">
-                  <td className="px-4 py-3 font-semibold text-gray-700">{charge.description}</td>
-                  <td className="px-4 py-3 text-right font-semibold text-orange-600">{formatCurrency(charge.total_cost)}</td>
-                  <td className="px-4 py-3 text-right font-bold text-gray-900">{formatCurrency(charge.total_amount)}</td>
+                  <td className="px-4 py-3 text-gray-700">{charge.date}</td>
+                  <td className="px-4 py-3 font-semibold text-gray-700">{charge.jobcard_no}</td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                      charge.jobcard_status === 'completed' ? 'bg-green-100 text-green-800' :
+                      charge.jobcard_status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                      charge.jobcard_status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                      charge.jobcard_status === 'finalized' ? 'bg-purple-100 text-purple-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {charge.jobcard_status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-gray-700">{charge.description}</td>
+                  <td className="px-4 py-3 text-right font-semibold text-orange-600">{formatCurrency(charge.cost_price)}</td>
+                  <td className="px-4 py-3 text-right font-bold text-gray-900">{formatCurrency(charge.amount)}</td>
+                  <td className="px-4 py-3 text-right font-semibold" style={{ color: charge.profit >= 0 ? '#10b981' : '#ef4444' }}>{formatCurrency(charge.profit)}</td>
                 </tr>
               ))}
             </tbody>

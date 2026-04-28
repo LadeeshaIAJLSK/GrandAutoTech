@@ -201,10 +201,10 @@ function ThirdPartyServiceModal({ isOpen, onClose, onSave, initialData, branches
                 <option value="">Select a branch</option>
                 {user?.role?.name === 'branch_admin' 
                   ? branches.filter(branch => branch.id == user.branch_id).map(branch => (
-                      <option key={branch.id} value={branch.id}>{branch.name}</option>
+                      <option key={branch.id} value={String(branch.id)}>{branch.name}</option>
                     ))
                   : branches.map(branch => (
-                      <option key={branch.id} value={branch.id}>{branch.name}</option>
+                      <option key={branch.id} value={String(branch.id)}>{branch.name}</option>
                     ))
                 }
               </select>
@@ -247,7 +247,8 @@ function ThirdPartyServiceModal({ isOpen, onClose, onSave, initialData, branches
                 <button
                   type="button"
                   onClick={handleAddService}
-                  className="px-4 py-2.5 bg-primary hover:bg-primary-dark text-white rounded-lg text-sm font-bold transition-all shadow-sm flex-shrink-0"
+                  className="px-4 py-2.5 text-white rounded-lg text-sm font-bold transition-all shadow-sm flex-shrink-0"
+                  style={{ backgroundColor: '#2563A8' }}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
@@ -293,7 +294,8 @@ function ThirdPartyServiceModal({ isOpen, onClose, onSave, initialData, branches
             </button>
             <button
               type="submit"
-              className="px-5 py-2.5 text-sm bg-primary hover:bg-primary-dark text-white rounded-lg font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-px active:translate-y-0"
+              className="px-5 py-2.5 text-sm text-white rounded-lg font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-px active:translate-y-0"
+              style={{ backgroundColor: '#2563A8' }}
             >
               {initialData ? 'Update Provider' : 'Add Provider'}
             </button>

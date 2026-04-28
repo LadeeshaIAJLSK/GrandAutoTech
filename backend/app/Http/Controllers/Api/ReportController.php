@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Models\Payment;
 use App\Models\JobCard;
 use App\Models\Invoice;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -271,29 +272,57 @@ class ReportController extends ApiController
 
         $query = DB::table('tasks')
             ->whereBetween(DB::raw('DATE(tasks.created_at)'), [$startDate, $endDate])
+            ->join('job_cards', 'tasks.job_card_id', '=', 'job_cards.id')
+            ->leftJoin('task_assignments', 'tasks.id', '=', 'task_assignments.task_id')
+            ->leftJoin('users', 'task_assignments.user_id', '=', 'users.id')
             ->select(
+                'tasks.id',
+                'tasks.task_name',
                 'tasks.category',
-                DB::raw('COUNT(*) as count'),
-                DB::raw('SUM(COALESCE(tasks.cost_price, 0)) as total_cost'),
-                DB::raw('SUM(COALESCE(tasks.amount, 0)) as total_amount')
+                'tasks.status',
+                'tasks.cost_price',
+                'tasks.amount',
+                'tasks.created_at as date',
+                'job_cards.job_card_number',
+                'job_cards.branch_id',
+                DB::raw("GROUP_CONCAT(CONCAT(users.first_name, ' ', users.last_name) SEPARATOR ', ') as assigned_employees")
             )
-            ->groupBy('tasks.category');
+            ->groupBy('tasks.id');
 
         if ($branchId) {
-            $query->join('job_cards', 'tasks.job_card_id', '=', 'job_cards.id')
-                ->where('job_cards.branch_id', $branchId);
+            $query->where('job_cards.branch_id', $branchId);
         }
 
         if ($category) {
             $query->where('tasks.category', $category);
         }
 
-        $tasks = $query->orderBy('total_amount', 'desc')->get();
+        $tasks = $query->orderBy('tasks.created_at', 'desc')->get();
         
-        $categoriesQuery = DB::table('tasks')->select('tasks.category as category')->distinct()->orderBy('category');
+        // Format the response with proper date formatting
+        $tasks = $tasks->map(function ($task) {
+            return [
+                'id' => $task->id,
+                'task_name' => $task->task_name,
+                'category' => $task->category,
+                'status' => $task->status,
+                'cost' => floatval($task->cost_price),
+                'amount' => floatval($task->amount),
+                'date' => Carbon::parse($task->date)->format('Y-m-d'),
+                'jobcard_no' => $task->job_card_number,
+                'assigned_employees' => $task->assigned_employees ?? 'Unassigned'
+            ];
+        });
+        
+        $categoriesQuery = DB::table('tasks')
+            ->whereBetween(DB::raw('DATE(tasks.created_at)'), [$startDate, $endDate])
+            ->join('job_cards', 'tasks.job_card_id', '=', 'job_cards.id')
+            ->select('tasks.category as category')
+            ->distinct()
+            ->orderBy('category');
+        
         if ($branchId) {
-            $categoriesQuery->join('job_cards', 'tasks.job_card_id', '=', 'job_cards.id')
-                ->where('job_cards.branch_id', $branchId);
+            $categoriesQuery->where('job_cards.branch_id', $branchId);
         }
         $categories = $categoriesQuery->pluck('category');
 
@@ -312,22 +341,42 @@ class ReportController extends ApiController
         $query = DB::table('spare_parts_requests')
             ->whereBetween(DB::raw('DATE(spare_parts_requests.created_at)'), [$startDate, $endDate])
             ->whereIn('spare_parts_requests.overall_status', ['approved', 'ordered', 'process', 'delivered'])
+            ->join('job_cards', 'spare_parts_requests.job_card_id', '=', 'job_cards.id')
             ->select(
+                'spare_parts_requests.id',
                 'spare_parts_requests.part_name',
                 'spare_parts_requests.part_number',
-                DB::raw('COUNT(*) as count'),
-                DB::raw('SUM(COALESCE(spare_parts_requests.quantity, 1)) as total_quantity'),
-                DB::raw('SUM(CAST(COALESCE(spare_parts_requests.unit_cost, 0) AS DECIMAL(10,2)) * CAST(COALESCE(spare_parts_requests.quantity, 1) AS DECIMAL(10,2))) as total_cost'),
-                DB::raw('SUM(CAST(COALESCE(spare_parts_requests.selling_price, 0) AS DECIMAL(10,2)) * CAST(COALESCE(spare_parts_requests.quantity, 1) AS DECIMAL(10,2))) as total_selling_price')
-            )
-            ->groupBy('spare_parts_requests.part_name', 'spare_parts_requests.part_number');
+                'spare_parts_requests.quantity',
+                'spare_parts_requests.unit_cost',
+                'spare_parts_requests.selling_price',
+                'spare_parts_requests.created_at as date',
+                'job_cards.job_card_number',
+                'job_cards.status as job_card_status',
+                'job_cards.branch_id'
+            );
 
         if ($branchId) {
-            $query->join('job_cards', 'spare_parts_requests.job_card_id', '=', 'job_cards.id')
-                ->where('job_cards.branch_id', $branchId);
+            $query->where('job_cards.branch_id', $branchId);
         }
 
-        $result = $query->orderBy('total_selling_price', 'desc')->get();
+        $result = $query->orderBy('spare_parts_requests.created_at', 'desc')->get();
+
+        // Format the response with proper calculations and date formatting
+        $result = $result->map(function ($item) {
+            return [
+                'id' => $item->id,
+                'part_name' => $item->part_name,
+                'part_number' => $item->part_number ?? 'N/A',
+                'quantity' => floatval($item->quantity ?? 1),
+                'unit_cost' => floatval($item->unit_cost ?? 0),
+                'total_cost' => floatval(($item->unit_cost ?? 0) * ($item->quantity ?? 1)),
+                'selling_price' => floatval($item->selling_price ?? 0),
+                'total_selling_price' => floatval(($item->selling_price ?? 0) * ($item->quantity ?? 1)),
+                'date' => Carbon::parse($item->date)->format('Y-m-d'),
+                'jobcard_no' => $item->job_card_number,
+                'jobcard_status' => $item->job_card_status
+            ];
+        });
 
         return response()->json($result);
     }
@@ -340,20 +389,37 @@ class ReportController extends ApiController
 
         $query = DB::table('other_charges')
             ->whereBetween(DB::raw('DATE(other_charges.created_at)'), [$startDate, $endDate])
+            ->join('job_cards', 'other_charges.job_card_id', '=', 'job_cards.id')
             ->select(
+                'other_charges.id',
                 'other_charges.description',
-                DB::raw('COUNT(*) as count'),
-                DB::raw('SUM(COALESCE(other_charges.cost_price, 0)) as total_cost'),
-                DB::raw('SUM(COALESCE(other_charges.amount, 0)) as total_amount')
-            )
-            ->groupBy('other_charges.description');
+                'other_charges.cost_price',
+                'other_charges.amount',
+                'other_charges.created_at as date',
+                'job_cards.job_card_number',
+                'job_cards.status as job_card_status',
+                'job_cards.branch_id'
+            );
 
         if ($branchId) {
-            $query->join('job_cards', 'other_charges.job_card_id', '=', 'job_cards.id')
-                ->where('job_cards.branch_id', $branchId);
+            $query->where('job_cards.branch_id', $branchId);
         }
 
-        $result = $query->orderBy('total_amount', 'desc')->get();
+        $result = $query->orderBy('other_charges.created_at', 'desc')->get();
+
+        // Format the response with proper calculations and date formatting
+        $result = $result->map(function ($item) {
+            return [
+                'id' => $item->id,
+                'description' => $item->description,
+                'cost_price' => floatval($item->cost_price ?? 0),
+                'amount' => floatval($item->amount ?? 0),
+                'profit' => floatval(($item->amount ?? 0) - ($item->cost_price ?? 0)),
+                'date' => Carbon::parse($item->date)->format('Y-m-d'),
+                'jobcard_no' => $item->job_card_number,
+                'jobcard_status' => $item->job_card_status
+            ];
+        });
 
         return response()->json($result);
     }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Models\ThirdPartyService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class ThirdPartyServiceController extends ApiController
 {
@@ -12,24 +13,44 @@ class ThirdPartyServiceController extends ApiController
      */
     public function index(Request $request)
     {
+        Log::info('🔵 === ThirdPartyServiceController::index() CALLED ===');
         try {
             // Check permission - can read service listings
+            Log::info('🔵 Checking read permission...');
             $check = $this->checkReadPermission($request, 'view_third_party_services_tab');
+            Log::info('🔵 Permission check result: ' . json_encode($check));
             if (!$check['allowed']) {
+                Log::info('🔴 Permission denied, returning unauthorized');
                 return $this->unauthorized($check['message']);
             }
+            Log::info('🟢 Permission granted, continuing...');
 
             $query = ThirdPartyService::query();
-            $user = $request->user();
+            $user = $request->user()->load('role'); // Load role relationship
+
+            Log::info('=== API Request ===');
+            Log::info('User ID: ' . $user->id);
+            Log::info('User Name: ' . $user->name);
+            Log::info('User Branch ID: ' . ($user->branch_id ?? 'NULL'));
+            Log::info('User Role loaded: ' . ($user->role ? 'YES' : 'NO'));
+            Log::info('User Role ID: ' . ($user->role ? $user->role->id : 'NULL'));
+            Log::info('User Role Name: ' . ($user->role ? $user->role->name : 'NULL'));
+            Log::info('Request all params: ' . json_encode($request->all()));
+            Log::info('Condition check: role->name !== "super_admin" = ' . var_export(($user->role && $user->role->name !== 'super_admin'), true));
 
             // For non-super-admins, only show their own branch's services
             if ($user->role->name !== 'super_admin') {
+                Log::info('Not super admin - filtering to branch ' . $user->branch_id);
                 $query->where('branch_id', $user->branch_id);
+            } else {
+                Log::info('Is super admin - no restriction');
             }
 
             // Super admin can filter by specific branch
             if ($user->role->name === 'super_admin' && $request->has('branch_id')) {
-                $query->where('branch_id', $request->input('branch_id'));
+                $branchId = $request->input('branch_id');
+                Log::info('Super admin filtering by branch_id: ' . $branchId);
+                $query->where('branch_id', $branchId);
             }
 
             // Search
@@ -103,14 +124,17 @@ class ThirdPartyServiceController extends ApiController
                 'email_address' => 'nullable|email|max:255',
                 'services_offered' => 'nullable|array',
                 'is_active' => 'boolean',
-                'branch_id' => 'required|exists:branches,id'
+                'branch_id' => 'required|integer|exists:branches,id'
             ]);
 
-            $user = $request->user();
+            $user = $request->user()->load('role'); // Load role relationship
 
             // For non-super-admins, force their own branch
             if ($user->role->name !== 'super_admin') {
-                $validated['branch_id'] = $user->branch_id;
+                $validated['branch_id'] = (int) $user->branch_id;
+            } else {
+                // Ensure branch_id is integer for super_admin too
+                $validated['branch_id'] = (int) $validated['branch_id'];
             }
 
             $validated['is_active'] = $validated['is_active'] ?? true;
@@ -151,7 +175,7 @@ class ThirdPartyServiceController extends ApiController
             }
 
             $service = ThirdPartyService::findOrFail($id);
-            $user = $request->user();
+            $user = $request->user()->load('role'); // Load role relationship
 
             // For non-super-admins, only allow editing their own branch's services
             if ($user->role->name !== 'super_admin' && $user->branch_id != $service->branch_id) {
@@ -167,12 +191,15 @@ class ThirdPartyServiceController extends ApiController
                 'email_address' => 'nullable|email|max:255',
                 'services_offered' => 'nullable|array',
                 'is_active' => 'boolean',
-                'branch_id' => 'sometimes|required|exists:branches,id'
+                'branch_id' => 'sometimes|required|integer|exists:branches,id'
             ]);
 
             // For branch_admin, force their own branch (prevent branch change)
-            if ($user->role->name === 'branch_admin') {
-                $validated['branch_id'] = $user->branch_id;
+            if ($user->role->name === 'branch_admin' && isset($validated['branch_id'])) {
+                $validated['branch_id'] = (int) $user->branch_id;
+            } elseif (isset($validated['branch_id'])) {
+                // Ensure branch_id is integer for super_admin
+                $validated['branch_id'] = (int) $validated['branch_id'];
             }
 
             $service->update($validated);
@@ -204,7 +231,7 @@ class ThirdPartyServiceController extends ApiController
     {
         try {
             $service = ThirdPartyService::findOrFail($id);
-            $user = $request->user();
+            $user = $request->user()->load('role'); // Load role relationship
 
             // For branch_admin, only allow deleting their own branch's services
             if ($user->role->name === 'branch_admin' && $user->branch_id != $service->branch_id) {

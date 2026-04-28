@@ -629,8 +629,8 @@ function TaskManagement({ jobCard, onUpdate, user }) {
                 <button
                   onClick={handleAssignEmployees}
                   disabled={selectedEmployees.length === 0}
-                  className="px-5 py-2 text-sm bg-primary hover:bg-primary-dark text-white rounded-lg font-bold transition-all shadow-md disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:translate-y-0 hover:-translate-y-px"
-                  style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
+                  className="px-5 py-2 text-sm text-white rounded-lg font-bold transition-all shadow-md disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:translate-y-0 hover:shadow-lg hover:-translate-y-px"
+                  style={{ backgroundColor: '#2563A8', textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
                 >
                   Assign {selectedEmployees.length > 0 && `(${selectedEmployees.length})`}
                 </button>

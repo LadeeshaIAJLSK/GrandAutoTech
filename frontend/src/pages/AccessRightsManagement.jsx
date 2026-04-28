@@ -203,9 +203,10 @@ function AccessRightsManagement({ user }) {
                 onClick={() => selectRole(role)}
                 className={`w-full text-left px-3.5 py-3 rounded-lg transition-all ${
                   selectedRole?.id === role.id
-                    ? 'bg-primary text-white shadow-sm'
+                    ? 'text-white shadow-sm'
                     : 'bg-gray-50 hover:bg-gray-100 text-gray-700'
                 }`}
+                style={selectedRole?.id === role.id ? { backgroundColor: '#2563A8' } : {}}
               >
                 <div className="text-sm font-semibold">{role.display_name}</div>
                 <div className={`text-xs mt-0.5 ${selectedRole?.id === role.id ? 'text-white/70' : 'text-gray-400'}`}>
@@ -231,8 +232,13 @@ function AccessRightsManagement({ user }) {
                 <button
                   onClick={savePermissions}
                   disabled={saving}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-bold transition-all shadow-sm hover:shadow-md hover:-translate-y-px disabled:translate-y-0 disabled:cursor-not-allowed"
-                  style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-white rounded-lg text-sm font-bold transition-all shadow-sm hover:shadow-md hover:-translate-y-px disabled:bg-gray-400 disabled:translate-y-0 disabled:cursor-not-allowed"
+                  style={{
+                    backgroundColor: saving ? undefined : '#2563A8',
+                    textShadow: '0 1px 2px rgba(0,0,0,0.2)'
+                  }}
+                  onMouseEnter={(e) => !saving && (e.target.style.backgroundColor = '#1e4a8e')}
+                  onMouseLeave={(e) => !saving && (e.target.style.backgroundColor = '#2563A8')}
                 >
                   {saving ? (
                     <>

@@ -67,7 +67,7 @@ class RolePermissionSeeder extends Seeder
             );
         }
         
-        // Technician - My Tasks
+        // Technician - My Tasks + User Management access
         $technicianPermissions = DB::table('permissions')
             ->whereIn('name', [
                 'view_dashboard',
@@ -80,6 +80,11 @@ class RolePermissionSeeder extends Seeder
                 'view_spare_parts',
                 'view_users',
                 'view_all_users',
+                // Add user tab permissions for technicians
+                'view_technicians',
+                'view_support_staff',
+                'view_accountants',
+                'view_branch_admins',
             ])
             ->pluck('id');
         foreach ($technicianPermissions as $permissionId) {

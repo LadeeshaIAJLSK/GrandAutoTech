@@ -26,6 +26,7 @@ function JobCardCreateWizard({ show, onClose, onSuccess, user, branches = [], in
 
   const [isRepeatVehicle, setIsRepeatVehicle] = useState(false)
   const [vehicleJobCardCount, setVehicleJobCardCount] = useState(0)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const [images, setImages] = useState({
     front: null, back: null, right: null, left: null,
@@ -344,22 +345,30 @@ function JobCardCreateWizard({ show, onClose, onSuccess, user, branches = [], in
   }
 
   const handleSubmit = async () => {
+    // Prevent multiple submissions
+    if (isSubmitting) return
+    
     try {
+      setIsSubmitting(true)
       const tasksWithDescription = tasks.filter(t => t.description && t.description.trim())
       if (!isEditMode && tasksWithDescription.length === 0) { 
         showNotification('error', 'Missing Tasks', 'Please add at least one task with a description')
+        setIsSubmitting(false)
         return 
       }
       if (!formData.details || !formData.details.trim()) { 
         showNotification('error', 'Missing Information', 'Please fill in the Customer Complaint field')
+        setIsSubmitting(false)
         return 
       }
       if (!formData.branch_id) { 
         showNotification('error', 'Missing Branch', 'Please select a branch')
+        setIsSubmitting(false)
         return 
       }
       if (!formData.expected_completion_date) { 
         showNotification('error', 'Missing Date', 'Please select an Expected Completion Date')
+        setIsSubmitting(false)
         return 
       }
       const token = localStorage.getItem('token')
@@ -404,6 +413,8 @@ function JobCardCreateWizard({ show, onClose, onSuccess, user, branches = [], in
     } catch (error) {
       console.error('Error:', error)
       showNotification('error', isEditMode ? 'Update Failed' : 'Creation Failed', error.response?.data?.message || (isEditMode ? 'Error updating job card' : 'Error creating job card'))
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -415,6 +426,7 @@ function JobCardCreateWizard({ show, onClose, onSuccess, user, branches = [], in
     setTasks([{ description: '', category: '' }])
     setIsRepeatVehicle(false)
     setVehicleJobCardCount(0)
+    setIsSubmitting(false)
     generateJobCardNumber()
   }
 
@@ -443,7 +455,7 @@ function JobCardCreateWizard({ show, onClose, onSuccess, user, branches = [], in
               <h2 className="text-xl font-bold text-white tracking-tight">{isEditMode ? 'Edit Job Card' : 'Create New Job Card'}</h2>
               <p className="text-gray-400 text-sm mt-0.5">{isEditMode ? 'Update job card information below' : 'Fill in all required information below'}</p>
             </div>
-            <button onClick={() => { onClose(); resetForm() }} className="p-1.5 rounded-lg text-red-500 hover:text-white hover:bg-red-500 transition-colors">
+            <button onClick={() => { setIsSubmitting(false); onClose(); resetForm() }} className="p-1.5 rounded-lg text-red-500 hover:text-white hover:bg-red-500 transition-colors">
               <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -809,12 +821,26 @@ function JobCardCreateWizard({ show, onClose, onSuccess, user, branches = [], in
               </button>
             ) : (
               <button onClick={handleSubmit}
-                className="inline-flex items-center gap-2 px-6 py-2 bg-[#2563A8] hover:bg-[#1E4E7E] text-white rounded-lg text-sm font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-px"
+                disabled={isSubmitting}
+                className={`inline-flex items-center gap-2 px-6 py-2 text-white rounded-lg text-sm font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-px ${
+                  isSubmitting 
+                    ? 'bg-gray-400 cursor-not-allowed opacity-75' 
+                    : 'bg-[#2563A8] hover:bg-[#1E4E7E]'
+                }`}
                 style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                {isEditMode ? 'Update Job Card' : 'Create Job Card'}
+                {isSubmitting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    {isEditMode ? 'Updating...' : 'Creating...'}
+                  </>
+                ) : (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    {isEditMode ? 'Update Job Card' : 'Create Job Card'}
+                  </>
+                )}
               </button>
             )}
           </div>
